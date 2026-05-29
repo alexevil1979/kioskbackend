@@ -1,0 +1,20 @@
+---
+description: После изменений в киоске — обязательный commit и push в kioskbackend
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Git push (kioskbackend)
+
+Репозиторий: https://github.com/alexevil1979/kioskbackend
+
+После завершения задачи с изменениями в `Documents/киоск`:
+
+1. **Не коммитить:** `config/settings.yaml`, `.env`, `logs/`, `media/products/*` (кроме `.gitkeep`), `.venv/`
+2. **Коммитить:** код, `docs/`, `config/settings.yaml.example`, `config/presets/`, `requirements.txt`, правила
+3. Выполнить: `git add -A`, проверить `git status`, `git commit`, `git push origin main` (или `master`)
+
+Если push невозможен (нет auth) — сообщить пользователю команды из `docs/GIT_WORKFLOW.md`.
+
+Не создавать commit только с секретами; не amend force-push без запроса.

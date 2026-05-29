@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Секреты и локальная конфигурация (НЕ коммитить)
+.env
+.env.*
+!.env.example
+config/settings.yaml
+config/*.local.yaml
+secrets/
+*.pem
+*.key
+*_secret*
+credentials.json
+
+# Логи и кэш
+logs/
+*.log
+media/products/*
+!media/products/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Временные
+*.tmp
+*.bak

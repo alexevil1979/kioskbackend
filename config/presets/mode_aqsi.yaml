@@ -1,0 +1,17 @@
+# Скопируйте нужные секции в config/settings.yaml
+# Режим 1: aQsi 6 — оплата и фискальный чек на терминале Т-Банка
+
+hardware:
+  integration_mode: tbank_aqsi
+  printer:
+    enabled: false
+  tbank_terminal:
+    use_mock: true
+  aqsi:
+    api_base: "https://api.aqsi.ru"
+    api_key: ""
+    use_mock: true
+
+fiscal:
+  enabled: false
+  provider: none

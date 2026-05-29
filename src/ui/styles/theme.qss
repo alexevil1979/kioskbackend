@@ -1,0 +1,137 @@
+/* Фермерская палитра: зелёный, земляной, кремовый */
+
+* {
+    font-family: "Segoe UI", "Arial", sans-serif;
+}
+
+QWidget#Root {
+    background-color: #F5F0E6;
+    color: #2C2416;
+}
+
+QLabel#ScreenTitle {
+    font-size: 36px;
+    font-weight: 700;
+    color: #2D5016;
+}
+
+QLabel#Subtitle {
+    font-size: 22px;
+    color: #5C4A32;
+}
+
+QPushButton {
+    min-height: 56px;
+    padding: 12px 28px;
+    border-radius: 16px;
+    font-size: 22px;
+    font-weight: 600;
+    border: none;
+}
+
+QPushButton#PrimaryBtn {
+    background-color: #3D7C2E;
+    color: white;
+}
+
+QPushButton#PrimaryBtn:pressed {
+    background-color: #2D5E22;
+}
+
+QPushButton#SecondaryBtn {
+    background-color: #C4A574;
+    color: #2C2416;
+}
+
+QPushButton#SecondaryBtn:pressed {
+    background-color: #A88B5C;
+}
+
+QPushButton#DangerBtn {
+    background-color: #B84A3A;
+    color: white;
+}
+
+QPushButton#OutlineBtn {
+    background-color: transparent;
+    border: 3px solid #3D7C2E;
+    color: #3D7C2E;
+}
+
+QPushButton:disabled {
+    background-color: #B8B0A0;
+    color: #6E685C;
+}
+
+QFrame#TopBar {
+    background-color: #3D7C2E;
+    border-radius: 0;
+}
+
+QFrame#BottomBar {
+    background-color: #2D5016;
+    min-height: 100px;
+}
+
+QLabel#BottomBarText {
+    color: white;
+    font-size: 26px;
+    font-weight: 600;
+}
+
+QPushButton#CategoryBtn {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-radius: 12px;
+    min-height: 48px;
+    font-size: 20px;
+}
+
+QPushButton#CategoryBtn:checked {
+    background-color: #F5F0E6;
+    color: #2D5016;
+}
+
+QFrame#ProductCard {
+    background-color: white;
+    border-radius: 20px;
+    border: 2px solid #E0D5C0;
+}
+
+QLabel#ProductName {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+QLabel#ProductPrice {
+    font-size: 24px;
+    font-weight: 700;
+    color: #3D7C2E;
+}
+
+QLabel#OutOfStock {
+    color: #B84A3A;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+QFrame#CartRow {
+    background-color: white;
+    border-radius: 16px;
+    border: 1px solid #E0D5C0;
+}
+
+QFrame#Overlay {
+    background-color: rgba(44, 36, 22, 0.75);
+}
+
+QFrame#DialogCard {
+    background-color: #F5F0E6;
+    border-radius: 24px;
+    padding: 32px;
+}

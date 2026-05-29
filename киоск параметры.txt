@@ -1,0 +1,47 @@
+
+Встроенный термопринтер Kiosk Printer HS-K33
+Онлайн-касса УМКА-01-ФА (с фискализацией)
+свитч ethernet
+inuc конфигурация: i3 16gb озу 120 гб ssd win 10 pro
+подключение 
+
+компьютер inuc wifi -> интернент роутер wifi 
+компьютер inuc -> ethernet switch
+Встроенный термопринтер Kiosk Printer HS-K33 -> ethernet switch
+Онлайн-касса УМКА-01-ФА (с фискализацией) -> ethernet switch
+терминал t-bank -> интернент роутер wifi или -> ethernet switch
+
+Стратегия: Т-Банк first. УМКА НЕ обязательна.
+
+Два режима (config/settings.yaml → hardware.integration_mode):
+  1) tbank_aqsi        — aQsi 6, без принтера и без УМКА
+  2) tbank_pos_printer — POS + HS-K33 + облако, без УМКА
+Пресеты: config/presets/mode_aqsi.yaml | mode_pos_printer.yaml
+
+Старт: docs/START_CHECKLIST.md
+
+GitHub (все правки, кроме секретов): https://github.com/alexevil1979/kioskbackend
+  см. docs/GIT_WORKFLOW.md
+
+Документы для передачи:
+  1) CRM API          → docs/CRM_API_SPEC.md
+  2) Т-Банк (режим 1) → docs/TBANK_REQUEST_MODE1.md
+  3) NUC + принтер    → docs/SETUP_NUC_PRINTER_LAN.md  (режим 2, сеть через switch)
+
+
+Что умеет киоск:
+
+Выдача талонов электронной очереди
+Запись пациентов / клиентов на приём
+Интерактивная справочная система
+Приём платежей (с POS-терминалом)
+Печать чеков и квитанций
+Работа как информационный терминал 24/7
+
+Идеально подойдёт для:
+
+Характеристики:
+
+Большой сенсорный экран (32″, Full HD / 4K)
+
+

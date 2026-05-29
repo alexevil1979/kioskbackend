@@ -1,0 +1,93 @@
+app:
+  title: "Ферма — киоск"
+  locale: ru_RU
+  fullscreen: true
+  screen_width: 1920
+  screen_height: 1080
+
+idle:
+  warning_seconds: 50
+  reset_seconds: 60
+
+success:
+  auto_return_min_sec: 5
+  auto_return_max_sec: 8
+
+catalog:
+  poll_interval_sec: 30
+  media_dir: media/products
+
+crm:
+  base_url: "https://api.example.com"
+  api_key: ""
+  kiosk_id: "kiosk-farm-01"
+  timeout_sec: 10
+  use_mock: true
+
+payment:
+  sbp_timeout_sec: 120
+  card_terminal_path: ""  # устарело: используйте hardware.tbank_terminal
+  sbp:
+    terminal_key: ""
+    password: ""
+    api_url: "https://securepay.tinkoff.ru/v2"
+    use_mock: true
+
+fiscal:
+  enabled: false
+  provider: none          # cloudkassir | tbusiness | umka | none
+  use_mock: true
+  # УМКА — только integration_mode: legacy_umka
+  host: "192.168.1.100"
+  port: 58088
+  use_https: false
+  cashier_login: "1"
+  cashier_password: "1"
+  use_test_server: false
+  test_host: "office.armax.ru"
+  test_port: 58088
+  # Облако — для tbank_pos_printer (ключи в .env)
+  cloud_public_id: ""
+  cloud_api_secret: ""
+
+hardware:
+  # tbank_aqsi — aQsi 6: оплата + фискальный чек на одном устройстве
+  # tbank_pos_printer — POS Т-Банк + HS-K33 + облачная касса (БЕЗ УМКА)
+  # tbank_pos_sbp — как pos_printer + СБП на экране киоска
+  # legacy_umka — УМКА + принтер (старое железо)
+  integration_mode: tbank_aqsi
+  network:
+    lan_subnet: "192.168.1.0/24"
+    gateway: "192.168.1.1"
+  nuc:
+    lan_ip: "192.168.1.10"
+  umka:
+    host: "192.168.1.100"
+    port: 58088
+  printer:
+    enabled: false
+    host: "192.168.1.101"
+    port: 9100
+    connection: ethernet  # ethernet | usb
+  tbank_terminal:
+    host: "192.168.1.102"
+    port: 27015
+    smart_sale_enabled: false
+    use_mock: true
+  aqsi:
+    api_base: "https://api.aqsi.ru"
+    api_key: ""
+    use_mock: true
+    timeout_sec: 30
+    poll_interval_sec: 2
+    poll_max_sec: 180
+
+logging:
+  level: INFO
+  file: logs/kiosk.log
+  max_bytes: 5242880
+  backup_count: 3
+
+kiosk:
+  block_keys: true
+  admin_pin: "1234"

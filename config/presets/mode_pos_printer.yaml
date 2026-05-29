@@ -1,0 +1,24 @@
+# Скопируйте нужные секции в config/settings.yaml
+# Режим 2: POS Т-Банк + HS-K33 + облачная касса (без УМКА)
+
+hardware:
+  integration_mode: tbank_pos_printer
+  printer:
+    enabled: true
+    host: "192.168.1.101"
+    port: 9100
+    connection: ethernet
+  tbank_terminal:
+    host: "192.168.1.102"
+    port: 27015
+    smart_sale_enabled: true
+    use_mock: true
+  aqsi:
+    use_mock: true
+
+fiscal:
+  enabled: true
+  provider: cloudkassir
+  use_mock: true
+  cloud_public_id: ""
+  cloud_api_secret: ""
