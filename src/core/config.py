@@ -13,8 +13,10 @@ ROOT = Path(__file__).resolve().parents[2]
 class AppConfig:
     title: str = "Ферма — киоск"
     fullscreen: bool = True
-    screen_width: int = 1920
-    screen_height: int = 1080
+    # portrait: вертикальный киоск (32" 1080×1920)
+    orientation: str = "portrait"
+    screen_width: int = 1080
+    screen_height: int = 1920
 
 
 @dataclass

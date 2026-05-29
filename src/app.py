@@ -22,10 +22,18 @@ from src.services.catalog_sync import CatalogStore
 from src.ui.main_window import MainWindow
 
 
-def _load_styles(app: QApplication) -> None:
-    qss_path = ROOT / "src" / "ui" / "styles" / "theme.qss"
-    if qss_path.exists():
-        app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
+def _load_styles(app: QApplication, settings) -> None:
+    styles_dir = ROOT / "src" / "ui" / "styles"
+    parts: list[str] = []
+    base = styles_dir / "theme.qss"
+    if base.exists():
+        parts.append(base.read_text(encoding="utf-8"))
+    if settings.app.orientation == "portrait" or settings.app.screen_height > settings.app.screen_width:
+        portrait = styles_dir / "theme_portrait.qss"
+        if portrait.exists():
+            parts.append(portrait.read_text(encoding="utf-8"))
+    if parts:
+        app.setStyleSheet("\n".join(parts))
 
 
 def run() -> int:
@@ -38,9 +46,9 @@ def run() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(settings.app.title)
 
-    font = QFont("Segoe UI", 12)
-    app.setFont(font)
-    _load_styles(app)
+    font_size = 14 if settings.app.orientation == "portrait" else 12
+    app.setFont(QFont("Segoe UI", font_size))
+    _load_styles(app, settings)
 
     keyboard = KeyboardBlocker()
     if settings.kiosk.block_keys:

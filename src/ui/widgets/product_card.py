@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -19,63 +20,91 @@ class ProductCard(QFrame):
     add_clicked = pyqtSignal(str)
     quantity_changed = pyqtSignal(str, int)
 
-    def __init__(self, product: Product, qty: int = 0, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        product: Product,
+        qty: int = 0,
+        *,
+        image_height: int = 140,
+        portrait: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("ProductCard")
         self._product = product
         self._qty = qty
+        self._image_height = image_height
+        self._portrait = portrait
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 16, 16, 16)
+        root = QVBoxLayout(self)
+        root.setSpacing(10)
+        root.setContentsMargins(14, 14, 14, 14)
 
         self._photo = QLabel()
-        self._photo.setFixedHeight(140)
+        self._photo.setFixedHeight(image_height)
         self._photo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._photo.setStyleSheet("background:#E8E0D0;border-radius:12px;")
+        self._photo.setStyleSheet(
+            "background:#E8E0D0;border-radius:16px;"
+        )
+        self._photo.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
         self._load_image()
-        layout.addWidget(self._photo)
+        root.addWidget(self._photo)
 
         name = QLabel(product.name)
         name.setObjectName("ProductName")
         name.setWordWrap(True)
-        layout.addWidget(name)
+        name.setAlignment(
+            Qt.AlignmentFlag.AlignHCenter if portrait else Qt.AlignmentFlag.AlignLeft
+        )
+        root.addWidget(name)
 
         price = QLabel(product.price_display)
         price.setObjectName("ProductPrice")
-        layout.addWidget(price)
+        price.setAlignment(
+            Qt.AlignmentFlag.AlignHCenter if portrait else Qt.AlignmentFlag.AlignLeft
+        )
+        root.addWidget(price)
 
         if not product.in_stock:
             oos = QLabel("Нет в наличии")
             oos.setObjectName("OutOfStock")
-            layout.addWidget(oos)
+            oos.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            root.addWidget(oos)
             self.setEnabled(False)
             return
 
+        btn_h = 60 if portrait else 52
         self._qty_row = QHBoxLayout()
+        self._qty_row.setSpacing(12)
         self._btn_minus = QPushButton("−")
-        self._btn_minus.setFixedSize(52, 52)
+        self._btn_minus.setFixedSize(btn_h, btn_h)
         self._btn_minus.setObjectName("OutlineBtn")
         self._btn_minus.clicked.connect(self._dec)
 
         self._lbl_qty = QLabel(str(qty))
         self._lbl_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._lbl_qty.setMinimumWidth(40)
-        self._lbl_qty.setStyleSheet("font-size:22px;font-weight:700;")
+        self._lbl_qty.setMinimumWidth(48)
+        self._lbl_qty.setStyleSheet("font-size:26px;font-weight:700;")
 
         self._btn_plus = QPushButton("+")
-        self._btn_plus.setFixedSize(52, 52)
+        self._btn_plus.setFixedSize(btn_h, btn_h)
         self._btn_plus.setObjectName("OutlineBtn")
         self._btn_plus.clicked.connect(self._inc)
 
+        self._qty_row.addStretch()
         self._qty_row.addWidget(self._btn_minus)
         self._qty_row.addWidget(self._lbl_qty)
         self._qty_row.addWidget(self._btn_plus)
-        layout.addLayout(self._qty_row)
+        self._qty_row.addStretch()
+        root.addLayout(self._qty_row)
 
         self._btn_add = primary_button("Добавить")
+        self._btn_add.setMinimumHeight(56 if portrait else 48)
         self._btn_add.clicked.connect(lambda: self.add_clicked.emit(product.id))
-        layout.addWidget(self._btn_add)
+        root.addWidget(self._btn_add)
 
         self._update_qty_ui()
 
@@ -84,16 +113,21 @@ class ProductCard(QFrame):
         if path:
             pix = QPixmap(path)
             if not pix.isNull():
+                w = self.width() if self.width() > 100 else 480
                 self._photo.setPixmap(
                     pix.scaled(
-                        200,
-                        130,
-                        Qt.AspectRatioMode.KeepAspectRatio,
+                        w - 28,
+                        self._image_height - 8,
+                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                         Qt.TransformationMode.SmoothTransformation,
                     )
                 )
+                self._photo.setStyleSheet("border-radius:16px;")
                 return
         self._photo.setText("🌿")
+        self._photo.setStyleSheet(
+            "background:#E8E0D0;border-radius:16px;font-size:48px;"
+        )
 
     def set_quantity(self, qty: int) -> None:
         self._qty = qty
@@ -115,3 +149,8 @@ class ProductCard(QFrame):
     def _dec(self) -> None:
         if self._qty > 0:
             self.quantity_changed.emit(self._product.id, self._qty - 1)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if self._product.image_local:
+            self._load_image()

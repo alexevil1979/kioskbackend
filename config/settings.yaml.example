@@ -2,8 +2,9 @@ app:
   title: "Ферма — киоск"
   locale: ru_RU
   fullscreen: true
-  screen_width: 1920
-  screen_height: 1080
+  orientation: portrait   # portrait | landscape
+  screen_width: 1080
+  screen_height: 1920
 
 idle:
   warning_seconds: 50

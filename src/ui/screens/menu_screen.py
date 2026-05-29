@@ -13,8 +13,9 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.cart import Cart
-from src.models.product import Category
+from src.core.config import Settings
 from src.services.catalog_sync import CatalogStore
+from src.ui.layout_metrics import LayoutMetrics
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.bottom_bar import CartBottomBar
 from src.ui.widgets.product_card import ProductCard
@@ -24,10 +25,11 @@ class MenuScreen(BaseScreen):
     go_cart = pyqtSignal()
     restart = pyqtSignal()
 
-    def __init__(self, catalog: CatalogStore, cart: Cart) -> None:
+    def __init__(self, catalog: CatalogStore, cart: Cart, settings: Settings) -> None:
         super().__init__()
         self._catalog = catalog
         self._cart = cart
+        self._metrics = LayoutMetrics.from_app_config(settings.app)
         self._current_category: str | None = None
         self._cards: dict[str, ProductCard] = {}
 
@@ -36,13 +38,26 @@ class MenuScreen(BaseScreen):
 
         top = QFrame()
         top.setObjectName("TopBar")
-        top.setFixedHeight(72)
-        top_layout = QHBoxLayout(top)
-        top_layout.setContentsMargins(16, 8, 16, 8)
-        self._cat_layout = QHBoxLayout()
+        top.setFixedHeight(self._metrics.category_bar_height)
+        top_outer = QVBoxLayout(top)
+        top_outer.setContentsMargins(12, 8, 12, 8)
+
+        cat_scroll = QScrollArea()
+        cat_scroll.setWidgetResizable(True)
+        cat_scroll.setFixedHeight(self._metrics.category_bar_height - 16)
+        cat_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        cat_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        cat_scroll.setStyleSheet("background: transparent; border: none;")
+
+        cat_host = QWidget()
+        self._cat_layout = QHBoxLayout(cat_host)
+        self._cat_layout.setSpacing(12)
+        self._cat_layout.setContentsMargins(4, 4, 4, 4)
+        cat_scroll.setWidget(cat_host)
+        top_outer.addWidget(cat_scroll)
+
         self._cat_group = QButtonGroup(self)
         self._cat_group.setExclusive(True)
-        top_layout.addLayout(self._cat_layout)
         self._layout.addWidget(top)
 
         scroll = QScrollArea()
@@ -50,12 +65,15 @@ class MenuScreen(BaseScreen):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._grid_host = QWidget()
         self._grid = QGridLayout(self._grid_host)
-        self._grid.setSpacing(20)
-        self._grid.setContentsMargins(24, 24, 24, 24)
+        spacing = 16 if self._metrics.is_portrait else 20
+        margin = 16 if self._metrics.is_portrait else 24
+        self._grid.setSpacing(spacing)
+        self._grid.setContentsMargins(margin, margin, margin, margin)
         scroll.setWidget(self._grid_host)
         self._layout.addWidget(scroll, stretch=1)
 
-        self._bottom = CartBottomBar()
+        self._bottom = CartBottomBar(portrait=self._metrics.is_portrait)
+        self._bottom.setFixedHeight(self._metrics.bottom_bar_height)
         self._bottom.go_cart.connect(self.go_cart.emit)
         self._bottom.restart.connect(self.restart.emit)
         self._layout.addWidget(self._bottom)
@@ -86,7 +104,6 @@ class MenuScreen(BaseScreen):
             btn = QPushButton(cat.name)
             btn.setObjectName("CategoryBtn")
             btn.setCheckable(True)
-            btn.setProperty("cat_id", cat.id)
             btn.clicked.connect(lambda checked, cid=cat.id: self._select_category(cid))
             if self._current_category == cat.id:
                 btn.setChecked(True)
@@ -108,10 +125,15 @@ class MenuScreen(BaseScreen):
         self._cards.clear()
 
         products = self._catalog.products_for_category(self._current_category)
-        cols = 4
+        cols = self._metrics.product_grid_columns
         for i, product in enumerate(products):
             qty = self._cart.quantity_of(product.id)
-            card = ProductCard(product, qty)
+            card = ProductCard(
+                product,
+                qty,
+                image_height=self._metrics.product_image_height,
+                portrait=self._metrics.is_portrait,
+            )
             card.add_clicked.connect(self._on_add)
             card.quantity_changed.connect(self._on_qty)
             self._cards[product.id] = card

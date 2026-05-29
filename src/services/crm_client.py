@@ -6,7 +6,14 @@ from pathlib import Path
 
 import requests
 
-from src.core.config import CrmConfig, Settings
+from src.core.config import ROOT, CrmConfig, Settings
+
+DEMO_PRODUCTS_DIR = ROOT / "assets" / "demo_products"
+
+
+def _demo_image(product_id: str) -> str:
+    path = DEMO_PRODUCTS_DIR / f"{product_id}.jpg"
+    return str(path) if path.exists() else ""
 from src.models.product import Category, Product
 
 logger = logging.getLogger(__name__)
@@ -58,19 +65,31 @@ class MockCRMClient(CRMClient):
         ]
 
     def fetch_products(self) -> list[Product]:
+        items = [
+            ("1", "berry", "Клубника", 450, 12, "кг"),
+            ("2", "berry", "Малина", 520, 8, "кг"),
+            ("3", "berry", "Черника", 680, 0, "кг"),
+            ("4", "dairy", "Молоко 3,2%", 95, 30, "л"),
+            ("5", "dairy", "Творог домашний", 180, 15, "шт"),
+            ("6", "dairy", "Сметана 20%", 120, 20, "шт"),
+            ("7", "honey", "Мёд липовый", 850, 10, "банка"),
+            ("8", "honey", "Мёд гречишный", 780, 6, "банка"),
+            ("9", "veg", "Картофель", 45, 50, "кг"),
+            ("10", "veg", "Морковь", 55, 40, "кг"),
+            ("11", "other", "Яйца С0", 110, 24, "десяток"),
+            ("12", "other", "Зелень укроп", 60, 5, "пучок"),
+        ]
         return [
-            Product("1", "berry", "Клубника", 450, stock=12, unit="кг"),
-            Product("2", "berry", "Малина", 520, stock=8, unit="кг"),
-            Product("3", "berry", "Черника", 680, stock=0, unit="кг"),
-            Product("4", "dairy", "Молоко 3,2%", 95, stock=30, unit="л"),
-            Product("5", "dairy", "Творог домашний", 180, stock=15, unit="шт"),
-            Product("6", "dairy", "Сметана 20%", 120, stock=20, unit="шт"),
-            Product("7", "honey", "Мёд липовый", 850, stock=10, unit="банка"),
-            Product("8", "honey", "Мёд гречишный", 780, stock=6, unit="банка"),
-            Product("9", "veg", "Картофель", 45, stock=50, unit="кг"),
-            Product("10", "veg", "Морковь", 55, stock=40, unit="кг"),
-            Product("11", "other", "Яйца С0", 110, stock=24, unit="десяток"),
-            Product("12", "other", "Зелень укроп", 60, stock=5, unit="пучок"),
+            Product(
+                pid,
+                cat,
+                name,
+                price,
+                image_local=_demo_image(pid),
+                stock=stock,
+                unit=unit,
+            )
+            for pid, cat, name, price, stock, unit in items
         ]
 
 

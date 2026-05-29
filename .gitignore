@@ -28,6 +28,10 @@ logs/
 media/products/*
 !media/products/.gitkeep
 
+# Демо-ассеты киоска (в репозитории)
+!assets/
+!assets/**/*
+
 # IDE / OS
 .idea/
 .vscode/

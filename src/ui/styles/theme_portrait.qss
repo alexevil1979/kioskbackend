@@ -1,0 +1,54 @@
+/* Вертикальный киоск 1080×1920 */
+
+QLabel#ScreenTitle {
+    font-size: 48px;
+}
+
+QLabel#Subtitle {
+    font-size: 26px;
+}
+
+QPushButton {
+    min-height: 64px;
+    font-size: 24px;
+}
+
+QFrame#TopBar {
+    min-height: 100px;
+}
+
+QPushButton#CategoryBtn {
+    min-height: 56px;
+    min-width: 130px;
+    font-size: 22px;
+    padding: 8px 20px;
+}
+
+QFrame#ProductCard {
+    min-height: 380px;
+}
+
+QLabel#ProductName {
+    font-size: 24px;
+}
+
+QLabel#ProductPrice {
+    font-size: 30px;
+}
+
+QLabel#BottomBarText {
+    font-size: 28px;
+}
+
+QFrame#BottomBar {
+    min-height: 168px;
+}
+
+QPushButton#PrimaryBtn {
+    min-height: 72px;
+    font-size: 26px;
+}
+
+QPushButton#SecondaryBtn {
+    min-height: 64px;
+}

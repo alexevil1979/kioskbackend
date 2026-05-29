@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from src.core.cart import Cart, CartLine
+from src.core.config import Settings
+from src.ui.layout_metrics import LayoutMetrics
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.buttons import danger_button, outline_button, primary_button, secondary_button
 
@@ -12,12 +15,16 @@ class CartScreen(BaseScreen):
     continue_shopping = pyqtSignal()
     pay = pyqtSignal()
 
-    def __init__(self, cart: Cart) -> None:
+    def __init__(self, cart: Cart, settings: Settings | None = None) -> None:
         super().__init__()
         self._cart = cart
+        self._portrait = (
+            LayoutMetrics.from_app_config(settings.app).is_portrait if settings else False
+        )
 
         title = QLabel("Корзина")
         title.setObjectName("ScreenTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter if self._portrait else Qt.AlignmentFlag.AlignLeft)
         self._layout.addWidget(title)
 
         scroll = QScrollArea()
@@ -29,19 +36,34 @@ class CartScreen(BaseScreen):
         self._layout.addWidget(scroll, stretch=1)
 
         self._total_label = QLabel()
-        self._total_label.setStyleSheet("font-size:32px;font-weight:700;color:#2D5016;")
+        fs = 36 if self._portrait else 32
+        self._total_label.setStyleSheet(
+            f"font-size:{fs}px;font-weight:700;color:#2D5016;"
+        )
+        self._total_label.setAlignment(
+            Qt.AlignmentFlag.AlignCenter if self._portrait else Qt.AlignmentFlag.AlignLeft
+        )
         self._layout.addWidget(self._total_label)
 
-        actions = QHBoxLayout()
-        btn_back = secondary_button("Продолжить выбор")
-        btn_back.clicked.connect(self.continue_shopping.emit)
-        actions.addWidget(btn_back)
-
-        self._btn_pay = primary_button("Оплатить")
-        self._btn_pay.setMinimumWidth(280)
-        self._btn_pay.clicked.connect(self.pay.emit)
-        actions.addWidget(self._btn_pay)
-        self._layout.addLayout(actions)
+        if self._portrait:
+            self._btn_pay = primary_button("Оплатить")
+            self._btn_pay.setMinimumHeight(80)
+            self._btn_pay.clicked.connect(self.pay.emit)
+            self._layout.addWidget(self._btn_pay)
+            btn_back = secondary_button("Продолжить выбор")
+            btn_back.setMinimumHeight(64)
+            btn_back.clicked.connect(self.continue_shopping.emit)
+            self._layout.addWidget(btn_back)
+        else:
+            actions = QHBoxLayout()
+            btn_back = secondary_button("Продолжить выбор")
+            btn_back.clicked.connect(self.continue_shopping.emit)
+            actions.addWidget(btn_back)
+            self._btn_pay = primary_button("Оплатить")
+            self._btn_pay.setMinimumWidth(280)
+            self._btn_pay.clicked.connect(self.pay.emit)
+            actions.addWidget(self._btn_pay)
+            self._layout.addLayout(actions)
 
         cart.changed.connect(self._rebuild)
 
@@ -68,6 +90,17 @@ class CartScreen(BaseScreen):
         frame.setObjectName("CartRow")
         layout = QHBoxLayout(frame)
         layout.setContentsMargins(16, 12, 16, 12)
+
+        if line.product.image_local:
+            thumb = QLabel()
+            thumb.setFixedSize(88, 88)
+            pix = QPixmap(line.product.image_local)
+            if not pix.isNull():
+                thumb.setPixmap(
+                    pix.scaled(84, 84, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                )
+                thumb.setStyleSheet("border-radius:12px;")
+                layout.addWidget(thumb)
 
         info = QVBoxLayout()
         name = QLabel(line.product.name)

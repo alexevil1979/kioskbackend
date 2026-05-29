@@ -101,14 +101,14 @@ class MainWindow(QMainWindow):
 
     def _register_screens(self) -> None:
         s = self._settings
-        start = StartScreen()
+        start = StartScreen(s)
         start.tapped.connect(lambda: self._nav.go(AppScreen.MENU))
 
-        menu = MenuScreen(self._catalog, self._cart)
+        menu = MenuScreen(self._catalog, self._cart, s)
         menu.go_cart.connect(lambda: self._nav.go(AppScreen.CART))
         menu.restart.connect(self._confirm_restart)
 
-        cart = CartScreen(self._cart)
+        cart = CartScreen(self._cart, s)
         cart.continue_shopping.connect(lambda: self._nav.go(AppScreen.MENU))
         cart.pay.connect(self._go_payment)
 
