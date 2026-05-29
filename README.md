@@ -4,6 +4,8 @@ PyQt6, offline-first каталог, kiosk-режим для Windows 10.
 
 **GitHub:** https://github.com/alexevil1979/kioskbackend  
 
+**Документация:** [`docs/README.md`](docs/README.md) — оглавление, журнал проекта, статус, ТЗ, деплой.
+
 После правок: commit + push (секреты не коммитить — см. [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md)).
 
 ## Быстрый старт
@@ -50,6 +52,9 @@ python main.py
 | `src/models/` | `Product`, `Category` |
 | `src/services/` | CRM, каталог, оплата, касса (заглушки) |
 | `src/ui/screens/` | Экраны по ТЗ |
+| `docs/README.md` | **Оглавление всей документации** |
+| `docs/PROJECT_JOURNAL.md` | Журнал создания проекта |
+| `docs/STATUS.md` | Текущий статус MVP |
 | `docs/PLAN.md` | План и оценки |
 | `docs/QUESTIONS.md` | Вопросы для интеграций |
 
