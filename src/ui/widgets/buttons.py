@@ -27,5 +27,4 @@ def danger_button(text: str) -> QPushButton:
 def outline_button(text: str) -> QPushButton:
     btn = QPushButton(text)
     btn.setObjectName("OutlineBtn")
-    btn.setMinimumHeight(64)
     return btn

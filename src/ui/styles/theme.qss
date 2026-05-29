@@ -53,9 +53,26 @@ QPushButton#DangerBtn {
 }
 
 QPushButton#OutlineBtn {
-    background-color: transparent;
+    background-color: #F5F0E6;
     border: 3px solid #3D7C2E;
-    color: #3D7C2E;
+    color: #2D5016;
+    padding: 0;
+    min-width: 56px;
+    min-height: 56px;
+    max-width: 56px;
+    max-height: 56px;
+    border-radius: 12px;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+QLabel#ProductQty {
+    color: #2D5016;
+    font-size: 32px;
+    font-weight: 700;
+    min-width: 56px;
+    min-height: 56px;
+    qproperty-alignment: AlignCenter;
 }
 
 QPushButton:disabled {

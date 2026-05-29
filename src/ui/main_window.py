@@ -88,7 +88,6 @@ class MainWindow(QMainWindow):
         self._idle_overlay.leave.connect(self._full_reset)
 
         catalog.offline_changed.connect(self._on_offline)
-        catalog.refresh()
 
         from PyQt6.QtWidgets import QApplication
 
@@ -96,8 +95,10 @@ class MainWindow(QMainWindow):
         if app:
             app.installEventFilter(self)
 
-        self._apply_kiosk_geometry()
         self._nav.reset_to_start()
+        self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
+        # Каталог и fullscreen — после первого кадра (стабильнее на Windows)
+        QTimer.singleShot(50, self._deferred_startup)
 
     def _register_screens(self) -> None:
         s = self._settings
@@ -148,14 +149,22 @@ class MainWindow(QMainWindow):
             self._screens[screen] = widget
             self._stack.addWidget(widget)
 
+    def _deferred_startup(self) -> None:
+        try:
+            self._catalog.refresh()
+        except Exception:
+            logger.exception("Ошибка загрузки каталога при старте")
+        self._apply_kiosk_geometry()
+
     def _apply_kiosk_geometry(self) -> None:
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
+        )
         if self._settings.app.fullscreen:
             self.showFullScreen()
         else:
             self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
-        )
+            self.show()
 
     def _on_screen_changed(self, screen: AppScreen) -> None:
         widget = self._screens.get(screen)

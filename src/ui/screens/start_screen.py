@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
 from src.core.config import ROOT, Settings
+from src.ui.image_utils import load_pixmap, scale_pixmap
 from src.ui.layout_metrics import LayoutMetrics
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.buttons import primary_button
@@ -23,44 +21,50 @@ class StartScreen(BaseScreen):
 
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(24 if portrait else 16)
+        layout.setSpacing(20 if portrait else 16)
 
         hero_path = ROOT / "assets" / "branding" / "farm_hero.jpg"
-        if hero_path.exists():
-            hero = QLabel()
-            hero.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            pix = QPixmap(str(hero_path))
-            max_w = 900 if portrait else 700
-            hero.setPixmap(
-                pix.scaledToWidth(max_w, Qt.TransformationMode.SmoothTransformation)
-            )
-            layout.addWidget(hero)
+        if hero_path.is_file():
+            pix = load_pixmap(hero_path)
+            if not pix.isNull():
+                hero = QLabel()
+                hero.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                max_w = 960 if portrait else 700
+                max_h = 420 if portrait else 320
+                hero.setPixmap(scale_pixmap(pix, max_w, max_h))
+                layout.addWidget(hero)
+            else:
+                layout.addWidget(self._title_label())
         else:
-            title = QLabel("Ферма")
-            title.setObjectName("ScreenTitle")
-            title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(title)
+            layout.addWidget(self._title_label())
 
-        sub = QLabel("Свежие продукты\nс нашей фермы" if portrait else "Свежие продукты с нашей фермы")
+        sub = QLabel("Свежие продукты\nс нашей фермы")
         sub.setObjectName("Subtitle")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(sub)
 
         hint = QLabel("Нажмите, чтобы начать")
         hint.setStyleSheet(
-            f"font-size:{32 if portrait else 28}px;margin-top:24px;color:#5C4A32;"
+            f"font-size:{28 if portrait else 24}px;color:#5C4A32;"
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(hint)
 
         btn = primary_button("Начать покупки")
-        if portrait:
-            btn.setMinimumSize(520, 96)
-        else:
-            btn.setMinimumSize(400, 80)
+        btn.setMinimumHeight(88 if portrait else 72)
+        btn.setMinimumWidth(480 if portrait else 360)
         btn.clicked.connect(self.tapped.emit)
         layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self._layout.addStretch(1 if portrait else 0)
+        if portrait:
+            self._layout.addStretch(1)
         self._layout.addLayout(layout)
-        self._layout.addStretch(1)
+        if portrait:
+            self._layout.addStretch(1)
+
+    @staticmethod
+    def _title_label() -> QLabel:
+        title = QLabel("Ферма")
+        title.setObjectName("ScreenTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        return title

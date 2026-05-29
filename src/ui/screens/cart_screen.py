@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+
+from src.ui.image_utils import load_pixmap, scale_pixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from src.core.cart import Cart, CartLine
@@ -92,13 +93,11 @@ class CartScreen(BaseScreen):
         layout.setContentsMargins(16, 12, 16, 12)
 
         if line.product.image_local:
-            thumb = QLabel()
-            thumb.setFixedSize(88, 88)
-            pix = QPixmap(line.product.image_local)
+            pix = load_pixmap(line.product.image_local)
             if not pix.isNull():
-                thumb.setPixmap(
-                    pix.scaled(84, 84, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                )
+                thumb = QLabel()
+                thumb.setFixedSize(88, 88)
+                thumb.setPixmap(scale_pixmap(pix, 84, 84))
                 thumb.setStyleSheet("border-radius:12px;")
                 layout.addWidget(thumb)
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import sys
+import traceback
 from pathlib import Path
 
 # Корень проекта в PYTHONPATH
@@ -36,9 +38,20 @@ def _load_styles(app: QApplication, settings) -> None:
         app.setStyleSheet("\n".join(parts))
 
 
+def _install_excepthook() -> None:
+    log = logging.getLogger("kiosk")
+
+    def hook(exc_type, exc, tb):
+        log.critical("Необработанное исключение:\n%s", "".join(traceback.format_exception(exc_type, exc, tb)))
+        sys.__excepthook__(exc_type, exc, tb)
+
+    sys.excepthook = hook
+
+
 def run() -> int:
     settings = load_settings()
     setup_logging(settings)
+    _install_excepthook()
 
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
@@ -59,9 +72,13 @@ def run() -> int:
     idle = IdleTimer(settings.idle)
     catalog = CatalogStore(settings)
 
-    window = MainWindow(settings, catalog, cart, nav, idle, keyboard)
-    window.show()
-
-    code = app.exec()
-    keyboard.uninstall()
+    try:
+        window = MainWindow(settings, catalog, cart, nav, idle, keyboard)
+        window.show()
+        code = app.exec()
+    except Exception:
+        logging.getLogger("kiosk").exception("Критическая ошибка приложения")
+        raise
+    finally:
+        keyboard.uninstall()
     return code
