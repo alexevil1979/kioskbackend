@@ -4,7 +4,8 @@ PyQt6, offline-first каталог, kiosk-режим для Windows 10.
 
 **GitHub:** https://github.com/alexevil1979/kioskbackend  
 
-**Документация:** [`docs/README.md`](docs/README.md) — оглавление, журнал проекта, статус, ТЗ, деплой.
+**Документация:** [`docs/README.md`](docs/README.md) — оглавление, журнал проекта, статус, ТЗ, деплой.  
+**Вёрстка Катюша (699.ru):** [`reference/katusha-miniapp/index.html`](reference/katusha-miniapp/index.html)
 
 После правок: commit + push (секреты не коммитить — см. [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md)).
 

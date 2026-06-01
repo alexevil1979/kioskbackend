@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru" data-shop-surface="modern">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#3CB85D" />
+  <title>Катюша — Фермерский маркет (локальная вёрстка)</title>
+  <link rel="icon" href="assets/favicon.png" type="image/png" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="app-header">
+      <div class="brand-row">
+        <img class="brand-logo" src="assets/icon-512.png" alt="" width="40" height="40" />
+        <div>
+          <h1 class="brand-title">Катюша</h1>
+          <p class="brand-sub">Фермерский маркет</p>
+        </div>
+      </div>
+      <div class="search-bar" role="search">
+        <span aria-hidden="true">🔍</span>
+        <span>Поиск продуктов…</span>
+      </div>
+    </header>
+
+    <div class="categories-wrap">
+      <nav class="categories" id="categories" aria-label="Категории"></nav>
+    </div>
+
+    <main class="catalog">
+      <div class="product-grid" id="product-grid"></div>
+    </main>
+
+    <footer class="bottom-bar">
+      <div class="cart-summary">
+        Корзина: <strong id="cart-count">0</strong> ·
+        <strong id="cart-total">0 ₽</strong>
+      </div>
+      <button type="button" class="btn-checkout" id="btn-checkout" disabled>Оформить</button>
+    </footer>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -34,6 +34,7 @@
 |----------|------------|
 | [**api/README.md**](api/README.md) | Оглавление API-документации |
 | [**api/CRM_API_READINESS.md**](api/CRM_API_READINESS.md) | **Что есть / чего не хватает** для киоска |
+| [**design/KATUSHA_UI.md**](design/KATUSHA_UI.md) | Вёрстка mini app 699.ru → киоск |
 | [api/crm/CRM_API_SPEC.md](api/crm/CRM_API_SPEC.md) | Спецификация CRM (копия) |
 | [api/examples/](api/examples/) | Примеры JSON |
 

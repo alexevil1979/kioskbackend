@@ -1,0 +1,45 @@
+/**
+ * Дизайн-токены «Катюша — Фермерский маркет»
+ * Источник: https://699.ru/ (Next.js, data-shop-surface=modern)
+ * manifest.json: theme_color #3CB85D, portrait-primary
+ */
+:root {
+  /* Brand */
+  --katusha-green: #3cb85d;
+  --katusha-green-dark: #2d6a4f;
+  --katusha-green-hover: #35a653;
+  --katusha-green-muted: rgba(60, 184, 93, 0.12);
+  --katusha-gradient: linear-gradient(135deg, #3cb85d, #35a653);
+
+  /* Surfaces (buyer / catalog) */
+  --bg-page: #f4f4f5;
+  --bg-card: #ffffff;
+  --bg-header: #ffffff;
+  --bg-bottom-bar: #0f1115;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-on-green: #000000;
+  --text-on-dark: #ffffff;
+
+  /* Borders & radius */
+  --border-subtle: #e5e7eb;
+  --radius-card: 20px;
+  --radius-btn: 16px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-title: "Unbounded", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  /* Layout (Telegram mini app / kiosk portrait) */
+  --app-max-width: 480px;
+  --header-height: 56px;
+  --category-height: 52px;
+  --bottom-bar-height: 72px;
+  --grid-gap: 12px;
+  --page-padding: 16px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px rgba(15, 17, 21, 0.06);
+  --shadow-bar: 0 -4px 24px rgba(15, 17, 21, 0.12);
+}
