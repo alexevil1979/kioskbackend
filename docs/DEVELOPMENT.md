@@ -14,7 +14,9 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 copy config\settings.yaml.example config\settings.yaml
-# отредактировать settings.yaml при необходимости
+copy .env.example .env
+# В .env: CRM_API_BASE_URL, CRM_API_KEY, CRM_USE_MOCK=false
+pip install -r requirements.txt
 python main.py
 ```
 

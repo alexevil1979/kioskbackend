@@ -303,18 +303,28 @@ curl -s -H "Authorization: Bearer TEST_KEY" \
 
 ## 9. Конфигурация на стороне киоска
 
-После готовности API в `config/settings.yaml`:
+**Рекомендуется:** секреты в `.env` (см. [api/ENV.md](api/ENV.md)), не в git.
+
+```env
+CRM_API_BASE_URL=https://katushamarket.ru/api/v1
+CRM_API_KEY=<ключ из ЛК CRM / Катюша>
+CRM_KIOSK_ID=kiosk-farm-01
+CRM_USE_MOCK=false
+```
+
+Дублирование в `config/settings.yaml` (без ключа):
 
 ```yaml
 crm:
-  base_url: "https://api.farm.example/v1"
-  api_key: "<секрет, не в git>"
-  timeout_sec: 10
-  use_mock: false
+  base_url: "https://katushamarket.ru/api/v1"
+  api_key: ""
   kiosk_id: "kiosk-farm-01"
+  timeout_sec: 10
+  use_mock: true
+  catalog_mode: split
 ```
 
-*(поле `kiosk_id` будет добавлено в конфиг при получении ключа)*
+При наличии `CRM_API_KEY` в `.env` киоск автоматически использует HTTP-клиент (`HttpCRMClient`).
 
 ---
 

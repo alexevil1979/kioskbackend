@@ -11,6 +11,7 @@
 | [crm/CRM_API_SPEC.md](crm/CRM_API_SPEC.md) | Полная спецификация v1.0 (локальная копия) |
 | [CRM_API_READINESS.md](CRM_API_READINESS.md) | **Что есть / чего не хватает** для работы киоска |
 | [examples/](examples/) | Примеры JSON запросов и ответов |
+| [ENV.md](ENV.md) | **Переменные `.env`**: URL и API-ключ CRM |
 
 Дубликат для заказчика (корень docs): [../CRM_API_SPEC.md](../CRM_API_SPEC.md)
 

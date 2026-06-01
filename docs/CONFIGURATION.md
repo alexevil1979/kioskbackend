@@ -38,10 +38,13 @@
 
 | Ключ | Описание |
 |------|----------|
-| `base_url` | URL API |
-| `api_key` | Bearer / ключ |
-| `kiosk_id` | ID точки |
-| `use_mock` | `true` — 12 демо-товаров из кода |
+| `base_url` | URL API (лучше через `CRM_API_BASE_URL` в `.env`) |
+| `api_key` | Bearer (лучше через `CRM_API_KEY` в `.env`) |
+| `kiosk_id` | ID точки (`CRM_KIOSK_ID`) |
+| `use_mock` | `true` — 12 демо-товаров; `false` — HTTP API |
+| `catalog_mode` | `split` — `/categories` + `/products`; `combined` — `/kiosk/catalog` |
+
+Полный список переменных: [api/ENV.md](api/ENV.md).
 
 ---
 

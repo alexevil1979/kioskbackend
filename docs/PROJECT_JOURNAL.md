@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-05-29 — CRM API: .env, HttpCRMClient
+
+| Что сделано | Детали |
+|-------------|--------|
+| `.env` | CRM_API_BASE_URL, CRM_API_KEY, CRM_KIOSK_ID, CRM_USE_MOCK |
+| `src/core/env.py` | Загрузка dotenv, перекрытие settings |
+| `HttpCRMClient` | /health, /categories, /products, fallback /kiosk/catalog |
+| Документация | docs/api/ENV.md |
+
+---
+
 ## 2026-05-29 — Локальная копия вёрстки Катюша (699.ru)
 
 | Что сделано | Детали |

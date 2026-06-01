@@ -305,18 +305,7 @@ curl -s -H "Authorization: Bearer TEST_KEY" \
 
 ## 9. Конфигурация на стороне киоска
 
-После готовности API в `config/settings.yaml`:
-
-```yaml
-crm:
-  base_url: "https://api.farm.example/v1"
-  api_key: "<секрет, не в git>"
-  timeout_sec: 10
-  use_mock: false
-  kiosk_id: "kiosk-farm-01"
-```
-
-*(поле `kiosk_id` будет добавлено в конфиг при получении ключа)*
+См. актуальный раздел в [../../CRM_API_SPEC.md](../../CRM_API_SPEC.md) §9 и [../ENV.md](../ENV.md) (переменные `.env`).
 
 ---
 

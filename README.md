@@ -17,6 +17,8 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 copy config\settings.yaml.example config\settings.yaml
+copy .env.example .env
+# CRM_API_BASE_URL и CRM_API_KEY — в .env (см. docs/api/ENV.md)
 python main.py
 ```
 

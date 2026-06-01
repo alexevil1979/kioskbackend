@@ -44,6 +44,8 @@ class CrmConfig:
     kiosk_id: str = ""
     timeout_sec: int = 10
     use_mock: bool = True
+    # split — GET /categories + GET /products; combined — GET /kiosk/catalog
+    catalog_mode: str = "split"
 
 
 @dataclass
@@ -204,6 +206,10 @@ def _merge_dataclass(dc_instance: Any, data: dict[str, Any]) -> None:
 
 
 def load_settings(path: Path | None = None) -> Settings:
+    from src.core.env import apply_env_overrides, load_dotenv_file
+
+    load_dotenv_file(ROOT)
+
     settings = Settings()
     cfg_path = path or ROOT / "config" / "settings.yaml"
     example = ROOT / "config" / "settings.yaml.example"
@@ -215,4 +221,6 @@ def load_settings(path: Path | None = None) -> Settings:
         for section, values in raw.items():
             if hasattr(settings, section) and isinstance(values, dict):
                 _merge_dataclass(getattr(settings, section), values)
+
+    apply_env_overrides(settings)
     return settings
