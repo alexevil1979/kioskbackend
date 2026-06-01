@@ -1,0 +1,30 @@
+{
+  "products": [
+    {
+      "id": "prod-1001",
+      "category_id": "berry",
+      "name": "Клубника",
+      "description": "Свежая, с грядки",
+      "price": 450.0,
+      "currency": "RUB",
+      "stock": 12,
+      "unit": "кг",
+      "image_url": "https://cdn.farm.example/products/1001.jpg",
+      "is_active": true,
+      "vat_code": "vat20",
+      "updated_at": "2026-05-29T13:55:00+03:00"
+    },
+    {
+      "id": "prod-1002",
+      "category_id": "berry",
+      "name": "Черника",
+      "price": 680.0,
+      "currency": "RUB",
+      "stock": 0,
+      "unit": "кг",
+      "image_url": "https://cdn.farm.example/products/1002.jpg",
+      "is_active": true
+    }
+  ],
+  "updated_at": "2026-05-29T14:00:00+03:00"
+}

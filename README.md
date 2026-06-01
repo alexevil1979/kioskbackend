@@ -40,6 +40,7 @@ python main.py
 | Документ | Кому |
 |----------|------|
 | [`docs/CRM_API_SPEC.md`](docs/CRM_API_SPEC.md) | Разработчики CRM |
+| [`docs/api/CRM_API_READINESS.md`](docs/api/CRM_API_READINESS.md) | Готовность API для киоска |
 | [`docs/TBANK_REQUEST_MODE1.md`](docs/TBANK_REQUEST_MODE1.md) | Т-Банк / Т-Бизнес |
 | [`docs/SETUP_NUC_PRINTER_LAN.md`](docs/SETUP_NUC_PRINTER_LAN.md) | Настройка NUC + HS-K33 (режим 2) |
 

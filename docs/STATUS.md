@@ -12,7 +12,7 @@
 |----------|----------|
 | Основной режим | **1 — `tbank_aqsi`** (aQsi 6) |
 | Заявка в Т-Банк | Подана |
-| CRM API | В разработке у заказчика (`crm.use_mock: true`) |
+| CRM API | В разработке у заказчика (`crm.use_mock: true`); анализ: [api/CRM_API_READINESS.md](api/CRM_API_READINESS.md) |
 | Экран | 32″ вертикальный, 1080×1920 (portrait) |
 
 ---

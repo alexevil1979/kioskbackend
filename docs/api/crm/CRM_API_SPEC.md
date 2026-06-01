@@ -1,6 +1,8 @@
 # Спецификация API CRM для киоска самообслуживания «Ферма»
 
-> **Локальная копия и анализ:** [api/crm/CRM_API_SPEC.md](api/crm/CRM_API_SPEC.md) · [api/CRM_API_READINESS.md](api/CRM_API_READINESS.md)
+> **Локальная копия** для разработки киоска: `docs/api/crm/CRM_API_SPEC.md`  
+> Анализ готовности: [../CRM_API_READINESS.md](../CRM_API_READINESS.md)  
+> Примеры JSON: [../examples/](../examples/)
 
 **Версия:** 1.0  
 **Дата:** 2026-05-29  

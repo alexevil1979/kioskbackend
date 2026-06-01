@@ -28,11 +28,20 @@
 
 ---
 
+## API (локальная копия)
+
+| Документ | Назначение |
+|----------|------------|
+| [**api/README.md**](api/README.md) | Оглавление API-документации |
+| [**api/CRM_API_READINESS.md**](api/CRM_API_READINESS.md) | **Что есть / чего не хватает** для киоска |
+| [api/crm/CRM_API_SPEC.md](api/crm/CRM_API_SPEC.md) | Спецификация CRM (копия) |
+| [api/examples/](api/examples/) | Примеры JSON |
+
 ## Интеграции и партнёры
 
 | Документ | Назначение |
 |----------|------------|
-| [CRM_API_SPEC.md](CRM_API_SPEC.md) | ТЗ API каталога и заказов для CRM |
+| [CRM_API_SPEC.md](CRM_API_SPEC.md) | ТЗ API для передачи разработчикам CRM |
 | [TBANK_REQUEST_MODE1.md](TBANK_REQUEST_MODE1.md) | Запрос в Т-Банк (режим aQsi) |
 | [SETUP_NUC_PRINTER_LAN.md](SETUP_NUC_PRINTER_LAN.md) | NUC + принтер HS-K33 (режим 2) |
 

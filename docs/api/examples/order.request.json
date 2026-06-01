@@ -1,0 +1,18 @@
+{
+  "kiosk_id": "kiosk-farm-01",
+  "external_id": "a1b2c3d4",
+  "payment_status": "paid",
+  "payment_method": "card",
+  "total": 1250.0,
+  "currency": "RUB",
+  "items": [
+    {
+      "product_id": "prod-1001",
+      "name": "Клубника",
+      "quantity": 2,
+      "price": 450.0,
+      "line_total": 900.0
+    }
+  ],
+  "paid_at": "2026-05-29T14:35:00+03:00"
+}
