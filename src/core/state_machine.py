@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 class AppScreen(Enum):
   START = auto()
+  CATEGORIES = auto()
   MENU = auto()
   CART = auto()
   PAYMENT_METHOD = auto()
@@ -46,6 +47,10 @@ class NavigationController(QObject):
     def reset_to_menu(self) -> None:
         self._history.clear()
         self.go(AppScreen.MENU, replace=True)
+
+    def reset_to_categories(self) -> None:
+        self._history.clear()
+        self.go(AppScreen.CATEGORIES, replace=True)
 
     def reset_to_start(self) -> None:
         self._history.clear()

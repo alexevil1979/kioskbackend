@@ -1,68 +1,132 @@
-/* Вертикальный киоск 1080×1920 */
+/* Киоск 1080×1920 — body.kiosk-preview из layout.css */
 
-QLabel#ScreenTitle {
-    font-size: 48px;
-}
-
-QLabel#Subtitle {
-    font-size: 26px;
-}
-
-QPushButton {
-    min-height: 64px;
-    font-size: 24px;
-}
-
-QFrame#TopBar {
-    min-height: 100px;
-}
-
-QPushButton#CategoryBtn {
-    min-height: 56px;
-    min-width: 130px;
-    font-size: 22px;
-    padding: 8px 20px;
-}
-
-QFrame#ProductCard {
-    min-height: 380px;
-}
-
-QLabel#ProductName {
-    font-size: 24px;
-}
-
-QLabel#ProductPrice {
-    font-size: 30px;
-}
-
-QLabel#BottomBarText {
+QLabel#BrandTitle {
     font-size: 28px;
 }
 
+QLabel#BrandSub {
+    font-size: 18px;
+}
+
+QLabel#SearchPlaceholder {
+    font-size: 20px;
+}
+
+QFrame#SearchBar {
+    min-height: 52px;
+    border-radius: 16px;
+}
+
+QFrame#AppHeader {
+    min-height: 140px;
+}
+
+QPushButton#CategoryBtn {
+    min-height: 52px;
+    font-size: 20px;
+    padding: 12px 22px;
+}
+
+QFrame#ProductCard {
+    min-width: 0;
+}
+
+QLabel#ProductName {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0F172A;
+}
+
+QLabel#ProductMeta {
+    font-size: 12px;
+}
+
+QLabel#ProductPrice {
+    font-size: 17px;
+    font-weight: 700;
+    color: #4F5D73;
+}
+
+QLabel#ProductUnitInline {
+    font-size: 12px;
+    font-weight: 700;
+    color: #A2A9B5;
+}
+
+QLabel#ProductSoonBadge {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+QPushButton#AddToCartBtn {
+    min-height: 56px;
+    font-size: 16px;
+}
+
+QPushButton#OutlineBtn {
+    min-width: 56px;
+    min-height: 56px;
+    max-width: 56px;
+    max-height: 56px;
+    font-size: 24px;
+}
+
+QLabel#ProductQty {
+    font-size: 22px;
+    min-width: 36px;
+}
+
 QFrame#BottomBar {
-    min-height: 168px;
+    min-height: 100px;
+}
+
+QLabel#BottomBarText {
+    font-size: 22px;
+}
+
+QLabel#BottomBarAccent {
+    font-size: 26px;
+}
+
+QPushButton#CheckoutBtn {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 18px 32px;
+    min-height: 56px;
+}
+
+QLabel#ScreenTitle {
+    font-size: 42px;
+}
+
+QLabel#Subtitle {
+    font-size: 24px;
 }
 
 QPushButton#PrimaryBtn {
     min-height: 72px;
-    font-size: 26px;
+    font-size: 18px;
 }
 
 QPushButton#SecondaryBtn {
     min-height: 64px;
+    font-size: 18px;
 }
 
-QPushButton#OutlineBtn {
-    min-width: 64px;
-    min-height: 64px;
-    max-width: 64px;
-    max-height: 64px;
-    font-size: 36px;
+QWidget#PaymentScreen {
+    background-color: #F4F4F5;
 }
 
-QLabel#ProductQty {
-    font-size: 36px;
-    min-width: 64px;
-    min-height: 64px;
+QLabel#PaymentErrorTitle {
+    font-size: 26px;
+}
+
+QLabel#PaymentAmount {
+    font-size: 22px;
+}
+
+QLabel#PaymentTimer {
+    font-size: 18px;
 }

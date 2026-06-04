@@ -1,135 +1,354 @@
-/* Фермерская палитра: зелёный, земляной, кремовый */
+/* Катюша mini app — reference/katusha-miniapp/css/tokens.css + layout.css (480px) */
 
-* {
-    font-family: "Segoe UI", "Arial", sans-serif;
+QWidget {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 15px;
+    color: #111827;
 }
 
-QWidget#Root {
-    background-color: #F5F0E6;
-    color: #2C2416;
+QWidget#Root,
+QStackedWidget#Root {
+    background-color: #F4F4F5;
 }
 
-QLabel#ScreenTitle {
-    font-size: 36px;
+QFrame#PhoneViewport,
+QWidget#CategoriesBody,
+QWidget#CategoriesScreen,
+QWidget#MenuScreen,
+QWidget#StartScreen {
+    background-color: #FFFFFF;
+}
+
+/* --- Header --- */
+QFrame#AppHeader {
+    background-color: #FFFFFF;
+    border: none;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+QLabel#BrandTitle {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
     font-weight: 700;
-    color: #2D5016;
+    color: #111827;
 }
 
-QLabel#Subtitle {
-    font-size: 22px;
-    color: #5C4A32;
+QLabel#BrandSub {
+    font-size: 12px;
+    color: #6B7280;
 }
 
-QPushButton {
-    min-height: 56px;
-    padding: 12px 28px;
+QFrame#SearchBar {
+    background-color: #F4F4F5;
+    border: none;
+    border-radius: 24px;
+    min-height: 48px;
+    max-height: 48px;
+}
+
+QLabel#SearchPlaceholder {
+    font-size: 14px;
+    color: #9CA3AF;
+    background: transparent;
+}
+
+QFrame#CategoryCatalogHeader {
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #ECEFF3;
+}
+
+QPushButton#CategoryBackBtn {
+    background: transparent;
+    border: none;
+    color: #182233;
+    font-size: 25px;
+    font-weight: 500;
+    min-width: 26px;
+    max-width: 26px;
+    min-height: 26px;
+    max-height: 26px;
+}
+
+QLabel#CategoryHeaderTitle {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #121D2E;
+}
+
+QLabel#CategoryHeaderCount {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #A0A8B4;
+}
+
+QFrame#CategorySearchBar {
+    background-color: #F3F4F6;
+    border: none;
     border-radius: 16px;
-    font-size: 22px;
+    min-height: 52px;
+    max-height: 52px;
+}
+
+QLabel#CategorySearchIcon {
+    color: #A9AFB8;
+    font-size: 14px;
+    min-width: 14px;
+}
+
+QLabel#CategorySearchPlaceholder {
+    color: #A9AFB8;
+    font-size: 12px;
     font-weight: 600;
+}
+
+QFrame#CatalogFilters {
+    background: #FFFFFF;
+}
+
+QFrame#CatalogSelect {
+    border: none;
+    background: transparent;
+}
+
+QFrame#CatalogSelectHead {
+    background-color: #F1F2F4;
+    border: none;
+    border-radius: 15px;
+    min-height: 43px;
+    max-height: 43px;
+}
+
+QLabel#CatalogSelectHeadText {
+    color: #243044;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QLabel#CatalogSelectHeadArrow {
+    color: #3E4A5D;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    min-width: 16px;
+}
+
+QWidget#CatalogSelectBody {
+    background-color: #CDDDD3;
+    border-radius: 10px;
+    margin-top: 4px;
+}
+
+QPushButton#CatalogSelectOption {
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #4F5B6E;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0 14px;
+}
+
+QPushButton#CatalogSelectOption:hover {
+    color: #33B766;
+}
+
+QDialog#ProductDetailDialog {
+    background-color: #FFFFFF;
     border: none;
 }
 
-QPushButton#PrimaryBtn {
-    background-color: #3D7C2E;
-    color: white;
+QFrame#ProductDetailOverlay {
+    background-color: #FFFFFF;
 }
 
-QPushButton#PrimaryBtn:pressed {
-    background-color: #2D5E22;
+QFrame#ProductDetailCard {
+    background-color: #FFFFFF;
+    border-radius: 18px;
+    border: 1px solid #E9EDF2;
 }
 
-QPushButton#SecondaryBtn {
-    background-color: #C4A574;
-    color: #2C2416;
+QFrame#ProductDetailHero {
+    background-color: #F3F4F6;
+    border: none;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
 }
 
-QPushButton#SecondaryBtn:pressed {
-    background-color: #A88B5C;
+QLabel#ProductDetailImage {
+    background-color: #F3F4F6;
+    border: none;
 }
 
-QPushButton#DangerBtn {
-    background-color: #B84A3A;
-    color: white;
-}
-
-QPushButton#OutlineBtn {
-    background-color: #F5F0E6;
-    border: 3px solid #3D7C2E;
-    color: #2D5016;
+QPushButton#ProductDetailRoundBtn,
+QPushButton#ProductDetailLikeBtn {
+    background-color: #FFFFFF;
+    border: none;
+    border-radius: 20px;
+    color: #1F2937;
+    font-size: 28px;
+    font-weight: 500;
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
     padding: 0;
-    min-width: 56px;
-    min-height: 56px;
-    max-width: 56px;
-    max-height: 56px;
-    border-radius: 12px;
-    font-size: 32px;
-    font-weight: 700;
 }
 
-QLabel#ProductQty {
-    color: #2D5016;
+QPushButton#ProductDetailLikeBtn {
+    color: #C8CED8;
+    font-size: 20px;
+}
+
+QPushButton#ProductDetailLikeBtn:checked {
+    color: #FF4D86;
+}
+
+QWidget#ProductDetailBody {
+    background-color: #FFFFFF;
+}
+
+QLabel#ProductDetailCategoryPill {
+    background-color: #35C46A;
+    color: #FFFFFF;
+    border-radius: 7px;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 5px 10px;
+}
+
+QLabel#ProductDetailArticle {
+    color: #A3AAB6;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    qproperty-alignment: AlignVCenter|AlignRight;
+}
+
+QLabel#ProductDetailName {
+    color: #05070B;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    background: transparent;
+}
+
+QLabel#ProductDetailPrice {
+    color: #05070B;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
     font-size: 32px;
     font-weight: 700;
-    min-width: 56px;
-    min-height: 56px;
+    font-style: italic;
+    background: transparent;
+}
+
+QLabel#ProductDetailUnit {
+    color: #A0A8B4;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    background: transparent;
+}
+
+QFrame#ProductDetailInfoCard {
+    background-color: #FFFFFF;
+    border: 1px solid #ECEFF3;
+    border-radius: 16px;
+}
+
+QLabel#ProductDetailBlockTitle,
+QLabel#ProductDetailSectionTitle {
+    color: #A0A8B4;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: transparent;
+}
+
+QLabel#ProductDetailText,
+QLabel#ProductDetailProducer,
+QLabel#ProductDetailDescription {
+    color: #344054;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+}
+
+QLabel#ProductDetailVerified {
+    background-color: #35C46A;
+    color: #FFFFFF;
+    border-radius: 8px;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 3px 7px;
+    min-width: 80px;
+    max-width: 80px;
     qproperty-alignment: AlignCenter;
 }
 
-QPushButton:disabled {
-    background-color: #B8B0A0;
-    color: #6E685C;
+QFrame#ProductDetailBottomBar {
+    background-color: #FFFFFF;
+    border-top: 1px solid #ECEFF3;
 }
 
-QFrame#TopBar {
-    background-color: #3D7C2E;
-    border-radius: 0;
-}
-
-QFrame#BottomBar {
-    background-color: #2D5016;
-    min-height: 100px;
-}
-
-QLabel#BottomBarText {
-    color: white;
-    font-size: 26px;
-    font-weight: 600;
-}
-
-QPushButton#CategoryBtn {
-    background-color: rgba(255, 255, 255, 0.15);
-    color: white;
-    border-radius: 12px;
+QFrame#ProductDetailQty {
+    background-color: #F4F5F7;
+    border-radius: 14px;
+    min-width: 108px;
+    max-width: 108px;
     min-height: 48px;
+    max-height: 48px;
+}
+
+QLabel#ProductDetailQtyBtn {
+    color: #1B2537;
+    font-family: "Inter", "Segoe UI", sans-serif;
     font-size: 20px;
+    font-weight: 500;
+    min-width: 18px;
+    qproperty-alignment: AlignCenter;
+    background: transparent;
 }
 
-QPushButton#CategoryBtn:checked {
-    background-color: #F5F0E6;
-    color: #2D5016;
-}
-
-QFrame#ProductCard {
-    background-color: white;
-    border-radius: 20px;
-    border: 2px solid #E0D5C0;
-}
-
-QLabel#ProductName {
-    font-size: 20px;
-    font-weight: 600;
-}
-
-QLabel#ProductPrice {
-    font-size: 24px;
-    font-weight: 700;
-    color: #3D7C2E;
-}
-
-QLabel#OutOfStock {
-    color: #B84A3A;
+QLabel#ProductDetailQtyNum {
+    color: #111827;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 700;
+    min-width: 20px;
+    qproperty-alignment: AlignCenter;
+    background: transparent;
+}
+
+QFrame#ProductDetailCta {
+    background-color: #9BDEAF;
+    border: none;
+    border-radius: 14px;
+    min-height: 48px;
+    max-height: 48px;
+}
+
+QLabel#ProductDetailCtaText {
+    color: #FFFFFF;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    background: transparent;
+}
+
+/* --- Categories (.cat-pill) --- */
+QFrame#CategoriesStrip {
+    background-color: #F4F4F5;
+    border: none;
 }
 
 QScrollArea {
@@ -137,18 +356,541 @@ QScrollArea {
     background: transparent;
 }
 
-QFrame#CartRow {
-    background-color: white;
+QWidget#CategoryScrollHost {
+    background: transparent;
+}
+
+QPushButton#CategoryBtn {
+    background-color: #FFFFFF;
+    color: #111827;
+    border: 1px solid #E5E7EB;
+    border-radius: 20px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0px 16px;
+    min-width: 48px;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+QPushButton#CategoryBtn:hover {
+    border-color: #D1D5DB;
+}
+
+QPushButton#CategoryBtn:checked {
+    background-color: #3CB85D;
+    border: 1px solid #3CB85D;
+    color: #000000;
+}
+
+QPushButton#CategoryBtn:checked:hover {
+    background-color: #35A653;
+    border-color: #35A653;
+}
+
+/* --- Product card --- */
+QFrame#ProductCard {
+    background-color: #FFFFFF;
+    border-radius: 20px;
+    border: 1px solid #E5E7EB;
+}
+
+QLabel#ProductImage {
+    background-color: #F0F1F3;
+    border: none;
+    border-radius: 20px;
+}
+
+QFrame#ProductPhotoWrap {
+    border: none;
+    border-radius: 20px;
+    background: transparent;
+}
+
+QLabel#ProductFavBtn {
+    background-color: #E7EBE9;
+    border: 1px solid #D1D5DB;
+    border-radius: 15px;
+    color: #8A94A3;
+    font-size: 18px;
+    font-weight: 600;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+}
+
+QPushButton#ProductFavBtn {
+    background-color: #F3F4F6;
+    border: 1px solid #DDE1E6;
+    border-radius: 15px;
+    color: #C0C6CF;
+    font-size: 18px;
+    font-weight: 700;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    padding: 0;
+}
+
+QPushButton#ProductFavBtn:checked {
+    color: #FF4D5A;
+    background-color: #FFFFFF;
+}
+
+QLabel#ProductSoonBadge {
+    background-color: #3CB85D;
+    color: #FFFFFF;
+    border-radius: 12px;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    min-width: 84px;
+    max-width: 84px;
+    min-height: 24px;
+    max-height: 24px;
+}
+
+QLabel#ProductUnitInline {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #A2A9B5;
+    background: transparent;
+}
+
+QLabel#ProductName {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0F172A;
+    background: transparent;
+}
+
+QLabel#ProductMeta {
+    font-size: 12px;
+    color: #6B7280;
+    background: transparent;
+}
+
+QLabel#ProductPrice {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #4F5D73;
+    background: transparent;
+}
+
+QPushButton#AddToCartBtn {
+    background-color: #3CB85D;
+    color: #000000;
+    border: none;
     border-radius: 16px;
-    border: 1px solid #E0D5C0;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0px 12px;
+}
+
+QPushButton#AddToCartBtn:pressed {
+    background-color: #35A653;
+}
+
+QPushButton#AddToCartBtn:disabled {
+    background-color: #D1D5DB;
+    color: #6B7280;
+}
+
+QPushButton#OutlineBtn {
+    background-color: transparent;
+    border: 2px solid #3CB85D;
+    border-radius: 12px;
+    color: #2D6A4F;
+    font-size: 22px;
+    font-weight: 700;
+    padding: 0px;
+    min-width: 44px;
+    max-width: 44px;
+    min-height: 44px;
+    max-height: 44px;
+}
+
+QPushButton#OutlineBtn:hover {
+    background-color: #3CB85D;
+    color: #000000;
+    border-color: #3CB85D;
+}
+
+QLabel#ProductQty {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    min-width: 28px;
+    background: transparent;
+}
+
+QLabel#OutOfStock {
+    color: #B45309;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* --- Bottom bar --- */
+QFrame#BottomBar {
+    background-color: #0F1115;
+    border: none;
+    min-height: 72px;
+    max-height: 72px;
+}
+
+QLabel#BottomBarText {
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    background: transparent;
+}
+
+QPushButton#CheckoutBtn {
+    background-color: #3CB85D;
+    color: #000000;
+    border: none;
+    border-radius: 16px;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 14px 20px;
+    min-height: 44px;
+    max-height: 48px;
+}
+
+QPushButton#CheckoutBtn:pressed {
+    background-color: #35A653;
+}
+
+QPushButton#CheckoutBtn:disabled {
+    background-color: #3CB85D;
+    color: #000000;
+    opacity: 0.45;
+}
+
+/* --- Other screens --- */
+QPushButton#PrimaryBtn {
+    background-color: #3CB85D;
+    color: #000000;
+    border: none;
+    border-radius: 16px;
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    padding: 12px 24px;
+}
+
+QPushButton#PrimaryBtn:pressed {
+    background-color: #35A653;
+}
+
+QPushButton#SecondaryBtn {
+    background-color: #FFFFFF;
+    color: #111827;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 12px 24px;
+}
+
+QPushButton#DangerBtn {
+    background-color: #B45309;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+}
+
+QLabel#ScreenTitle {
+    font-family: "Unbounded", "Segoe UI", sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+QLabel#Subtitle {
+    font-size: 15px;
+    color: #6B7280;
+}
+
+/* --- Оплата (СБП, способ оплаты, ошибки) --- */
+QWidget#PaymentScreen {
+    background-color: #F4F4F5;
+}
+
+QFrame#PaymentQrCard {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 20px;
+}
+
+QLabel#PaymentErrorTitle {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #DC2626;
+}
+
+QLabel#PaymentAmount {
+    font-family: "Unbounded", ui-sans-serif, system-ui, sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1F6D4A;
+}
+
+QLabel#PaymentTimer {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1F6D4A;
+}
+
+QFrame#CartRow {
+    background-color: #FFFFFF;
+    border-radius: 20px;
+    border: 1px solid #E5E7EB;
 }
 
 QFrame#Overlay {
-    background-color: rgba(44, 36, 22, 0.75);
+    background-color: rgba(15, 17, 21, 0.75);
 }
 
 QFrame#DialogCard {
-    background-color: #F5F0E6;
+    background-color: #FFFFFF;
     border-radius: 24px;
-    padding: 32px;
+}
+
+/* Dev shell — без толстой рамки, как чистый mini app */
+QWidget#DevOuter {
+    background-color: #9CA3AF;
+}
+
+QFrame#PhoneViewport {
+    background-color: #FFFFFF;
+    border: none;
+    border-radius: 0px;
+}
+
+QScrollArea#CategoriesScroll {
+    border: none;
+    background: #FFFFFF;
+}
+
+QScrollArea#CategoriesScroll > QWidget > QWidget {
+    background: #FFFFFF;
+}
+
+QWidget#CategoriesScrollContent {
+    background: #FFFFFF;
+}
+
+QScrollArea#CategoriesScroll QScrollBar:vertical {
+    width: 0px;
+    margin: 0px;
+}
+
+QScrollArea#CategoriesScroll QScrollBar::handle:vertical,
+QScrollArea#CategoriesScroll QScrollBar::add-line:vertical,
+QScrollArea#CategoriesScroll QScrollBar::sub-line:vertical {
+    height: 0px;
+    background: transparent;
+}
+
+QScrollArea#MenuProductsScroll {
+    border: none;
+    background: #FFFFFF;
+}
+
+QScrollArea#MenuProductsScroll > QWidget > QWidget {
+    background: #FFFFFF;
+}
+
+QWidget#MenuProductsGridHost {
+    background: #FFFFFF;
+}
+
+QScrollArea#MenuProductsScroll QScrollBar:vertical {
+    width: 0px;
+    margin: 0px;
+}
+
+QScrollArea#MenuProductsScroll QScrollBar::handle:vertical,
+QScrollArea#MenuProductsScroll QScrollBar::add-line:vertical,
+QScrollArea#MenuProductsScroll QScrollBar::sub-line:vertical {
+    height: 0px;
+    background: transparent;
+}
+
+QScrollArea#CartScroll {
+    border: none;
+    background: transparent;
+}
+
+QScrollArea#CartScroll QScrollBar:vertical {
+    width: 0px;
+    margin: 0px;
+}
+
+QScrollArea#CartScroll QScrollBar::handle:vertical,
+QScrollArea#CartScroll QScrollBar::add-line:vertical,
+QScrollArea#CartScroll QScrollBar::sub-line:vertical {
+    height: 0px;
+    background: transparent;
+}
+
+QPushButton#DevCloseBtn {
+    background-color: #FFFFFF;
+    color: #111827;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    min-height: 32px;
+    max-height: 36px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Mini app: экран КАТЕГОРИИ (699.ru) */
+QFrame#MiniAppHeader {
+    background-color: #FFFFFF;
+    border: none;
+}
+
+QLabel#BrandLogo {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+}
+
+QLabel#MiniAppWordmark {
+    font-family: "Unbounded", "Segoe UI", sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #42B961;
+    letter-spacing: -0.02em;
+}
+
+QLabel#MiniAppTagline {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 11px;
+    line-height: 16px;
+    color: #6B7280;
+    background: transparent;
+}
+
+QFrame#RoleToggleWrap {
+    background-color: #F3F4F6;
+    border-radius: 15px;
+}
+
+QPushButton#RoleToggleActive {
+    background-color: #FFFFFF;
+    color: #111827;
+    border: none;
+    border-radius: 13px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0px 11px;
+    min-height: 26px;
+    max-height: 26px;
+}
+
+QPushButton#RoleToggle {
+    background-color: transparent;
+    color: #9CA3AF;
+    border: none;
+    border-radius: 13px;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 0px 11px;
+    min-height: 26px;
+    max-height: 26px;
+}
+
+QFrame#SearchBar {
+    background-color: #F9FAFB;
+    border: 1px solid #ECEEF2;
+    border-radius: 26px;
+    min-height: 52px;
+    max-height: 52px;
+}
+
+QLabel#SearchPlaceholder {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #9CA3AF;
+    background: transparent;
+}
+
+QLabel#SearchIcon {
+    background: transparent;
+}
+
+QLabel#CategoriesSectionTitle {
+    font-family: "Unbounded", "Segoe UI", sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.04em;
+}
+
+QPushButton#LinkAllBtn {
+    background: transparent;
+    color: #9CA3AF;
+    border: none;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    min-height: 24px;
+    padding: 0px;
+}
+
+QFrame#CategoryHubCard,
+QFrame#CategoryHubHero {
+    background-color: transparent;
+    border: none;
+    border-radius: 28px;
+}
+
+QWidget#BottomNavWrap {
+    background: transparent;
+}
+
+QFrame#BottomNavBar {
+    background-color: #FFFFFF;
+    border: none;
+    border-top: 1px solid #F0F1F3;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+}
+
+QFrame#BottomNavIcon {
+    background: transparent;
+    border: none;
+}
+
+QLabel#BottomNavLabel {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 8px;
+    font-weight: 600;
+    color: #C2C7CF;
+    letter-spacing: 0.02em;
+}
+
+QLabel#BottomNavLabelActive {
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    color: #3CB85D;
+    letter-spacing: 0.02em;
 }

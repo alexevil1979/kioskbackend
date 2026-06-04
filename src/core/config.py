@@ -11,12 +11,29 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @dataclass
 class AppConfig:
-    title: str = "Ферма — киоск"
+    title: str = "Катюша — киоск"
     fullscreen: bool = True
     # portrait: вертикальный киоск (32" 1080×1920)
     orientation: str = "portrait"
     screen_width: int = 1080
     screen_height: int = 1920
+    # Тест на ПК: рабочая область 1:1 с референсом screen_katusha.png
+    dev_mode: bool = False
+    viewport_width: int = 499
+    viewport_height: int = 913
+
+    @property
+    def content_width(self) -> int:
+        return self.viewport_width if self.dev_mode else self.screen_width
+
+    @property
+    def content_height(self) -> int:
+        return self.viewport_height if self.dev_mode else self.screen_height
+
+    @property
+    def phone_layout(self) -> bool:
+        """Вёрстка mini app (499×913), не масштаб киоска 1080."""
+        return self.dev_mode
 
 
 @dataclass
@@ -35,6 +52,9 @@ class SuccessConfig:
 class CatalogConfig:
     poll_interval_sec: int = 30
     media_dir: str = "media/products"
+    # Тест покупок: игнор API-доступности и остатков, все товары продаваемы.
+    purchase_test_mode: bool = False
+    test_stock_qty: int = 5
 
 
 @dataclass
@@ -46,6 +66,7 @@ class CrmConfig:
     use_mock: bool = True
     # split — GET /categories + GET /products; combined — GET /kiosk/catalog
     catalog_mode: str = "split"
+    order_poll_interval_sec: int = 2
 
 
 @dataclass
@@ -61,6 +82,9 @@ class PaymentConfig:
     sbp_timeout_sec: int = 120
     card_terminal_path: str = ""
     sbp: SbpConfig = field(default_factory=SbpConfig)
+    # Сырой лог запросов/ответов API при оплате СБП (QR)
+    qr_api_trace_enabled: bool = True
+    qr_api_trace_file: str = "logs/payment_qr_api.log"
 
 
 @dataclass
@@ -166,6 +190,9 @@ class LoggingConfig:
 class KioskConfig:
     block_keys: bool = True
     admin_pin: str = "1234"
+    # Телефон поддержки на экране ошибки оплаты
+    support_phone: str = ""
+    show_support_phone_on_payment_error: bool = True
 
 
 @dataclass

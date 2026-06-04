@@ -50,7 +50,16 @@
 
 ## `payment` / `fiscal`
 
-Заглушки СБП и облачной кассы. Ключи Т-Банка — в `.env` или `settings.yaml` (не в git).
+| Ключ | Описание | По умолчанию |
+|------|----------|--------------|
+| `qr_api_trace_enabled` | Писать сырой лог запросов/ответов API при СБП (QR) | `true` |
+| `qr_api_trace_file` | Путь к файлу лога | `logs/payment_qr_api.log` |
+
+Логируются: `POST /order/create` (`payment_method: qr_sbp`), `GET /order/{id}/payment`, `/status`, `/receipt`. Поле `qr_code_image` в логе сокращается (длина + превью), остальные поля — как в ответе API.
+
+Переменные `.env`: `PAYMENT_QR_API_TRACE_ENABLED`, `PAYMENT_QR_API_TRACE_FILE`.
+
+Остальное: заглушки СБП и облачной кассы. Ключи Т-Банка — в `.env` или `settings.yaml` (не в git).
 
 ---
 
@@ -80,11 +89,15 @@
 
 ---
 
-## Kiosk
+## `kiosk`
 
-```yaml
-kiosk:
-  block_keys: true   # Win API hook
-```
+| Ключ | Описание | По умолчанию |
+|------|----------|--------------|
+| `block_keys` | Блокировка Win-клавиш | `true` |
+| `admin_pin` | PIN администратора | `1234` |
+| `support_phone` | Телефон на экране ошибки оплаты | `""` |
+| `show_support_phone_on_payment_error` | Показывать номер под текстом «Свяжитесь с нами…» | `true` |
 
-На dev-машине hook может не установиться — см. лог `src.core.kiosk_win`.
+Переопределение в `.env`: `KIOSK_SUPPORT_PHONE`, `KIOSK_SHOW_SUPPORT_PHONE_ON_PAYMENT_ERROR`.
+
+На dev-машине hook клавиш может не установиться — см. лог `src.core.kiosk_win`.

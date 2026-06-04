@@ -17,22 +17,24 @@
 
 ## Дизайн-токены (из mini app)
 
-| Токен | Значение | Где в киоске сейчас |
-|-------|----------|---------------------|
-| Акцент | `#3CB85D` | `#3D7C2E` в `theme.qss` |
-| Акцент тёмный | `#2D6A4F` | `#2D5016` |
-| Фон страницы | `#F4F4F5` | `#F5F0E6` (кремовый) |
-| Нижняя панель | `#0F1115` | `#2D5016` (зелёный) |
-| Карточка | `#FFFFFF`, radius 20px | ✅ белые карточки |
-| CTA | Unbounded, uppercase, radius 16px | Segoe UI, «Добавить» |
-| Счётчик | border `#3CB85D`, hover fill | `OutlineBtn` / `ProductQty` |
+| Токен | Значение | Киоск PyQt6 |
+|-------|----------|-------------|
+| Акцент | `#3CB85D` | `theme.qss` |
+| Акцент тёмный | `#2D6A4F` | цена, outline |
+| Фон страницы | `#F4F4F5` | `#Root` |
+| Нижняя панель | `#0F1115` | `BottomBar` |
+| Карточка | `#FFFFFF`, radius 20px | `ProductCard` |
+| CTA | Unbounded, uppercase | `AddToCartBtn` / `CheckoutBtn` |
+| Счётчик | border `#3CB85D` | `OutlineBtn` |
 
 ## Маппинг экранов
 
 | Mini app (ожидаемо) | Киоск PyQt6 | Статус |
 |---------------------|-------------|--------|
 | Каталог + категории | `MenuScreen` | ✅ структура та же |
-| Карточка товара | `ProductCard` | ✅ нужна подгонка QSS |
+| Карточка товара | `ProductCard` | ✅ 1:1 с layout.css |
+| Шапка + поиск | `KatushaHeader` | ✅ |
+| Нижняя панель | `CartBottomBar` | ✅ «Оформить» |
 | Корзина | `CartScreen` | ✅ |
 | Оформление / оплата | `PaymentMethodScreen` + … | ✅ (логика киоска) |
 | Старт / hero | `StartScreen` | ✅ свой hero «Ферма» → заменить на бренд Катюша? |

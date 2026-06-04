@@ -1,0 +1,19 @@
+# Скопируйте нужные секции в config/settings.yaml
+# Режим: СБП QR на экране киоска (Katusha API) + опционально POS/принтер
+
+hardware:
+  integration_mode: tbank_pos_sbp
+  printer:
+    enabled: false
+  tbank_terminal:
+    use_mock: true
+  aqsi:
+    use_mock: true
+
+crm:
+  use_mock: false
+  order_poll_interval_sec: 2
+
+payment:
+  sbp:
+    use_mock: false

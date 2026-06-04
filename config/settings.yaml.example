@@ -1,10 +1,14 @@
 app:
-  title: "Ферма — киоск"
+  title: "Катюша — киоск"
   locale: ru_RU
   fullscreen: true
   orientation: portrait   # portrait | landscape
   screen_width: 1080
   screen_height: 1920
+  # Тест на ПК: рабочая область 499×913 как референс + кнопка «Закрыть» (или DEV_MODE=true в .env)
+  dev_mode: false
+  viewport_width: 499
+  viewport_height: 913
 
 idle:
   warning_seconds: 50
@@ -17,6 +21,8 @@ success:
 catalog:
   poll_interval_sec: 30
   media_dir: media/products
+  purchase_test_mode: false  # true: все товары доступны для покупки
+  test_stock_qty: 5          # остаток каждого товара в test-режиме
 
 crm:
   # Секреты и URL — в .env: CRM_API_BASE_URL, CRM_API_KEY (см. .env.example)
@@ -26,10 +32,14 @@ crm:
   timeout_sec: 10
   use_mock: true
   catalog_mode: split   # split | combined
+  order_poll_interval_sec: 2   # опрос GET /order/{id}/status при СБП
 
 payment:
   sbp_timeout_sec: 120
   card_terminal_path: ""  # устарело: используйте hardware.tbank_terminal
+  # Сырой лог POST/GET /order/* при оплате СБП (QR)
+  qr_api_trace_enabled: true
+  qr_api_trace_file: logs/payment_qr_api.log
   sbp:
     terminal_key: ""
     password: ""
@@ -58,7 +68,7 @@ hardware:
   # tbank_pos_printer — POS Т-Банк + HS-K33 + облачная касса (БЕЗ УМКА)
   # tbank_pos_sbp — как pos_printer + СБП на экране киоска
   # legacy_umka — УМКА + принтер (старое железо)
-  integration_mode: tbank_aqsi
+  integration_mode: tbank_pos_sbp
   network:
     lan_subnet: "192.168.1.0/24"
     gateway: "192.168.1.1"
@@ -94,3 +104,7 @@ logging:
 kiosk:
   block_keys: true
   admin_pin: "1234"
+  # Телефон на экране ошибки оплаты (можно переопределить KIOSK_SUPPORT_PHONE в .env)
+  support_phone: "+7 (900) 000-00-00"
+  # Показывать номер под текстом «Свяжитесь с нами…» (по умолчанию включено)
+  show_support_phone_on_payment_error: true

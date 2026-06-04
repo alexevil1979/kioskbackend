@@ -21,6 +21,12 @@ class Product:
     stock: int = 999
     unit: str = "шт"
     description: str = ""
+    category_name: str = ""
+    is_available: bool = True
+    producer_name: str = ""
+    api_product_id: int = 0
+    variant_id: int = 0
+    is_weight_variable: bool = False
 
     @property
     def in_stock(self) -> bool:

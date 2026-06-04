@@ -41,3 +41,18 @@ def scale_pixmap(
         Qt.AspectRatioMode.KeepAspectRatio,
         Qt.TransformationMode.SmoothTransformation,
     )
+
+
+def scale_pixmap_cover(pix: QPixmap, width: int, height: int) -> QPixmap:
+    """Обрезка по центру без растягивания (object-fit: cover)."""
+    if pix.isNull() or width <= 0 or height <= 0:
+        return QPixmap()
+    scaled = pix.scaled(
+        width,
+        height,
+        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+        Qt.TransformationMode.SmoothTransformation,
+    )
+    x = max(0, (scaled.width() - width) // 2)
+    y = max(0, (scaled.height() - height) // 2)
+    return scaled.copy(x, y, width, height)

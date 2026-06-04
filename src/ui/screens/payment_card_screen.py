@@ -3,8 +3,17 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
+from src.ui.payment_flow_styles import (
+    add_payment_row,
+    apply_payment_screen,
+    layout_margins,
+    mount_centered_content,
+    style_cancel_button,
+    style_subtitle,
+    style_title,
+)
 from src.ui.screens.base_screen import BaseScreen
-from src.ui.widgets.buttons import danger_button
+from src.ui.widgets.buttons import outline_button
 
 
 class PaymentCardScreen(BaseScreen):
@@ -13,36 +22,34 @@ class PaymentCardScreen(BaseScreen):
 
     def __init__(self) -> None:
         super().__init__()
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        apply_payment_screen(self)
+        self._layout.setContentsMargins(*layout_margins())
+        self._layout.setSpacing(12)
+
+        content = QVBoxLayout()
 
         self._title = QLabel("Оплата картой")
-        self._title.setObjectName("ScreenTitle")
-        self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._title)
+        style_title(self._title)
+        add_payment_row(content, self._title)
 
         self._hint = QLabel(
             "Следуйте инструкции на терминале,\n"
             "приложите карту или телефон"
         )
-        self._hint.setStyleSheet("font-size:28px;color:#2C2416;")
-        self._hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._hint)
+        style_subtitle(self._hint)
+        add_payment_row(content, self._hint)
 
         self._status = QLabel("Ожидание терминала…")
-        self._status.setObjectName("Subtitle")
-        self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._status)
+        style_subtitle(self._status)
+        add_payment_row(content, self._status)
 
-        btn_cancel = danger_button("Отмена")
+        btn_cancel = outline_button("Отмена")
+        style_cancel_button(btn_cancel)
         btn_cancel.clicked.connect(self.cancel.emit)
-        layout.addWidget(btn_cancel, alignment=Qt.AlignmentFlag.AlignCenter)
+        add_payment_row(content, btn_cancel)
 
-        self._layout.addStretch()
-        self._layout.addLayout(layout)
-        self._layout.addStretch()
+        mount_centered_content(self._layout, content)
 
-        # Mock: автозавершение через 5 сек в dev
         self._mock_timer = QTimer(self)
         self._mock_timer.setSingleShot(True)
         self._mock_timer.timeout.connect(lambda: self.completed.emit(True))

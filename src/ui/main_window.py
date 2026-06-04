@@ -6,10 +6,11 @@ import uuid
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QEvent, Qt, QTimer
-from PyQt6.QtWidgets import QMainWindow, QMessageBox, QStackedWidget, QWidget
+from PyQt6.QtWidgets import QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget
 
 from src.core.cart import Cart
 from src.core.config import Settings
+from src.core.payment_error_message import build_payment_error_message
 from src.core.idle_timer import IdleTimer
 from src.core.state_machine import AppScreen, NavigationController
 from src.services.catalog_sync import CatalogStore
@@ -20,6 +21,7 @@ from src.services.payment_sbp import SbpPaymentService
 from src.services.printer_hs_k33 import PrinterHsK33Service
 from src.services.tbank_aqsi import AqsiOrderService
 from src.ui.screens.cart_screen import CartScreen
+from src.ui.screens.categories_screen import CategoriesScreen
 from src.ui.screens.error_screens import OfflineScreen, PaymentErrorScreen
 from src.ui.screens.menu_screen import MenuScreen
 from src.ui.screens.payment_card_screen import PaymentCardScreen
@@ -27,6 +29,8 @@ from src.ui.screens.payment_method_screen import PaymentMethodScreen
 from src.ui.screens.payment_sbp_screen import PaymentSbpScreen
 from src.ui.screens.start_screen import StartScreen
 from src.ui.screens.success_screen import SuccessScreen
+from src.ui.widgets.dev_phone_shell import DevPhoneShell
+from src.ui.widgets.phone_viewport import PhoneViewportHost
 from src.ui.widgets.idle_overlay import IdleWarningOverlay
 
 if TYPE_CHECKING:
@@ -56,9 +60,16 @@ class MainWindow(QMainWindow):
         self._last_payment: str = "sbp"
         self._aqsi_order_id = ""
         self._aqsi_polls = 0
+        self._katusha_order_id = 0
+        self._sbp_polls = 0
 
         hw = settings.hardware
-        self._sbp = SbpPaymentService()
+        self._sbp = SbpPaymentService(settings, catalog.crm)
+        logger.info(
+            "Оплата: integration_mode=%s, СБП через API=%s",
+            hw.integration_mode,
+            self._sbp.uses_katusha_api,
+        )
         self._card = CardPaymentService(settings.payment, hw.tbank_terminal)
         self._aqsi = AqsiOrderService(hw.aqsi)
         self._fiscal_umka = FiscalUmkaService(settings)
@@ -66,23 +77,28 @@ class MainWindow(QMainWindow):
         self._printer = PrinterHsK33Service(hw.printer)
 
         self.setWindowTitle(settings.app.title)
-        self.setObjectName("Root")
+        self._dev_mode = settings.app.dev_mode
 
-        central = QWidget()
-        self.setCentralWidget(central)
-        self._stack = QStackedWidget(central)
-        from PyQt6.QtWidgets import QVBoxLayout
-
-        lay = QVBoxLayout(central)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(self._stack)
+        if self._dev_mode:
+            self._shell = DevPhoneShell(settings.app)
+            self.setCentralWidget(self._shell)
+            self._stack = self._shell.stack
+            self._shell.close_requested.connect(self.close)
+            overlay_parent = self._shell.phone_frame
+        else:
+            self._shell = None
+            host = PhoneViewportHost(settings.app)
+            host.setObjectName("Root")
+            self.setCentralWidget(host)
+            self._stack = host.phone.stack
+            overlay_parent = host.phone
 
         self._screens: dict[AppScreen, QWidget] = {}
         self._register_screens()
-        self._idle_overlay = IdleWarningOverlay(central)
+        self._idle_overlay = IdleWarningOverlay(overlay_parent)
 
         nav.screen_changed.connect(self._on_screen_changed)
-        idle.warning.connect(self._idle_overlay.show_overlay)
+        idle.warning.connect(self._show_idle_warning)
         idle.reset.connect(self._on_idle_reset)
         self._idle_overlay.stay.connect(idle.dismiss_warning)
         self._idle_overlay.leave.connect(self._full_reset)
@@ -96,21 +112,27 @@ class MainWindow(QMainWindow):
             app.installEventFilter(self)
 
         self._nav.reset_to_start()
-        self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
+        if not self._dev_mode:
+            self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
         # Каталог и fullscreen — после первого кадра (стабильнее на Windows)
         QTimer.singleShot(50, self._deferred_startup)
 
     def _register_screens(self) -> None:
         s = self._settings
         start = StartScreen(s)
-        start.tapped.connect(lambda: self._nav.go(AppScreen.MENU))
+        start.tapped.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
+
+        categories = CategoriesScreen(self._catalog, s)
+        categories.category_selected.connect(self._open_menu_category)
+        categories.show_all_products.connect(lambda: self._open_menu_category(None))
+        categories.open_cart.connect(lambda: self._nav.go(AppScreen.CART))
 
         menu = MenuScreen(self._catalog, self._cart, s)
         menu.go_cart.connect(lambda: self._nav.go(AppScreen.CART))
-        menu.restart.connect(self._confirm_restart)
+        menu.back_to_categories.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
 
         cart = CartScreen(self._cart, s)
-        cart.continue_shopping.connect(lambda: self._nav.go(AppScreen.MENU))
+        cart.continue_shopping.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
         cart.pay.connect(self._go_payment)
 
         pay_method = PaymentMethodScreen()
@@ -134,8 +156,12 @@ class MainWindow(QMainWindow):
         offline = OfflineScreen()
         offline.retry.connect(self._catalog.refresh)
 
+        self._categories_screen = categories
+        self._menu_screen = menu
+
         mapping = {
             AppScreen.START: start,
+            AppScreen.CATEGORIES: categories,
             AppScreen.MENU: menu,
             AppScreen.CART: cart,
             AppScreen.PAYMENT_METHOD: pay_method,
@@ -149,6 +175,15 @@ class MainWindow(QMainWindow):
             self._screens[screen] = widget
             self._stack.addWidget(widget)
 
+    def _open_menu_category(self, category_id: str | None) -> None:
+        from src.ui.katusha_hub_catalog import MISC_HUB_ID
+
+        if category_id == MISC_HUB_ID:
+            self._menu_screen.open_hub(category_id)
+        else:
+            self._menu_screen.open_category(category_id)
+        self._nav.go(AppScreen.MENU)
+
     def _deferred_startup(self) -> None:
         try:
             self._catalog.refresh()
@@ -157,6 +192,19 @@ class MainWindow(QMainWindow):
         self._apply_kiosk_geometry()
 
     def _apply_kiosk_geometry(self) -> None:
+        if self._dev_mode:
+            self.setWindowFlags(Qt.WindowType.Window)
+            self.show()
+            self.adjustSize()
+            # В dev-режиме центрируем окно, чтобы viewport не выглядел "обрезанным".
+            screen = self.screen() or self.windowHandle().screen() if self.windowHandle() else None
+            if screen:
+                center = screen.availableGeometry().center()
+                frame = self.frameGeometry()
+                frame.moveCenter(center)
+                self.move(frame.topLeft())
+            return
+
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
         )
@@ -165,6 +213,13 @@ class MainWindow(QMainWindow):
         else:
             self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
             self.show()
+
+    def _show_idle_warning(self) -> None:
+        remaining = max(
+            1,
+            self._settings.idle.reset_seconds - self._settings.idle.warning_seconds,
+        )
+        self._idle_overlay.show_overlay(remaining)
 
     def _on_screen_changed(self, screen: AppScreen) -> None:
         widget = self._screens.get(screen)
@@ -241,13 +296,58 @@ class MainWindow(QMainWindow):
 
     def _start_sbp(self) -> None:
         self._last_payment = "sbp"
-        session = self._sbp.create_payment(self._cart.total_rub, self._order_id)
+        self._katusha_order_id = 0
+        self._sbp_polls = 0
+        try:
+            session = self._sbp.create_payment(self._cart, self._order_id)
+        except Exception as exc:
+            logger.exception("СБП: не удалось создать заказ: %s", exc)
+            self._payment_failed(str(exc))
+            return
+
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
         assert isinstance(sbp_scr, PaymentSbpScreen)
         self._nav.go(AppScreen.PAYMENT_SBP)
-        sbp_scr.start_payment(session.qr_payload, session.payment_id)
-        # Dev: двойной тап по QR имитирует оплату — пока mock polling
-        QTimer.singleShot(8000, self._mock_sbp_paid)
+
+        timeout = min(
+            session.expires_in_seconds or self._settings.payment.sbp_timeout_sec,
+            self._settings.payment.sbp_timeout_sec,
+        )
+        sbp_scr.start_payment(
+            session.qr_payload,
+            session.payment_id,
+            qr_image_b64=session.qr_image_b64,
+            timeout_sec=timeout,
+        )
+
+        if session.use_api_polling:
+            self._katusha_order_id = session.order_id
+            interval = max(1, self._settings.crm.order_poll_interval_sec)
+            QTimer.singleShot(interval * 1000, self._poll_sbp_payment)
+        else:
+            QTimer.singleShot(8000, self._mock_sbp_paid)
+
+    def _poll_sbp_payment(self) -> None:
+        if self._nav.current != AppScreen.PAYMENT_SBP:
+            return
+        status = self._sbp.check_status(self._katusha_order_id)
+        if status == "paid":
+            self._finish_payment_success()
+            return
+        if status in ("failed", "cancelled", "expired"):
+            logger.warning("СБП: оплата не прошла (%s)", status)
+            self._payment_failed()
+            return
+
+        self._sbp_polls += 1
+        interval = max(1, self._settings.crm.order_poll_interval_sec)
+        max_polls = max(1, self._settings.payment.sbp_timeout_sec // interval)
+        if self._sbp_polls >= max_polls:
+            logger.warning("СБП: таймаут ожидания оплаты")
+            self._payment_failed()
+            return
+
+        QTimer.singleShot(interval * 1000, self._poll_sbp_payment)
 
     def _mock_sbp_paid(self) -> None:
         if self._nav.current == AppScreen.PAYMENT_SBP:
@@ -290,6 +390,18 @@ class MainWindow(QMainWindow):
         if isinstance(sbp_scr, PaymentSbpScreen):
             sbp_scr.stop()
         mode = self._settings.hardware.integration_mode
+
+        if self._last_payment == "sbp" and self._katusha_order_id:
+            receipt = self._sbp.fetch_receipt(self._katusha_order_id)
+            if receipt and receipt.receipt_text:
+                logger.info(
+                    "СБП: чек заказа %s (%s символов)",
+                    self._katusha_order_id,
+                    len(receipt.receipt_text),
+                )
+                if self._settings.hardware.printer.enabled:
+                    self._printer.print_text(receipt.receipt_text)
+
         if mode == "tbank_aqsi":
             logger.info("aQsi: оплата и фискализация на терминале Т-Банка")
         elif mode in ("tbank_pos_printer", "tbank_pos_sbp"):
@@ -340,10 +452,14 @@ class MainWindow(QMainWindow):
 
         tick()
 
-    def _payment_failed(self) -> None:
+    def _payment_failed(self, message: str | None = None) -> None:
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
         if isinstance(sbp_scr, PaymentSbpScreen):
             sbp_scr.stop()
+        full_message = build_payment_error_message(message, self._settings.kiosk)
+        err_scr = self._screens.get(AppScreen.PAYMENT_ERROR)
+        if isinstance(err_scr, PaymentErrorScreen):
+            err_scr.set_message(full_message)
         self._nav.go(AppScreen.PAYMENT_ERROR)
 
     def _on_offline(self, offline: bool) -> None:
@@ -371,6 +487,7 @@ class MainWindow(QMainWindow):
 
     def _full_reset(self) -> None:
         self._cart.clear()
+        self._katusha_order_id = 0
         self._idle_overlay.hide()
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
         if isinstance(sbp_scr, PaymentSbpScreen):

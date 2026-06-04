@@ -3,6 +3,16 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
+from src.ui.payment_flow_styles import (
+    add_payment_row,
+    apply_payment_screen,
+    layout_margins,
+    mount_centered_content,
+    style_amount,
+    style_outline_button,
+    style_primary_button,
+    style_title,
+)
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.buttons import outline_button, primary_button
 
@@ -14,37 +24,38 @@ class PaymentMethodScreen(BaseScreen):
 
     def __init__(self) -> None:
         super().__init__()
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        apply_payment_screen(self)
+        self._layout.setContentsMargins(*layout_margins())
+        self._layout.setSpacing(12)
+
+        content = QVBoxLayout()
 
         title = QLabel("Способ оплаты")
-        title.setObjectName("ScreenTitle")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        style_title(title)
+        add_payment_row(content, title)
 
-        sub = QLabel(f"К оплате")
-        sub.setObjectName("Subtitle")
-        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._amount_label = sub
-        layout.addWidget(sub)
+        self._amount_label = QLabel("К оплате")
+        style_amount(self._amount_label)
+        add_payment_row(content, self._amount_label)
+
+        content.addSpacing(8)
 
         btn_sbp = primary_button("Оплатить по СБП")
-        btn_sbp.setMinimumSize(500, 120)
+        style_primary_button(btn_sbp)
         btn_sbp.clicked.connect(self.sbp_selected.emit)
-        layout.addWidget(btn_sbp, alignment=Qt.AlignmentFlag.AlignCenter)
+        add_payment_row(content, btn_sbp)
 
         btn_card = primary_button("Оплатить картой")
-        btn_card.setMinimumSize(500, 120)
+        style_primary_button(btn_card)
         btn_card.clicked.connect(self.card_selected.emit)
-        layout.addWidget(btn_card, alignment=Qt.AlignmentFlag.AlignCenter)
+        add_payment_row(content, btn_card)
 
         btn_cancel = outline_button("Отмена")
+        style_outline_button(btn_cancel)
         btn_cancel.clicked.connect(self.cancel.emit)
-        layout.addWidget(btn_cancel, alignment=Qt.AlignmentFlag.AlignCenter)
+        add_payment_row(content, btn_cancel)
 
-        self._layout.addStretch()
-        self._layout.addLayout(layout)
-        self._layout.addStretch()
+        mount_centered_content(self._layout, content)
 
     def set_amount(self, text: str) -> None:
         self._amount_label.setText(f"К оплате: {text}")

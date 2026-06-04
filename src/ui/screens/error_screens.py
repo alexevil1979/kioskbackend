@@ -3,6 +3,17 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QVBoxLayout
 
+from src.ui.payment_flow_styles import (
+    add_payment_row,
+    apply_payment_screen,
+    layout_margins,
+    mount_centered_content,
+    style_icon,
+    style_primary_button,
+    style_secondary_button,
+    style_subtitle,
+    style_title,
+)
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.buttons import primary_button, secondary_button
 
@@ -13,40 +24,54 @@ class PaymentErrorScreen(BaseScreen):
 
     def __init__(self) -> None:
         super().__init__()
+        apply_payment_screen(self)
+        self._layout.setContentsMargins(*layout_margins())
+        self._layout.setSpacing(12)
+
+        self._default_message = (
+            "Попробуйте ещё раз или выберите другой способ оплаты."
+        )
+        self._msg_label: QLabel | None = None
         self._build(
             "Оплата не прошла",
-            "Попробуйте ещё раз или выберите другой способ оплаты.",
+            self._default_message,
             show_retry=True,
         )
 
+    def set_message(self, message: str | None = None) -> None:
+        if self._msg_label is not None:
+            self._msg_label.setText(message or self._default_message)
+
     def _build(self, title_text: str, message: str, *, show_retry: bool) -> None:
         layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        icon = QLabel("!")
+        style_icon(icon, ok=False)
+        add_payment_row(layout, icon)
 
         title = QLabel(title_text)
-        title.setObjectName("ScreenTitle")
-        title.setStyleSheet("color:#B84A3A;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        style_title(title, error=True)
+        add_payment_row(layout, title)
 
         msg = QLabel(message)
-        msg.setObjectName("Subtitle")
-        msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        msg.setWordWrap(True)
-        layout.addWidget(msg)
+        style_subtitle(msg)
+        self._msg_label = msg
+        add_payment_row(layout, msg)
+
+        layout.addSpacing(8)
 
         if show_retry:
             btn_retry = primary_button("Попробовать снова")
+            style_primary_button(btn_retry)
             btn_retry.clicked.connect(self.retry.emit)
-            layout.addWidget(btn_retry, alignment=Qt.AlignmentFlag.AlignCenter)
+            add_payment_row(layout, btn_retry)
 
         btn_menu = secondary_button("В главное меню")
+        style_secondary_button(btn_menu)
         btn_menu.clicked.connect(self.to_menu.emit)
-        layout.addWidget(btn_menu, alignment=Qt.AlignmentFlag.AlignCenter)
+        add_payment_row(layout, btn_menu)
 
-        self._layout.addStretch()
-        self._layout.addLayout(layout)
-        self._layout.addStretch()
+        mount_centered_content(self._layout, layout)
 
 
 class OfflineScreen(BaseScreen):
@@ -54,23 +79,31 @@ class OfflineScreen(BaseScreen):
 
     def __init__(self) -> None:
         super().__init__()
+        apply_payment_screen(self)
+        self._layout.setContentsMargins(*layout_margins())
+        self._layout.setSpacing(12)
+
         layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        icon = QLabel("◎")
+        style_icon(icon, ok=False)
+        add_payment_row(layout, icon)
 
         title = QLabel("Нет связи")
-        title.setObjectName("ScreenTitle")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        style_title(title, error=True)
+        add_payment_row(layout, title)
 
-        msg = QLabel("Оплата временно недоступна.\nПроверьте подключение к интернету.")
-        msg.setObjectName("Subtitle")
-        msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(msg)
+        msg = QLabel(
+            "Оплата временно недоступна.\nПроверьте подключение к интернету."
+        )
+        style_subtitle(msg)
+        add_payment_row(layout, msg)
+
+        layout.addSpacing(8)
 
         btn = primary_button("Повторить")
+        style_primary_button(btn)
         btn.clicked.connect(self.retry.emit)
-        layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        add_payment_row(layout, btn)
 
-        self._layout.addStretch()
-        self._layout.addLayout(layout)
-        self._layout.addStretch()
+        mount_centered_content(self._layout, layout)
