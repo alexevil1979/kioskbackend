@@ -1,0 +1,264 @@
+/* ============================================================
+   САДЫ КОЛОМНЫ — ОБЩИЕ КОМПОНЕНТЫ КИОСКА
+   Экспорт в window: KioskStage, BerryDrop, QtyControl,
+   LangToggle, BerryArt, useScale
+   ============================================================ */
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ---- Масштаб каркаса 1080×1920 под вьюпорт (чёрный леттербокс) ---- */
+function useScale(w, h) {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const fit = () => setScale(Math.min(window.innerWidth / w, window.innerHeight / h));
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [w, h]);
+  return scale;
+}
+
+function KioskStage({ children }) {
+  const scale = useScale(1080, 1920);
+  return (
+    <div className="kiosk-stage">
+      <div className="kiosk-scaler" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Логотип-капля с заливкой в ягодный цвет ---- */
+function BerryDrop({ fill = "var(--strawberry)", edge = "var(--strawberry-edge)", style }) {
+  return (
+    <span className="logo-drop" style={style} aria-hidden="true">
+      <span className="drop-fill" style={{ background: fill, borderBottomColor: edge }}></span>
+      <img src="design-core/assets/img/logo.webp" alt="Сады Коломны" />
+    </span>
+  );
+}
+
+/* ---- Лукошко-логотип с насыпанной горкой ягод (для заставки) ---- */
+function BerryBowl({ width = 500 }) {
+  return (
+    <div className="berry-bowl" style={{ width }}>
+      <img className="berry-bowl__pile" src="design-core/assets/img/berry-pile.png" alt="" aria-hidden="true" />
+      <BerryDrop style={{ width: width, height: Math.round(width * 0.45) }} />
+    </div>
+  );
+}
+
+/* ---- Переключатель языка ---- */
+function LangToggle({ lang, onChange }) {
+  return (
+    <div className="lang-toggle" role="group" aria-label="Язык">
+      {["ru", "en"].map((l) => (
+        <button
+          key={l}
+          className={"lang-toggle__btn" + (lang === l ? " is-active" : "")}
+          onClick={() => onChange(l)}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---- Счётчик количества (крупный, тач) ---- */
+function QtyControl({ value, min = 1, onDec, onInc, size = "lg" }) {
+  return (
+    <div className={"qty qty--" + size}>
+      <button className="qty__btn" onClick={onDec} disabled={value <= min} aria-label="Меньше">−</button>
+      <span className="qty__val">{value}</span>
+      <button className="qty__btn" onClick={onInc} aria-label="Больше">+</button>
+    </div>
+  );
+}
+
+/* ---- Изображение товара: фото ягоды или брендовая заглушка для услуги ---- */
+function BerryArt({ cat, className }) {
+  if (cat && cat.kind === "service") {
+    return (
+      <div className={"berry-art berry-art--service " + (className || "")}>
+        <BerryDrop fill="var(--green)" edge="var(--green-deep)" style={{ width: 200, height: 94, transform: "scale(1.4)" }} />
+        <span className="berry-art__note">фото&nbsp;·&nbsp;экскурсия</span>
+      </div>
+    );
+  }
+  return (
+    <div className={"berry-art " + (className || "")}>
+      <img src={cat.img} alt="" />
+    </div>
+  );
+}
+
+Object.assign(window, { KioskStage, BerryDrop, BerryBowl, LangToggle, QtyControl, BerryArt, useScale });
+
+/* ---- «Полёт ягоды в корзину»: клонируем ягоду у нажатой кнопки и
+   запускаем по дуге к нижней панели корзины, затем «удар» по кнопке.
+   Координаты считаем внутри .kiosk (1080×1920), чтобы общий scale
+   каркаса применялся к летящему элементу автоматически. ---- */
+function flyBerryToCart(srcEl, imgSrc) {
+  try {
+    if (!srcEl || !imgSrc) return;
+    const kiosk = document.querySelector(".kiosk");
+    if (!kiosk) return;
+    const kr = kiosk.getBoundingClientRect();
+    const scale = kr.width / 1080 || 1;
+    const sr = srcEl.getBoundingClientRect();
+    const startX = (sr.left + sr.width / 2 - kr.left) / scale;
+    const startY = (sr.top + sr.height / 2 - kr.top) / scale;
+
+    // цель — кнопка корзины внизу; если её ещё нет, низ по центру
+    const cartBtn = document.querySelector(".screen__footbar .btn--primary");
+    let endX = 540, endY = 1800;
+    if (cartBtn) {
+      const cr = cartBtn.getBoundingClientRect();
+      endX = (cr.left + cr.width / 2 - kr.left) / scale;
+      endY = (cr.top + cr.height / 2 - kr.top) / scale;
+    }
+
+    // размер летящей ягоды ≈ размер фото (в координатах каркаса), с разумным лимитом
+    const size = Math.max(200, Math.min(440, Math.min(sr.width, sr.height) / scale));
+    const fly = document.createElement("img");
+    fly.src = imgSrc;
+    fly.className = "berry-fly";
+    fly.style.width = size + "px";
+    fly.style.left = (startX - size / 2) + "px";
+    fly.style.top = (startY - size / 2) + "px";
+    kiosk.appendChild(fly);
+
+    const dx = endX - startX, dy = endY - startY;
+    const lift = Math.min(260, Math.abs(dy) * 0.4 + 120); // подъём дуги
+    const anim = fly.animate([
+      { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1, offset: 0 },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - lift}px) scale(.8) rotate(-12deg)`, opacity: 1, offset: 0.5 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.18) rotate(8deg)`, opacity: .35, offset: 1 },
+    ], { duration: 620, easing: "cubic-bezier(.5,.05,.6,1)", fill: "forwards" });
+
+    anim.onfinish = () => {
+      fly.remove();
+      const btn = document.querySelector(".screen__footbar .btn--primary");
+      if (btn) {
+        btn.classList.remove("is-bump"); void btn.offsetWidth; btn.classList.add("is-bump");
+        btn.addEventListener("animationend", function h() { btn.classList.remove("is-bump"); btn.removeEventListener("animationend", h); });
+      }
+    };
+  } catch (e) { /* анимация необязательна — не ломаем добавление */ }
+}
+
+Object.assign(window, { flyBerryToCart });
+
+/* ============================================================
+   QR-КОД с логотипом соцсети по центру.
+   Использует глобальный qrcode-generator (window.qrcode), уровень
+   коррекции H — позволяет перекрыть центр значком и сохранить
+   читаемость. Рисуем в canvas: модули — тёмно-зелёные, фон — белый.
+   ============================================================ */
+const TG_PATH = new Path2D("M83.1797 17.5886C83.1797 17.5886 90.5802 14.7028 89.9635 21.711C89.758 24.5968 87.9079 34.6968 86.4688 45.6214L81.5351 77.9827C81.5351 77.9827 81.124 82.7235 77.4237 83.548C73.7233 84.3724 68.173 80.6623 67.145 79.8378C66.3227 79.2195 51.7273 69.9438 46.5878 65.4092C45.1488 64.1724 43.5042 61.6989 46.7934 58.8132L68.3785 38.201C70.8454 35.7274 73.3122 29.956 63.0336 36.9642L34.2535 56.5459C34.2535 56.5459 30.9644 58.6071 24.7973 56.752L11.4351 52.6295C11.4351 52.6295 6.50135 49.5377 14.9298 46.4457C35.4871 36.7579 60.7724 26.864 83.1797 17.5886Z");
+function drawTgLogo(ctx, cx, cy, r) {
+  ctx.fillStyle = "#229ED9";
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  // самолётик: привязка к центру масс (60.7, 48.6) — визуально по центру
+  const sf = (2 * r * 0.74) / 100;
+  ctx.save();
+  ctx.translate(cx - 60.7 * sf, cy - 48.6 * sf);
+  ctx.scale(sf, sf);
+  ctx.fillStyle = "#fff";
+  ctx.fill(TG_PATH);
+  ctx.restore();
+}
+const VK_PATH = new Path2D("M53.7512 76.4147C25.0516 76.4147 8.68207 56.7395 8 24H22.376C22.8482 48.03 33.4463 58.2086 41.8411 60.3073V24H55.3782V44.7245C63.668 43.8326 72.3765 34.3885 75.3146 24H88.8514C86.5954 36.802 77.1513 46.2461 70.4355 50.1287C77.1513 53.2767 87.9076 61.5141 92 76.4147H77.0988C73.8983 66.446 65.9241 58.7333 55.3782 57.684V76.4147H53.7512Z");
+function drawVkLogo(ctx, cx, cy, r) {
+  ctx.fillStyle = "#0077FF";
+  const rad = r * 0.42, x = cx - r, y = cy - r, d = r * 2;
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(x, y, d, d, rad); } else { ctx.rect(x, y, d, d); }
+  ctx.fill();
+  const sf = (2 * r * 0.6) / 100;
+  ctx.save();
+  ctx.translate(cx - 49.5 * sf, cy - 50 * sf);
+  ctx.scale(sf, sf);
+  ctx.fillStyle = "#fff";
+  ctx.fill(VK_PATH);
+  ctx.restore();
+}
+function drawSiteLogo(ctx, cx, cy, r) {
+  ctx.fillStyle = "#D9143A";
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  // глобус
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(1.5, r * 0.1);
+  const g = r * 0.62;
+  ctx.beginPath(); ctx.arc(cx, cy, g, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx, cy, g * 0.45, g, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - g, cy); ctx.lineTo(cx + g, cy); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx, cy - g * 0.42, g, g * 0.5, 0, 0, Math.PI); ctx.stroke();
+}
+const MAX_PATH = new Path2D("M24.9847 42.4886C21.2393 42.4886 19.4988 41.9418 16.4733 39.7547C14.5595 42.2152 8.49945 44.138 8.23518 40.8483C8.23518 38.3787 7.6884 36.2918 7.06872 34.0136C6.33058 31.2068 5.49219 28.0811 5.49219 23.5519C5.49219 12.7349 14.3682 4.59703 24.8845 4.59703C35.4099 4.59703 43.6571 13.1359 43.6571 23.6522C43.6925 34.0059 35.3383 42.4334 24.9847 42.4886ZM25.1397 13.9469C20.0182 13.6826 16.0267 17.2276 15.1428 22.7864C14.4137 27.3885 15.7078 32.9929 16.8104 33.2845C17.339 33.4121 18.6695 32.3368 19.4988 31.5075C20.87 32.4548 22.4668 33.0238 24.1281 33.157C29.4348 33.4122 33.9692 29.3722 34.3255 24.0714C34.5329 18.7593 30.4471 14.26 25.1397 13.956L25.1397 13.9469Z");
+function drawMaxLogo(ctx, cx, cy, r) {
+  const rad = r * 0.42, x = cx - r, y = cy - r, d = r * 2;
+  // градиент как у фирменного значка MAX: голубой (низ-лево) → фиолетовый (верх-право)
+  const grad = ctx.createLinearGradient(x, y + d, x + d, y);
+  grad.addColorStop(0, "#16C6F4");
+  grad.addColorStop(1, "#9A2BE0");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(x, y, d, d, rad); } else { ctx.rect(x, y, d, d); }
+  ctx.fill();
+  const sf = (2 * r * 0.82) / 48;
+  ctx.save();
+  ctx.translate(cx - 24 * sf, cy - 23 * sf);
+  ctx.scale(sf, sf);
+  ctx.fillStyle = "#fff";
+  ctx.fill(MAX_PATH);
+  ctx.restore();
+}
+const QR_LOGOS = { tg: drawTgLogo, vk: drawVkLogo, site: drawSiteLogo, max: drawMaxLogo };
+
+function QRCode({ url, logo, color = "#1F4D2A", px = 460 }) {
+  const ref = React.useRef(null);
+  const overlay = logo === "drop";
+  React.useEffect(() => {
+    const cv = ref.current;
+    if (!cv || typeof window.qrcode !== "function") return;
+    const ctx = cv.getContext("2d");
+    const qr = window.qrcode(0, "H");
+    qr.addData(url); qr.make();
+    const n = qr.getModuleCount();
+    const margin = Math.round(px * 0.045);
+    const cell = (px - margin * 2) / n;
+    ctx.clearRect(0, 0, px, px);
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, px, px);
+    ctx.fillStyle = color;
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) {
+          ctx.fillRect(Math.round(margin + c * cell), Math.round(margin + r * cell),
+            Math.ceil(cell), Math.ceil(cell));
+        }
+      }
+    }
+    // центральный значок: белая подложка-кружок + лого (либо чистая зона под DOM-каплю).
+    // Если логотипа нет — оставляем QR цельным, без «дырки» по центру.
+    const cx = px / 2, cy = px / 2;
+    const logoR = px * 0.115;
+    const draw = QR_LOGOS[logo];
+    if (overlay || draw) {
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(cx, cy, logoR * (overlay ? 1.7 : 1.32), 0, Math.PI * 2); ctx.fill();
+      if (draw) draw(ctx, cx, cy, logoR);
+    }
+  }, [url, logo, color, px]);
+  if (overlay) {
+    return (
+      <span className="qr-wrap">
+        <canvas ref={ref} width={px} height={px} className="qr-canvas"></canvas>
+        <span className="qr-overlay"><BerryDrop style={{ width: "31%", height: "auto" }} /></span>
+      </span>
+    );
+  }
+  return <canvas ref={ref} width={px} height={px} className="qr-canvas"></canvas>;
+}
+
+Object.assign(window, { QRCode });

@@ -1,136 +1,235 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
-from PyQt6.QtWidgets import (
-    QLabel,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
-    QVBoxLayout,
-    QWidget,
-)
+
+
+from PyQt6.QtCore import Qt, pyqtSignal
+
+from PyQt6.QtWidgets import QSizePolicy
+
+
+
+from src.core.cart import Cart
 
 from src.core.config import Settings
+
 from src.services.catalog_sync import CatalogStore
-from src.ui.katusha_hub_tokens import HUB_SCROLL_H, NAV_HEIGHT, PAGE_PAD, Y_HEADER, Y_TITLE
+
+from src.ui import kolomna_strings as S
+
+from src.ui.kolomna_prefs import KolomnaPrefs, load_kolomna_prefs
+
+from src.ui.kolomna_tokens import CREAM, KolomnaMetrics
+
 from src.ui.screens.base_screen import BaseScreen
-from src.ui.widgets.bottom_nav_bar import BottomNavBar
-from src.ui.widgets.categories_hub_block import CategoriesScrollContent
-from src.ui.scroll_utils import enable_kinetic_scroll
-from src.ui.widgets.miniapp_header import MiniAppHeader
+
+from src.ui.widgets.kolomna_admin_modals import KolomnaAdminPanel, KolomnaAdminPinModal
+
+from src.ui.widgets.kolomna_catalog_bar import KolomnaCatalogBar
+
+from src.ui.widgets.kolomna_footbar import KolomnaFootBar
+
+from src.ui.widgets.kolomna_fullbleed_grid import KolomnaFullbleedGrid
+
+from src.ui.widgets.kolomna_info_modal import KolomnaInfoModal
+
+
+
 
 
 class CategoriesScreen(BaseScreen):
+
+    """Каталог fullbleed 2×2 — как catalogStyle: fullbleed в референсе."""
+
+
+
     category_selected = pyqtSignal(str)
+
     show_all_products = pyqtSignal()
+
     open_cart = pyqtSignal()
 
-    def __init__(self, catalog: CatalogStore, settings: Settings) -> None:
+    prefs_changed = pyqtSignal(KolomnaPrefs)
+
+
+
+    def __init__(self, catalog: CatalogStore, cart: Cart, settings: Settings) -> None:
+
         super().__init__()
+
         self._catalog = catalog
-        self._width = settings.app.viewport_width
-        vp_h = settings.app.viewport_height
-        self._scroll_h = HUB_SCROLL_H
+
+        self._cart = cart
+
+        self._settings = settings
+
+        self._width = settings.app.content_width
+
+        vp_h = settings.app.content_height
+
+        self._m = KolomnaMetrics.from_viewport(self._width, vp_h)
+
+        self._prefs = load_kolomna_prefs()
+
+
 
         self.setObjectName("CategoriesScreen")
+
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("background-color: #FFFFFF;")
+
+        self.setStyleSheet(f"background-color: {CREAM};")
+
         self.setFixedSize(self._width, vp_h)
+
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.setMinimumSize(QSize(self._width, vp_h))
-        self.setMaximumSize(QSize(self._width, vp_h))
+
+
 
         self._layout.setContentsMargins(0, 0, 0, 0)
+
         self._layout.setSpacing(0)
 
-        self._body = QWidget()
-        self._body.setObjectName("CategoriesBody")
 
-        body_lay = QVBoxLayout(self._body)
-        body_lay.setContentsMargins(0, 0, 0, 0)
-        body_lay.setSpacing(0)
 
-        self._header = MiniAppHeader()
-        body_lay.addWidget(self._header)
+        self._bar = KolomnaCatalogBar(self._m)
 
-        self._scroll = QScrollArea()
-        self._scroll.setObjectName("CategoriesScroll")
-        self._scroll.setWidgetResizable(False)
-        self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self._scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        self._scroll.setStyleSheet(
-            "QScrollArea#CategoriesScroll { background: #FFFFFF; border: none; }"
-        )
-        vp = self._scroll.viewport()
-        vp.setStyleSheet("background: #FFFFFF;")
-        vp.setAutoFillBackground(True)
-        self._scroll.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
-        )
+        self._bar.info_clicked.connect(self._open_info)
 
-        self._scroll_content = CategoriesScrollContent()
-        self._scroll.setWidget(self._scroll_content)
-        self._scroll_content.category_selected.connect(self.category_selected.emit)
-        enable_kinetic_scroll(self._scroll)
+        self._bar.admin_requested.connect(self._open_admin_pin)
 
-        # 182 + 652 + 79 = 913; контент короче — белое поле, без лишнего скролла
-        self._scroll.setFixedHeight(HUB_SCROLL_H)
-        body_lay.addWidget(self._scroll)
+        self._bar.lang_changed.connect(self._on_lang_changed)
 
-        btn_all = QPushButton(self._body)
-        btn_all.setObjectName("HeaderAllHit")
-        btn_all.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_all.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        btn_all.clicked.connect(self.show_all_products.emit)
-        btn_all.setGeometry(self._width - PAGE_PAD - 48, Y_TITLE, 48, 22)
-        btn_all.setStyleSheet("background: transparent; border: none;")
-        btn_all.raise_()
+        self._layout.addWidget(self._bar)
 
-        self._placeholder = QLabel("Категории загружаются…", self._body)
-        self._placeholder.setObjectName("Subtitle")
-        self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._placeholder.setGeometry(0, Y_HEADER, self._width, self._scroll_h)
-        self._placeholder.hide()
 
-        nav_wrap = QWidget()
-        nav_wrap.setObjectName("BottomNavWrap")
-        nav_wrap.setFixedHeight(NAV_HEIGHT)
-        nav_lay = QVBoxLayout(nav_wrap)
-        nav_lay.setContentsMargins(0, 0, 0, 0)
-        self._bottom_nav = BottomNavBar()
-        self._bottom_nav.set_active("catalog")
-        self._bottom_nav.cart_clicked.connect(self.open_cart.emit)
-        self._bottom_nav.catalog_clicked.connect(self._refresh_hub)
-        nav_lay.addWidget(self._bottom_nav)
 
-        self._layout.addWidget(self._body, stretch=1)
-        self._layout.addWidget(nav_wrap)
+        self._grid = KolomnaFullbleedGrid(self._m)
+
+        self._grid.tile_selected.connect(self.category_selected.emit)
+
+        self._layout.addWidget(self._grid, stretch=1)
+
+
+
+        self._footbar = KolomnaFootBar(self._m)
+
+        self._footbar.hide()
+
+        self._footbar.primary_clicked.connect(self.open_cart.emit)
+
+        self._layout.addWidget(self._footbar)
+
+
+
+        self._info_modal = KolomnaInfoModal(self._m, self._prefs.hours, parent=self)
+
+        pin = settings.kiosk.admin_pin or "1111"
+        # Референс Kolomna и старый дефолт конфига — 1111, не 1234.
+        if settings.app.ui_theme == "kolomna" and pin == "1234":
+            pin = "1111"
+
+        self._admin_pin = KolomnaAdminPinModal(self._m, pin, parent=self)
+
+        self._admin_panel = KolomnaAdminPanel(self._m, self._prefs, parent=self)
+
+        self._admin_pin.pin_accepted.connect(self._admin_panel.show_modal)
+
+        self._admin_panel.prefs_changed.connect(self._on_prefs_changed)
+
+
 
         catalog.updated.connect(self._refresh_hub)
+
+        cart.changed.connect(self._refresh_cart)
+
         self._refresh_hub()
 
-    def showEvent(self, event) -> None:  # noqa: N802
-        super().showEvent(event)
-        self._scroll_to_top()
+        self._refresh_cart()
 
-    def _scroll_to_top(self) -> None:
-        bar = self._scroll.verticalScrollBar()
-        bar.setValue(bar.minimum())
+
+
+    def showEvent(self, event) -> None:  # noqa: N802
+
+        super().showEvent(event)
+
+        self._refresh_cart()
+
+
+
+    def _on_lang_changed(self, lang: str) -> None:
+        pass
+
+    def retranslate(self) -> None:
+        self._bar.retranslate()
+        self._refresh_hub()
+        self._refresh_cart()
+        self._info_modal.retranslate()
+        if hasattr(self._admin_pin, "retranslate"):
+            self._admin_pin.retranslate()
+        if hasattr(self._admin_panel, "retranslate"):
+            self._admin_panel.retranslate()
+
+
+
+    def _open_info(self) -> None:
+
+        self._info_modal.set_hours(self._prefs.hours)
+
+        self._info_modal.show_modal()
+
+
+
+    def _open_admin_pin(self) -> None:
+
+        self._admin_pin.show_modal()
+
+
+
+    def _on_prefs_changed(self, prefs: KolomnaPrefs) -> None:
+
+        self._prefs = prefs
+
+        self._info_modal.set_hours(prefs.hours)
+
+        self.prefs_changed.emit(prefs)
+
+
+
+    def _refresh_cart(self) -> None:
+
+        count = self._cart.positions_count
+
+        total = self._cart.total_display()
+
+        if count > 0:
+
+            self._footbar.set_primary(f"{S.CART} · {count}", sum_text=total)
+
+            self._footbar.show()
+
+        else:
+
+            self._footbar.hide()
+
+
 
     def _refresh_hub(self) -> None:
-        summaries = self._catalog.category_summaries()
-        if summaries:
-            self._placeholder.hide()
-            self._scroll.show()
-            self._scroll_content.set_summaries(summaries)
-            self._scroll_content.show()
-            self._scroll.updateGeometry()
-            self._scroll_to_top()
-        else:
-            self._scroll.hide()
-            self._placeholder.show()
+
+        tiles = self._catalog.kolomna_hub_tiles()
+
+        if tiles:
+
+            self._grid.set_tiles(tiles)
+
+
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+
+        super().resizeEvent(event)
+
+        for modal in (self._info_modal, self._admin_pin, self._admin_panel):
+
+            if modal.isVisible():
+
+                modal.setGeometry(0, 0, self.width(), self.height())
+
+

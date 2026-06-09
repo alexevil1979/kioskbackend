@@ -7,11 +7,15 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+KIOSK_W = 1080
+KIOSK_H = 1920
 
 
 @dataclass
 class AppConfig:
-    title: str = "Катюша — киоск"
+    title: str = "Сады Коломны — киоск"
+    # kolomna | katusha
+    ui_theme: str = "kolomna"
     fullscreen: bool = True
     # portrait: вертикальный киоск (32" 1080×1920)
     orientation: str = "portrait"
@@ -23,12 +27,23 @@ class AppConfig:
     viewport_height: int = 913
 
     @property
+    def kiosk_scale(self) -> float:
+        """Масштаб по ширине viewport (как offline-референс / scale() в kolomna_tokens)."""
+        if not self.dev_mode:
+            return 1.0
+        return self.viewport_width / KIOSK_W
+
+    @property
     def content_width(self) -> int:
-        return self.viewport_width if self.dev_mode else self.screen_width
+        if self.dev_mode:
+            return self.viewport_width
+        return self.screen_width
 
     @property
     def content_height(self) -> int:
-        return self.viewport_height if self.dev_mode else self.screen_height
+        if self.dev_mode:
+            return self.viewport_height
+        return self.screen_height
 
     @property
     def phone_layout(self) -> bool:
@@ -189,7 +204,7 @@ class LoggingConfig:
 @dataclass
 class KioskConfig:
     block_keys: bool = True
-    admin_pin: str = "1234"
+    admin_pin: str = "1111"
     # Телефон поддержки на экране ошибки оплаты
     support_phone: str = ""
     show_support_phone_on_payment_error: bool = True

@@ -16,6 +16,53 @@ from src.models.order import OrderCreateResult, OrderReceiptResult, OrderStatusR
 from src.models.product import Category, Product
 
 DEMO_PRODUCTS_DIR = ROOT / "assets" / "demo_products"
+KOLOMNA_PIC = ROOT / "pic"
+
+
+def _kolomna_pic(name: str) -> str:
+    path = KOLOMNA_PIC / name
+    return str(path) if path.is_file() else ""
+
+
+def _kolomna_mock_catalog() -> tuple[list[Category], list[Product]]:
+    """Данные window.KIOSK из offline-референса."""
+    cats = [
+        Category("strawberry", "Клубника", 1),
+        Category("blueberry", "Голубика", 2),
+        Category("raspberry", "Малина", 3),
+        Category("tours", "Экскурсии", 4),
+    ]
+    img_str = _kolomna_pic("berry-strawberry.webp")
+    img_blu = _kolomna_pic("berry-blueberry.webp")
+    img_ras = _kolomna_pic("berry-raspberry.webp")
+    rows: list[tuple[str, str, str, float, str, str, bool]] = [
+        ("str-prem", "strawberry", "Премиум", 2375, "2,5 кг", img_str, False),
+        ("str-std", "strawberry", "Стандарт", 1900, "2,5 кг", img_str, False),
+        ("str-jam", "strawberry", "На варенье", 2250, "5 кг", img_str, False),
+        ("blu-prem", "blueberry", "Премиум", 3200, "2,5 кг", img_blu, True),
+        ("blu-std", "blueberry", "Стандарт", 2600, "2,5 кг", img_blu, True),
+        ("blu-jam", "blueberry", "На варенье", 3400, "5 кг", img_blu, True),
+        ("ras-prem", "raspberry", "Премиум", 2900, "2,5 кг", img_ras, True),
+        ("ras-std", "raspberry", "Стандарт", 2300, "2,5 кг", img_ras, True),
+        ("ras-jam", "raspberry", "На варенье", 2700, "5 кг", img_ras, True),
+        ("tour-walk", "tours", "Экскурсия по ферме", 2500, "person", img_str, True),
+    ]
+    products = [
+        Product(
+            pid,
+            cat_id,
+            name,
+            price,
+            image_local=img,
+            stock=99,
+            unit=unit,
+            category_name=next(c.name for c in cats if c.id == cat_id),
+            description="",
+        )
+        for pid, cat_id, name, price, unit, img, _ph in rows
+    ]
+    return cats, products
+
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +130,15 @@ class CRMClient(ABC):
 
 
 class MockCRMClient(CRMClient):
+    def __init__(self, *, kolomna: bool = False) -> None:
+        self._kolomna = kolomna
+
     def is_online(self) -> bool:
         return True
 
     def fetch_categories(self) -> list[Category]:
+        if self._kolomna:
+            return _kolomna_mock_catalog()[0]
         return [
             Category("berry", "Ягода", 1),
             Category("dairy", "Молочка", 2),
@@ -96,6 +148,8 @@ class MockCRMClient(CRMClient):
         ]
 
     def fetch_products(self) -> list[Product]:
+        if self._kolomna:
+            return _kolomna_mock_catalog()[1]
         items = [
             ("1", "berry", "Клубника", 450, 12, "кг"),
             ("2", "berry", "Малина", 520, 8, "кг"),
@@ -614,8 +668,9 @@ class HttpCRMClient(CRMClient):
 
 def create_crm_client(settings: Settings) -> CRMClient:
     if settings.crm.use_mock:
-        logger.info("CRM: режим mock-каталога (демо)")
-        return MockCRMClient()
+        kolomna = settings.app.ui_theme == "kolomna"
+        logger.info("CRM: режим mock-каталога (демо%s)", ", Kolomna" if kolomna else "")
+        return MockCRMClient(kolomna=kolomna)
     if not settings.crm.api_key:
         logger.error(
             "CRM: use_mock=false, но KIOSK_API_KEY пуст — задайте ключ в .env или CRM_USE_MOCK=true"

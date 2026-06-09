@@ -43,7 +43,7 @@ class PaymentSbpScreen(BaseScreen):
 
         content = QVBoxLayout()
 
-        title = QLabel("Оплата по СБП")
+        title = QLabel("Отсканируйте QR-код для оплаты")
         style_title(title)
         add_payment_row(content, title)
 
@@ -88,6 +88,7 @@ class PaymentSbpScreen(BaseScreen):
         *,
         qr_image_b64: str = "",
         timeout_sec: int | None = None,
+        total_rub: float = 0,
     ) -> None:
         self._payment_id = payment_id
         self._last_payload = qr_payload

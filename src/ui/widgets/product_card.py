@@ -34,7 +34,7 @@ class ProductCard(QFrame):
         super().__init__(parent)
         self.setObjectName("ProductCard")
         self.setStyleSheet(
-            "QFrame#ProductCard{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:20px;}"
+            "QFrame#ProductCard{background:#FFFFFF;border:none;border-radius:16px;}"
         )
         self._product = product
         self._qty = qty

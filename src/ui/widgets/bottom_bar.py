@@ -7,7 +7,7 @@ from src.ui.widgets.buttons import primary_button
 
 
 class CartBottomBar(QFrame):
-    """Нижняя панель как в mini app: корзина + «Оформить»."""
+    """Нижняя панель: корзина + CTA (стиль Kolomna footbar)."""
 
     go_cart = pyqtSignal()
 
@@ -16,14 +16,14 @@ class CartBottomBar(QFrame):
         self.setObjectName("BottomBar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(
-            "QFrame#BottomBar{background:#0B0F17;border:none;}"
-            "QLabel#BottomBarText{color:#FFFFFF;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;"
-            "font-size:16px;font-weight:600;background:transparent;}"
-            "QPushButton#CheckoutBtn{background:#35C46A;color:#051B0D;border:none;border-radius:16px;"
-            "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:700;"
-            "text-transform:uppercase;padding:0 26px;min-height:48px;max-height:48px;min-width:178px;}"
-            "QPushButton#CheckoutBtn:pressed{background:#2FB05E;}"
-            "QPushButton#CheckoutBtn:disabled{background:#35C46A;color:#051B0D;opacity:0.45;}"
+            "QFrame#BottomBar{background:#F6EFD8;border:none;border-top:2px solid #ECE0BC;}"
+            "QLabel#BottomBarText{color:#1F4D2A;font-family:'Montserrat',ui-sans-serif,system-ui,sans-serif;"
+            "font-size:16px;font-weight:800;background:transparent;}"
+            "QPushButton#CheckoutBtn{background:#1F4D2A;color:#F6EFD8;border:none;border-radius:999px;"
+            "font-family:'Montserrat',ui-sans-serif,system-ui,sans-serif;font-size:13px;font-weight:800;"
+            "padding:0 26px;min-height:48px;max-height:48px;min-width:178px;}"
+            "QPushButton#CheckoutBtn:pressed{background:#143821;}"
+            "QPushButton#CheckoutBtn:disabled{background:#1F4D2A;color:#F6EFD8;opacity:0.45;}"
         )
 
         layout = QHBoxLayout(self)
@@ -38,17 +38,13 @@ class CartBottomBar(QFrame):
 
         self._btn_checkout = primary_button("Оформить")
         self._btn_checkout.setObjectName("CheckoutBtn")
-        self._btn_checkout.setText("ОФОРМИТЬ")
+        self._btn_checkout.setText("Корзина")
         self._btn_checkout.clicked.connect(self.go_cart.emit)
         layout.addWidget(self._btn_checkout)
 
     def update_summary(self, item_count: int, total: str) -> None:
         self._summary.setText(
-            'Корзина: '
-            f'<span style="color:#3CB85D;font-family:Unbounded,ui-sans-serif,system-ui,sans-serif;'
-            f'font-size:17px;font-weight:700;">{item_count}</span>'
-            " · "
-            f'<span style="color:#3CB85D;font-family:Unbounded,ui-sans-serif,system-ui,sans-serif;'
-            f'font-size:17px;font-weight:700;">{total}</span>'
+            f'Корзина: <span style="font-weight:900;">{item_count}</span>'
+            f" · <span style=\"font-weight:900;\">{total}</span>"
         )
         self._btn_checkout.setEnabled(item_count > 0)

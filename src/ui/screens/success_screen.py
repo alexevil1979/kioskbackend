@@ -28,11 +28,15 @@ class SuccessScreen(BaseScreen):
         style_icon(icon, ok=True)
         add_payment_row(layout, icon)
 
-        title = QLabel("Спасибо! Заберите чек.")
+        title = QLabel("Готово!")
         style_title(title)
         add_payment_row(layout, title)
 
-        self._countdown = QLabel("Возврат в меню через несколько секунд…")
+        sub = QLabel("Заберите чек у киоска")
+        style_subtitle(sub)
+        add_payment_row(layout, sub)
+
+        self._countdown = QLabel("Возврат на главный экран через несколько секунд…")
         style_subtitle(self._countdown)
         add_payment_row(layout, self._countdown)
 

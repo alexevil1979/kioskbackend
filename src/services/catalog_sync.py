@@ -71,6 +71,11 @@ class CatalogStore(QObject):
 
         return build_hub_summaries(self._categories, self._products)
 
+    def kolomna_hub_tiles(self):
+        from src.ui.kolomna_catalog import build_kolomna_hub_tiles
+
+        return build_kolomna_hub_tiles(self._categories)
+
     def products_for_hub(self, hub_id: str) -> list[Product]:
         from src.ui.katusha_hub_catalog import MISC_HUB_ID
 

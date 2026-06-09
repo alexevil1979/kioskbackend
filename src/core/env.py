@@ -73,6 +73,14 @@ def apply_env_overrides(settings: Settings) -> None:
     elif api_key and crm.base_url:
         # Ключ и URL заданы — по умолчанию боевой API, не mock
         crm.use_mock = False
+    if (
+        settings.app.dev_mode
+        and settings.app.ui_theme == "kolomna"
+        and os.getenv("CRM_USE_LIVE") is None
+        and mock_env is None
+    ):
+        # DEV_MODE + Kolomna: каталог как в offline-референсе (window.KIOSK)
+        crm.use_mock = True
 
     catalog_mode = os.getenv("CRM_CATALOG_MODE")
     if catalog_mode:

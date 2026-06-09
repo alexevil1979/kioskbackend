@@ -1,4 +1,4 @@
-"""Стили экранов оплаты — в одном ключе с корзиной и каталогом Катюша."""
+"""Стили экранов оплаты — палитра «Сады Коломны»."""
 
 from __future__ import annotations
 
@@ -13,84 +13,79 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.kolomna_tokens import CREAM, FONT, GREEN, INK_60, STRAWBERRY
+
 PAYMENT_SCREEN_ID = "PaymentScreen"
 PAYMENT_CONTENT_ID = "PaymentContentBlock"
 
-# Ширина центрального блока (viewport dev 499 − поля)
 CONTENT_BLOCK_WIDTH = 420
 
-SCREEN_BG = "#F4F4F5"
+SCREEN_BG = CREAM
 
 TITLE_STYLE = (
-    "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:22px;font-weight:700;color:#111827;background:transparent;"
+    f"font-family:{FONT};"
+    "font-size:22px;font-weight:900;color:#1F4D2A;background:transparent;"
 )
 
 ERROR_TITLE_STYLE = (
-    "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:22px;font-weight:700;color:#DC2626;background:transparent;"
+    f"font-family:{FONT};"
+    f"font-size:22px;font-weight:900;color:{STRAWBERRY};background:transparent;"
 )
 
 AMOUNT_STYLE = (
-    "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:20px;font-weight:700;color:#1F6D4A;background:transparent;"
+    f"font-family:{FONT};"
+    "font-size:20px;font-weight:900;color:#1F4D2A;background:transparent;"
 )
 
 SUBTITLE_STYLE = (
-    "font-family:'Inter',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:14px;font-weight:400;color:#6B7280;background:transparent;"
+    f"font-family:{FONT};"
+    f"font-size:14px;font-weight:500;color:{INK_60};background:transparent;"
 )
 
 TIMER_STYLE = (
-    "font-family:'Inter',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:16px;font-weight:600;color:#1F6D4A;background:transparent;"
+    f"font-family:{FONT};"
+    "font-size:16px;font-weight:700;color:#1F4D2A;background:transparent;"
 )
 
 HINT_STYLE = SUBTITLE_STYLE
 
 ICON_OK_STYLE = (
-    "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:72px;font-weight:700;color:#35C46A;background:transparent;"
+    f"font-family:{FONT};"
+    "font-size:72px;font-weight:900;color:#1F4D2A;background:transparent;"
 )
 
 ICON_ERROR_STYLE = (
-    "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:56px;font-weight:700;color:#DC2626;background:transparent;"
+    f"font-family:{FONT};"
+    f"font-size:56px;font-weight:900;color:{STRAWBERRY};background:transparent;"
 )
 
 QR_CARD_STYLE = (
     "QFrame#PaymentQrCard {"
-    "background:#FFFFFF;border:1px solid #E5E7EB;border-radius:20px;"
+    "background:#FFFFFF;border:none;border-radius:20px;"
     "}"
 )
 
 QR_PLACEHOLDER_STYLE = (
-    "font-family:'Inter',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:14px;font-weight:600;color:#DC2626;background:transparent;"
+    f"font-family:{FONT};"
+    f"font-size:14px;font-weight:700;color:{STRAWBERRY};background:transparent;"
 )
 
 PRIMARY_BTN_STYLE = (
-    "QPushButton#PrimaryBtn{background:#35C46A;color:#051B0D;border:none;border-radius:14px;"
-    "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:700;"
-    "text-transform:uppercase;padding:0 20px;min-height:52px;}"
-    "QPushButton#PrimaryBtn:pressed{background:#2FB05E;}"
-    "QPushButton#PrimaryBtn:disabled{background:#35C46A;color:#051B0D;opacity:0.45;}"
+    "QPushButton#PrimaryBtn{background:#1F4D2A;color:#F6EFD8;border:none;border-radius:999px;"
+    f"font-family:{FONT};font-size:14px;font-weight:800;"
+    "padding:0 20px;min-height:52px;}"
+    "QPushButton#PrimaryBtn:pressed{background:#143821;}"
+    "QPushButton#PrimaryBtn:disabled{background:#1F4D2A;color:#F6EFD8;opacity:0.45;}"
 )
 
 SECONDARY_BTN_STYLE = (
-    "QPushButton#SecondaryBtn{background:#FFFFFF;color:#111827;border:1px solid #D8DEE6;"
-    "border-radius:14px;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:14px;font-weight:600;padding:0 20px;min-height:48px;}"
-    "QPushButton#SecondaryBtn:pressed{background:#F4F4F5;}"
+    "QPushButton#SecondaryBtn{background:#FFFFFF;color:#1F4D2A;border:2px solid #ECE0BC;"
+    f"border-radius:999px;font-family:{FONT};"
+    "font-size:14px;font-weight:700;padding:0 20px;min-height:48px;}"
+    "QPushButton#SecondaryBtn:pressed{background:#ECE0BC;}"
 )
 
-OUTLINE_BTN_STYLE = (
-    "QPushButton#OutlineBtn{background:#FFFFFF;color:#111827;border:1px solid #D8DEE6;"
-    "border-radius:14px;font-family:'Inter',ui-sans-serif,system-ui,sans-serif;"
-    "font-size:14px;font-weight:600;padding:0 20px;min-height:48px;}"
-    "QPushButton#OutlineBtn:pressed{background:#F4F4F5;}"
-)
-
+OUTLINE_BTN_STYLE = SECONDARY_BTN_STYLE
 CANCEL_BTN_STYLE = OUTLINE_BTN_STYLE
 
 
@@ -109,7 +104,6 @@ def layout_margins() -> tuple[int, int, int, int]:
 
 
 def mount_centered_content(outer: QVBoxLayout, inner: QVBoxLayout) -> QWidget:
-    """Блок по центру экрана (вертикаль и горизонталь)."""
     inner.setContentsMargins(0, 0, 0, 0)
     inner.setSpacing(12)
     inner.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -139,7 +133,6 @@ def mount_centered_content(outer: QVBoxLayout, inner: QVBoxLayout) -> QWidget:
 
 
 def add_payment_row(layout: QVBoxLayout, widget: QWidget) -> None:
-    """Строка на всю ширину центрального блока."""
     widget.setSizePolicy(
         QSizePolicy.Policy.Expanding,
         QSizePolicy.Policy.Fixed,
@@ -202,7 +195,6 @@ def style_outline_button(btn: QPushButton) -> None:
 
 
 def style_cancel_button(btn: QPushButton) -> None:
-    """Отмена — outline, не оранжевый DangerBtn."""
     btn.setObjectName("OutlineBtn")
     btn.setMinimumHeight(48)
     btn.setStyleSheet(CANCEL_BTN_STYLE)

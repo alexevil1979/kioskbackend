@@ -26,13 +26,13 @@ from src.ui.widgets.product_card import ProductCard
 
 
 _HEADER_TITLE_STYLE = (
-    "color:#121D2E;background:transparent;"
-    "font-family:'Unbounded','Inter',ui-sans-serif,sans-serif;"
-    "font-size:13px;font-weight:700;"
+    "color:#1F4D2A;background:transparent;"
+    "font-family:'Montserrat',ui-sans-serif,sans-serif;"
+    "font-size:13px;font-weight:900;"
 )
 _HEADER_COUNT_STYLE = (
-    "color:#A0A8B4;background:transparent;"
-    "font-family:'Inter',ui-sans-serif,sans-serif;"
+    "color:rgba(31,77,42,0.65);background:transparent;"
+    "font-family:'Montserrat',ui-sans-serif,sans-serif;"
     "font-size:11px;font-weight:700;"
 )
 
@@ -195,7 +195,7 @@ class MenuScreen(BaseScreen):
         super().__init__()
         self.setObjectName("MenuScreen")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("QWidget#MenuScreen { background:#FFFFFF; }")
+        self.setStyleSheet("QWidget#MenuScreen { background:#F6EFD8; }")
         self._catalog = catalog
         self._cart = cart
         self._settings = settings
@@ -273,10 +273,10 @@ class MenuScreen(BaseScreen):
         )
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._scroll.setStyleSheet(
-            "QScrollArea#MenuProductsScroll { border:none; background:#FFFFFF; }"
+            "QScrollArea#MenuProductsScroll { border:none; background:#F6EFD8; }"
         )
         vp = self._scroll.viewport()
-        vp.setStyleSheet("background:#FFFFFF;")
+        vp.setStyleSheet("background:#F6EFD8;")
         vp.setAutoFillBackground(True)
         enable_kinetic_scroll(self._scroll)
 

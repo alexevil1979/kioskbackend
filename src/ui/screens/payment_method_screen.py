@@ -30,7 +30,7 @@ class PaymentMethodScreen(BaseScreen):
 
         content = QVBoxLayout()
 
-        title = QLabel("Способ оплаты")
+        title = QLabel("Оплата")
         style_title(title)
         add_payment_row(content, title)
 
@@ -40,12 +40,12 @@ class PaymentMethodScreen(BaseScreen):
 
         content.addSpacing(8)
 
-        btn_sbp = primary_button("Оплатить по СБП")
+        btn_sbp = primary_button("СБП · по QR-коду")
         style_primary_button(btn_sbp)
         btn_sbp.clicked.connect(self.sbp_selected.emit)
         add_payment_row(content, btn_sbp)
 
-        btn_card = primary_button("Оплатить картой")
+        btn_card = primary_button("Банковская карта")
         style_primary_button(btn_card)
         btn_card.clicked.connect(self.card_selected.emit)
         add_payment_row(content, btn_card)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import random
+import time
 import uuid
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,13 @@ from src.services.tbank_aqsi import AqsiOrderService
 from src.ui.screens.cart_screen import CartScreen
 from src.ui.screens.categories_screen import CategoriesScreen
 from src.ui.screens.error_screens import OfflineScreen, PaymentErrorScreen
+from src.ui.screens.kolomna_cart_screen import KolomnaCartScreen
+from src.ui.screens.kolomna_card_screen import KolomnaCardScreen
+from src.ui.screens.kolomna_done_screen import KolomnaDoneScreen
+from src.ui.screens.kolomna_menu_screen import KolomnaMenuScreen
+from src.ui.screens.kolomna_tours_screen import KolomnaToursScreen
+from src.ui.screens.kolomna_payment_screen import KolomnaPaymentScreen
+from src.ui.screens.kolomna_sbp_screen import KolomnaSbpScreen
 from src.ui.screens.menu_screen import MenuScreen
 from src.ui.screens.payment_card_screen import PaymentCardScreen
 from src.ui.screens.payment_method_screen import PaymentMethodScreen
@@ -37,6 +45,10 @@ if TYPE_CHECKING:
     from src.core.kiosk_win import KeyboardBlocker
 
 logger = logging.getLogger(__name__)
+
+# Kolomna: экран «Спасибо» (mock СБП — через 15 с после показа QR).
+KOLOMNA_PAY_SUCCESS_DELAY_MS = 15_000
+KOLOMNA_MOCK_SBP_SUCCESS_MS = 15_000
 
 
 class MainWindow(QMainWindow):
@@ -62,6 +74,11 @@ class MainWindow(QMainWindow):
         self._aqsi_polls = 0
         self._katusha_order_id = 0
         self._sbp_polls = 0
+        self._pay_started_at: float | None = None
+        self._mock_sbp_pending = False
+        self._kolomna_success_timer = QTimer(self)
+        self._kolomna_success_timer.setSingleShot(True)
+        self._kolomna_success_timer.timeout.connect(self._do_finish_payment_success)
 
         hw = settings.hardware
         self._sbp = SbpPaymentService(settings, catalog.crm)
@@ -111,7 +128,7 @@ class MainWindow(QMainWindow):
         if app:
             app.installEventFilter(self)
 
-        self._nav.reset_to_start()
+        self._go_kolomna_home()
         if not self._dev_mode:
             self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
         # Каталог и fullscreen — после первого кадра (стабильнее на Windows)
@@ -122,33 +139,49 @@ class MainWindow(QMainWindow):
         start = StartScreen(s)
         start.tapped.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
 
-        categories = CategoriesScreen(self._catalog, s)
+        categories = CategoriesScreen(self._catalog, self._cart, s)
         categories.category_selected.connect(self._open_menu_category)
         categories.show_all_products.connect(lambda: self._open_menu_category(None))
         categories.open_cart.connect(lambda: self._nav.go(AppScreen.CART))
+        categories.prefs_changed.connect(self._on_kolomna_prefs_changed)
 
-        menu = MenuScreen(self._catalog, self._cart, s)
+        if s.app.ui_theme == "kolomna":
+            menu = KolomnaMenuScreen(self._catalog, self._cart, s)
+        else:
+            menu = MenuScreen(self._catalog, self._cart, s)
         menu.go_cart.connect(lambda: self._nav.go(AppScreen.CART))
         menu.back_to_categories.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
 
-        cart = CartScreen(self._cart, s)
+        kolomna = s.app.ui_theme == "kolomna"
+        if kolomna:
+            cart = KolomnaCartScreen(self._cart, s)
+            pay_method = KolomnaPaymentScreen(s)
+            pay_method.pay_requested.connect(self._on_kolomna_pay_requested)
+            pay_method.cancel.connect(lambda: self._nav.go(AppScreen.CART))
+            sbp = KolomnaSbpScreen(s.payment.sbp_timeout_sec, s)
+            card_scr = KolomnaCardScreen(s)
+            success = KolomnaDoneScreen(s)
+            success.new_order.connect(self._full_reset)
+        else:
+            cart = CartScreen(self._cart, s)
+            pay_method = PaymentMethodScreen()
+            pay_method.sbp_selected.connect(self._start_sbp)
+            pay_method.card_selected.connect(self._start_card)
+            pay_method.cancel.connect(lambda: self._nav.go(AppScreen.CART))
+            sbp = PaymentSbpScreen(s.payment.sbp_timeout_sec)
+            card_scr = PaymentCardScreen()
+            success = SuccessScreen()
+
         cart.continue_shopping.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
         cart.pay.connect(self._go_payment)
 
-        pay_method = PaymentMethodScreen()
-        pay_method.sbp_selected.connect(self._start_sbp)
-        pay_method.card_selected.connect(self._start_card)
-        pay_method.cancel.connect(lambda: self._nav.go(AppScreen.CART))
-
-        sbp = PaymentSbpScreen(s.payment.sbp_timeout_sec)
         sbp.cancel.connect(self._cancel_sbp)
         sbp.failed.connect(self._payment_failed)
+        if kolomna and isinstance(sbp, KolomnaSbpScreen):
+            sbp.qr_ready.connect(self._on_kolomna_sbp_qr_ready)
 
-        card_scr = PaymentCardScreen()
         card_scr.cancel.connect(self._cancel_card)
         card_scr.completed.connect(self._on_card_completed)
-
-        success = SuccessScreen()
         err = PaymentErrorScreen()
         err.retry.connect(lambda: self._nav.go(AppScreen.PAYMENT_METHOD))
         err.to_menu.connect(self._full_reset)
@@ -171,13 +204,75 @@ class MainWindow(QMainWindow):
             AppScreen.PAYMENT_ERROR: err,
             AppScreen.OFFLINE: offline,
         }
+        if kolomna:
+            tours = KolomnaToursScreen(self._catalog, self._cart, s)
+            tours.go_cart.connect(lambda: self._nav.go(AppScreen.CART))
+            tours.back_to_categories.connect(lambda: self._nav.go(AppScreen.CATEGORIES))
+            mapping[AppScreen.TOURS] = tours
+            self._tours_screen = tours
         for screen, widget in mapping.items():
             self._screens[screen] = widget
             self._stack.addWidget(widget)
 
+        if kolomna:
+            self._init_kolomna_lang(start, categories, mapping)
+
+    def _init_kolomna_lang(self, start, categories, mapping) -> None:
+        from src.ui.kolomna_i18n import set_lang
+        from src.ui.kolomna_prefs import load_kolomna_prefs
+
+        prefs = load_kolomna_prefs()
+        set_lang(prefs.lang)
+        self._retranslate_kolomna()
+
+        sources: list = [start._lang, categories._bar]
+        for widget in mapping.values():
+            top = getattr(widget, "_top", None)
+            if top is not None:
+                sources.append(top)
+        for src in sources:
+            if hasattr(src, "lang_changed"):
+                src.lang_changed.connect(self._set_kolomna_lang)
+
+    def _set_kolomna_lang(self, lang: str) -> None:
+        from src.ui.kolomna_i18n import get_lang, set_lang
+        from src.ui.kolomna_prefs import load_kolomna_prefs, save_kolomna_prefs
+
+        lang = "en" if lang == "en" else "ru"
+        if get_lang() == lang:
+            self._sync_kolomna_lang_toggles(lang)
+            return
+        set_lang(lang)
+        prefs = load_kolomna_prefs()
+        prefs.lang = lang
+        save_kolomna_prefs(prefs)
+        self._sync_kolomna_lang_toggles(lang)
+        self._retranslate_kolomna()
+
+    def _sync_kolomna_lang_toggles(self, lang: str) -> None:
+        start = self._screens.get(AppScreen.START)
+        if start is not None and hasattr(start, "_lang"):
+            start._lang.set_lang(lang)
+        cat = self._screens.get(AppScreen.CATEGORIES)
+        if cat is not None and hasattr(cat, "_bar"):
+            cat._bar.set_lang(lang)
+        for widget in self._screens.values():
+            top = getattr(widget, "_top", None)
+            if top is not None:
+                top.set_lang(lang)
+
+    def _retranslate_kolomna(self) -> None:
+        for widget in self._screens.values():
+            if hasattr(widget, "retranslate"):
+                widget.retranslate()
+
     def _open_menu_category(self, category_id: str | None) -> None:
         from src.ui.katusha_hub_catalog import MISC_HUB_ID
+        from src.ui.kolomna_catalog import KOLOMNA_TOURS_ID
 
+        if category_id == KOLOMNA_TOURS_ID:
+            self._nav.go(AppScreen.TOURS)
+            return
         if category_id == MISC_HUB_ID:
             self._menu_screen.open_hub(category_id)
         else:
@@ -228,13 +323,41 @@ class MainWindow(QMainWindow):
         self._idle.bump()
         if screen == AppScreen.PAYMENT_METHOD:
             pm = self._screens[AppScreen.PAYMENT_METHOD]
-            assert isinstance(pm, PaymentMethodScreen)
-            pm.set_amount(self._cart.total_display())
+            if hasattr(pm, "set_summary"):
+                pm.set_summary(self._cart.item_count, self._cart.total_rub)
+            elif hasattr(pm, "set_amount"):
+                pm.set_amount(self._cart.total_display())
+        if screen == AppScreen.PAYMENT_CARD:
+            card_scr = self._screens.get(AppScreen.PAYMENT_CARD)
+            if hasattr(card_scr, "set_amount"):
+                card_scr.set_amount(self._cart.total_rub)
         if screen in (AppScreen.PAYMENT_SBP, AppScreen.PAYMENT_CARD):
             self._idle.pause()
         else:
             self._idle.resume()
         logger.info("Экран: %s", screen.name)
+
+    def _on_kolomna_pay_requested(self, method: str) -> None:
+        self._pay_started_at = time.monotonic()
+        if method == "sbp":
+            self._start_sbp()
+        else:
+            self._start_card()
+
+    def _stop_kolomna_success_timer(self) -> None:
+        self._kolomna_success_timer.stop()
+        self._pay_started_at = None
+
+    def _schedule_kolomna_success(self) -> None:
+        if self._pay_started_at is None:
+            self._pay_started_at = time.monotonic()
+        elapsed_ms = (time.monotonic() - self._pay_started_at) * 1000
+        remaining = max(0, KOLOMNA_PAY_SUCCESS_DELAY_MS - int(elapsed_ms))
+        if remaining <= 0:
+            self._do_finish_payment_success()
+            return
+        if not self._kolomna_success_timer.isActive():
+            self._kolomna_success_timer.start(remaining)
 
     def _go_payment(self) -> None:
         if self._catalog.is_offline:
@@ -261,7 +384,6 @@ class MainWindow(QMainWindow):
             return
         self._aqsi_order_id = result.order_id
         card_scr = self._screens[AppScreen.PAYMENT_CARD]
-        assert isinstance(card_scr, PaymentCardScreen)
         card_scr.set_instruction(
             "Оплата на терминале Т-Банка",
             "Заказ отправлен на aQsi.\n"
@@ -306,7 +428,6 @@ class MainWindow(QMainWindow):
             return
 
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
-        assert isinstance(sbp_scr, PaymentSbpScreen)
         self._nav.go(AppScreen.PAYMENT_SBP)
 
         timeout = min(
@@ -318,14 +439,25 @@ class MainWindow(QMainWindow):
             session.payment_id,
             qr_image_b64=session.qr_image_b64,
             timeout_sec=timeout,
+            total_rub=self._cart.total_rub,
         )
+
+        if self._settings.app.ui_theme == "kolomna":
+            self._pay_started_at = time.monotonic()
 
         if session.use_api_polling:
             self._katusha_order_id = session.order_id
             interval = max(1, self._settings.crm.order_poll_interval_sec)
             QTimer.singleShot(interval * 1000, self._poll_sbp_payment)
         else:
-            QTimer.singleShot(8000, self._mock_sbp_paid)
+            self._mock_sbp_pending = True
+
+    def _on_kolomna_sbp_qr_ready(self) -> None:
+        if not self._mock_sbp_pending:
+            return
+        self._mock_sbp_pending = False
+        self._pay_started_at = time.monotonic()
+        QTimer.singleShot(KOLOMNA_MOCK_SBP_SUCCESS_MS, self._mock_sbp_paid)
 
     def _poll_sbp_payment(self) -> None:
         if self._nav.current != AppScreen.PAYMENT_SBP:
@@ -351,12 +483,14 @@ class MainWindow(QMainWindow):
 
     def _mock_sbp_paid(self) -> None:
         if self._nav.current == AppScreen.PAYMENT_SBP:
-            self._finish_payment_success()
+            self._do_finish_payment_success()
 
     def _cancel_sbp(self) -> None:
+        self._mock_sbp_pending = False
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
-        if isinstance(sbp_scr, PaymentSbpScreen):
+        if hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
+        self._stop_kolomna_success_timer()
         self._nav.go(AppScreen.PAYMENT_METHOD)
 
     def _start_card(self) -> None:
@@ -366,19 +500,21 @@ class MainWindow(QMainWindow):
             self._payment_failed()
             return
         card_scr = self._screens[AppScreen.PAYMENT_CARD]
-        assert isinstance(card_scr, PaymentCardScreen)
         self._nav.go(AppScreen.PAYMENT_CARD)
+        if hasattr(card_scr, "set_amount"):
+            card_scr.set_amount(self._cart.total_rub)
         card_scr.start_waiting(mock_auto_success=self._settings.hardware.tbank_terminal.use_mock)
 
     def _cancel_card(self) -> None:
         card_scr = self._screens[AppScreen.PAYMENT_CARD]
-        if isinstance(card_scr, PaymentCardScreen):
+        if hasattr(card_scr, "stop"):
             card_scr.stop()
+        self._stop_kolomna_success_timer()
         self._nav.go(AppScreen.PAYMENT_METHOD)
 
     def _on_card_completed(self, success: bool) -> None:
         card_scr = self._screens[AppScreen.PAYMENT_CARD]
-        if isinstance(card_scr, PaymentCardScreen):
+        if hasattr(card_scr, "stop"):
             card_scr.stop()
         if success:
             self._finish_payment_success()
@@ -386,8 +522,16 @@ class MainWindow(QMainWindow):
             self._payment_failed()
 
     def _finish_payment_success(self) -> None:
+        if self._settings.app.ui_theme == "kolomna":
+            self._schedule_kolomna_success()
+            return
+        self._do_finish_payment_success()
+
+    def _do_finish_payment_success(self) -> None:
+        self._kolomna_success_timer.stop()
+        self._pay_started_at = None
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
-        if isinstance(sbp_scr, PaymentSbpScreen):
+        if sbp_scr is not None and hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
         mode = self._settings.hardware.integration_mode
 
@@ -433,28 +577,39 @@ class MainWindow(QMainWindow):
             logger.info("Неизвестный integration_mode=%s", mode)
         self._cart.clear()
         self._nav.go(AppScreen.SUCCESS)
-        sec = random.randint(
+        kolomna = self._settings.app.ui_theme == "kolomna"
+        sec = 15 if kolomna else random.randint(
             self._settings.success.auto_return_min_sec,
             self._settings.success.auto_return_max_sec,
         )
-        for remaining in range(sec, 0, -1):
-            # schedule countdown labels
-            pass
         success_scr = self._screens[AppScreen.SUCCESS]
-        assert isinstance(success_scr, SuccessScreen)
+        if hasattr(success_scr, "set_order_no"):
+            if kolomna:
+                success_scr.set_order_no(str(random.randint(20, 99)).zfill(3))
+            else:
+                success_scr.set_order_no(self._order_id)
 
         def tick(left: int = sec) -> None:
             if left <= 0:
                 self._full_reset()
                 return
-            success_scr.set_countdown_text(f"Возврат в меню через {left} сек…")
+            if hasattr(success_scr, "set_countdown_text"):
+                from src.ui import kolomna_strings as KS
+
+                if kolomna:
+                    success_scr.set_countdown_text(KS.DONE_COUNTDOWN.format(n=left))
+                else:
+                    success_scr.set_countdown_text(
+                        f"{KS.AUTO_RETURN} {left}\u00a0{KS.SEC}"
+                    )
             QTimer.singleShot(1000, lambda: tick(left - 1))
 
         tick()
 
     def _payment_failed(self, message: str | None = None) -> None:
+        self._stop_kolomna_success_timer()
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
-        if isinstance(sbp_scr, PaymentSbpScreen):
+        if sbp_scr is not None and hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
         full_message = build_payment_error_message(message, self._settings.kiosk)
         err_scr = self._screens.get(AppScreen.PAYMENT_ERROR)
@@ -486,17 +641,35 @@ class MainWindow(QMainWindow):
             self._full_reset()
 
     def _full_reset(self) -> None:
+        self._mock_sbp_pending = False
+        self._stop_kolomna_success_timer()
         self._cart.clear()
         self._katusha_order_id = 0
         self._idle_overlay.hide()
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
-        if isinstance(sbp_scr, PaymentSbpScreen):
+        if sbp_scr is not None and hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
         card_scr = self._screens.get(AppScreen.PAYMENT_CARD)
-        if isinstance(card_scr, PaymentCardScreen):
+        if card_scr is not None and hasattr(card_scr, "stop"):
             card_scr.stop()
-        self._nav.reset_to_start()
+        self._go_kolomna_home()
         self._idle.bump()
+
+    def _kolomna_show_attract(self) -> bool:
+        if self._settings.app.ui_theme != "kolomna":
+            return True
+        from src.ui.kolomna_prefs import load_kolomna_prefs
+
+        return load_kolomna_prefs().show_attract
+
+    def _go_kolomna_home(self) -> None:
+        if self._kolomna_show_attract():
+            self._nav.reset_to_start()
+        else:
+            self._nav.reset_to_categories()
+
+    def _on_kolomna_prefs_changed(self, prefs) -> None:
+        pass
 
     def _on_idle_reset(self) -> None:
         self._idle_overlay.hide()

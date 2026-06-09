@@ -31,15 +31,15 @@ class CartScreen(BaseScreen):
         self._row_height = self._thumb_size + 24
         self.setObjectName("CartScreen")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("QWidget#CartScreen { background:#F4F4F5; }")
+        self.setStyleSheet("QWidget#CartScreen { background:#F6EFD8; }")
         self._layout.setContentsMargins(12, 10, 12, 12)
         self._layout.setSpacing(10)
 
-        title = QLabel("Корзина")
+        title = QLabel("Ваш заказ")
         title.setObjectName("ScreenTitle")
         title.setStyleSheet(
-            "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-            "font-size:30px;font-weight:700;color:#111827;"
+            "font-family:'Montserrat',ui-sans-serif,system-ui,sans-serif;"
+            "font-size:30px;font-weight:900;color:#1F4D2A;"
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter if self._portrait else Qt.AlignmentFlag.AlignLeft)
         self._layout.addWidget(title)
@@ -67,8 +67,8 @@ class CartScreen(BaseScreen):
 
         self._total_label = QLabel()
         self._total_label.setStyleSheet(
-            "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;"
-            "font-size:24px;font-weight:700;color:#1F6D4A;"
+            "font-family:'Montserrat',ui-sans-serif,system-ui,sans-serif;"
+            "font-size:24px;font-weight:900;color:#1F4D2A;"
         )
         self._total_label.setAlignment(
             Qt.AlignmentFlag.AlignCenter if self._portrait else Qt.AlignmentFlag.AlignLeft
@@ -76,21 +76,21 @@ class CartScreen(BaseScreen):
         self._layout.addWidget(self._total_label)
 
         if self._portrait:
-            self._btn_pay = primary_button("Оплатить")
+            self._btn_pay = primary_button("Перейти к оплате")
             self._btn_pay.setMinimumHeight(52)
             self._btn_pay.setStyleSheet(
-                "QPushButton#PrimaryBtn{background:#35C46A;color:#051B0D;border:none;border-radius:14px;"
-                "font-family:'Unbounded',ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;}"
-                "QPushButton#PrimaryBtn:pressed{background:#2FB05E;}"
-                "QPushButton#PrimaryBtn:disabled{background:#35C46A;color:#051B0D;opacity:0.45;}"
+                "QPushButton#PrimaryBtn{background:#1F4D2A;color:#F6EFD8;border:none;border-radius:999px;"
+                "font-family:'Montserrat',ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:800;}"
+                "QPushButton#PrimaryBtn:pressed{background:#143821;}"
+                "QPushButton#PrimaryBtn:disabled{background:#1F4D2A;color:#F6EFD8;opacity:0.45;}"
             )
             self._btn_pay.clicked.connect(self.pay.emit)
             self._layout.addWidget(self._btn_pay)
-            btn_back = secondary_button("Продолжить выбор")
+            btn_back = secondary_button("Добавить ещё")
             btn_back.setMinimumHeight(48)
             btn_back.setStyleSheet(
-                "QPushButton#SecondaryBtn{background:#FFFFFF;color:#111827;border:1px solid #D8DEE6;border-radius:14px;"
-                "font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:600;}"
+                "QPushButton#SecondaryBtn{background:#FFFFFF;color:#1F4D2A;border:2px solid #ECE0BC;border-radius:999px;"
+                "font-family:'Montserrat',ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:700;}"
             )
             btn_back.clicked.connect(self.continue_shopping.emit)
             self._layout.addWidget(btn_back)

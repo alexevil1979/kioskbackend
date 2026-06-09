@@ -1,0 +1,157 @@
+/* Сады Коломны — глобальная тема PyQt6 */
+
+QWidget {
+    font-family: 'Montserrat', 'Segoe UI', sans-serif;
+    color: #1F4D2A;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+/* --- Кнопки --- */
+QPushButton#KolomnaPrimaryBtn {
+    background: #1F4D2A;
+    color: #F6EFD8;
+    border: none;
+    border-radius: 999px;
+    font-weight: 800;
+    padding: 12px 28px;
+}
+QPushButton#KolomnaPrimaryBtn:pressed {
+    background: #143821;
+}
+QPushButton#KolomnaPrimaryBtn:disabled {
+    background: #1F4D2A;
+    color: #F6EFD8;
+    opacity: 0.45;
+}
+
+QPushButton#KolomnaYellowBtn {
+    background: #F4C90A;
+    color: #1F4D2A;
+    border: none;
+    border-radius: 999px;
+    font-weight: 800;
+    padding: 12px 28px;
+}
+QPushButton#KolomnaYellowBtn:pressed {
+    background: #E0B800;
+}
+
+QPushButton#KolomnaGhostBtn {
+    background: transparent;
+    color: #1F4D2A;
+    border: 2px solid #ECE0BC;
+    border-radius: 999px;
+    font-weight: 800;
+    padding: 12px 28px;
+}
+QPushButton#KolomnaGhostBtn:pressed {
+    background: #ECE0BC;
+}
+
+QPushButton#KolomnaBackBtn {
+    background: #FFFFFF;
+    color: #1F4D2A;
+    border: none;
+    border-radius: 999px;
+    font-weight: 800;
+    padding: 8px 18px 8px 12px;
+}
+
+QPushButton#KolomnaBackBtn:pressed {
+    background: #ECE0BC;
+}
+
+/* --- Карточка товара --- */
+QFrame#ProductCard {
+    background: #FFFFFF;
+    border: none;
+    border-radius: 16px;
+}
+QLabel#ProductImage {
+    background: #ECE0BC;
+    border: none;
+    border-radius: 12px;
+}
+QLabel#ProductTitle {
+    color: #1F4D2A;
+    font-weight: 800;
+}
+QLabel#ProductPrice {
+    color: #1F4D2A;
+    font-weight: 900;
+}
+QPushButton#ProductAddBtn {
+    background: #F4C90A;
+    color: #1F4D2A;
+    border: none;
+    border-radius: 999px;
+    font-weight: 900;
+}
+QPushButton#ProductAddBtn:pressed {
+    background: #E0B800;
+}
+
+/* --- Нижняя панель меню (корзина) --- */
+QFrame#KolomnaFootBar,
+QFrame#KolomnaCartFootBar {
+    background: #F6EFD8;
+    border-top: 2px solid #ECE0BC;
+}
+
+QFrame#BottomBar {
+    background: #F6EFD8;
+    border-top: 2px solid #ECE0BC;
+}
+QLabel#BottomBarText {
+    color: #1F4D2A;
+    font-weight: 800;
+    background: transparent;
+}
+QPushButton#CheckoutBtn {
+    background: #1F4D2A;
+    color: #F6EFD8;
+    border: none;
+    border-radius: 999px;
+    font-weight: 800;
+}
+QPushButton#CheckoutBtn:pressed {
+    background: #143821;
+}
+
+/* --- Оплата --- */
+QWidget#PaymentScreen {
+    background: #F6EFD8;
+}
+QFrame#PaymentQrCard {
+    background: #FFFFFF;
+    border: none;
+    border-radius: 20px;
+}
+
+QPushButton#PrimaryBtn {
+    background: #1F4D2A;
+    color: #F6EFD8;
+    border: none;
+    border-radius: 999px;
+    font-weight: 800;
+}
+QPushButton#PrimaryBtn:pressed {
+    background: #143821;
+}
+
+QPushButton#SecondaryBtn,
+QPushButton#OutlineBtn {
+    background: #FFFFFF;
+    color: #1F4D2A;
+    border: 2px solid #ECE0BC;
+    border-radius: 999px;
+    font-weight: 700;
+}
+QPushButton#SecondaryBtn:pressed,
+QPushButton#OutlineBtn:pressed {
+    background: #ECE0BC;
+}

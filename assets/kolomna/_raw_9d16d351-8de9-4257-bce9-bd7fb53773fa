@@ -1,0 +1,251 @@
+/* ============================================================
+   САДЫ КОЛОМНЫ — КОРЕНЬ ПРИЛОЖЕНИЯ КИОСКА
+   ============================================================ */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "attractStyle": "classic",
+  "catalogStyle": "fullbleed",
+  "ctaColor": "#1F4D2A",
+  "showAttract": true,
+  "bigText": false,
+  "screenTone": "cream"
+}/*EDITMODE-END*/;
+
+const CTA_MAP = {
+  "#1F4D2A": { bg: "var(--green)", bgActive: "var(--green-deep)", fg: "var(--cream)" },   // зелёный
+  "#D9143A": { bg: "var(--strawberry)", bgActive: "#B5102F", fg: "#fff" },                 // клубника
+  "#F4C90A": { bg: "var(--yellow)", bgActive: "var(--yellow-deep)", fg: "var(--green)" },  // жёлтый
+};
+
+const ADMIN_PIN = "1111"; // PIN администратора (удержать «Инфо» на экране категорий)
+
+// начальное значение «показывать стартовый экран»: память киоска → иначе твик-дефолт
+function initShowAttract(t) {
+  const v = localStorage.getItem("sk_showAttract");
+  if (v === null) return t.showAttract !== false;
+  return v === "1";
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [lang, setLang] = React.useState("ru");
+  const S = window.KIOSK.STR[lang];
+
+  const [screen, setScreen] = React.useState(() => initShowAttract(t) ? "attract" : "categories");
+  const [cat, setCat] = React.useState(null);
+  const [product, setProduct] = React.useState(null);
+  const [cart, setCart] = React.useState([]);
+  const [method, setMethod] = React.useState("sbp");
+  const [processing, setProcessing] = React.useState(false);
+  const [payStage, setPayStage] = React.useState("spin"); // "spin" | "qr" (СБП)
+  const [orderNo, setOrderNo] = React.useState("000");
+  const [countdown, setCountdown] = React.useState(15);
+  const [toast, setToast] = React.useState(null);
+  const [infoOpen, setInfoOpen] = React.useState(false);
+  const [adminStage, setAdminStage] = React.useState(null); // null | "pin" | "panel"
+  const [menuLayout, setMenuLayout] = React.useState(() => localStorage.getItem("sk_menuLayout") || "list");
+  function changeMenuLayout(v) { setMenuLayout(v); localStorage.setItem("sk_menuLayout", v); }
+  // «Стартовый экран» и «Цвет кнопок» — храним в памяти киоска (переживают перезагрузку)
+  const [showAttract, setShowAttract] = React.useState(() => initShowAttract(t));
+  function changeShowAttract(v) { setShowAttract(v); localStorage.setItem("sk_showAttract", v ? "1" : "0"); setTweak("showAttract", v); }
+  const [ctaColor, setCtaColor] = React.useState(() => localStorage.getItem("sk_ctaColor") || t.ctaColor);
+  function changeCtaColor(v) { setCtaColor(v); localStorage.setItem("sk_ctaColor", v); setTweak("ctaColor", v); }
+  const [skipProduct, setSkipProduct] = React.useState(() => localStorage.getItem("sk_skipProduct") === "1");
+  function changeSkipProduct(v) { setSkipProduct(v); localStorage.setItem("sk_skipProduct", v ? "1" : "0"); }
+  const [hours, setHours] = React.useState(() => localStorage.getItem("sk_hours") || (lang === "ru" ? "Ежедневно 10:00–19:00" : "Daily 10:00–19:00"));
+  function changeHours(v) { setHours(v); localStorage.setItem("sk_hours", v); }
+
+  const catOf = React.useCallback((id) => window.KIOSK.CATEGORIES.find((c) => c.id === id), []);
+  const count = cart.reduce((n, i) => n + i.qty, 0);
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  /* ---- корзина ---- */
+  function addItem(p, qty) {
+    setCart((c) => {
+      const i = c.findIndex((x) => x.id === p.id);
+      if (i >= 0) { const n = c.slice(); n[i] = { ...n[i], qty: n[i].qty + qty }; return n; }
+      return [...c, { ...p, qty }];
+    });
+  }
+  const incItem = (id) => setCart((c) => c.map((x) => x.id === id ? { ...x, qty: x.qty + 1 } : x));
+  const decItem = (id) => setCart((c) => c.map((x) => x.id === id ? { ...x, qty: Math.max(1, x.qty - 1) } : x));
+  const removeItem = (id) => setCart((c) => c.filter((x) => x.id !== id));
+
+  function flashToast(msg) {
+    setToast(msg);
+    clearTimeout(flashToast._t);
+    flashToast._t = setTimeout(() => setToast(null), 1600);
+  }
+
+  /* ---- навигация ---- */
+  const go = (s) => setScreen(s);
+  function start() { go("categories"); }
+  function pickCat(c) { setCat(c); go("menu"); }
+  function openProduct(p) { if (skipProduct) return; setProduct(p); go("product"); }
+  function quickAdd(p, srcEl) {
+    addItem(p, 1);
+    flashToast(lang === "ru" ? "Добавлено в корзину" : "Added to cart");
+    const c = catOf(p.cat);
+    if (srcEl && c && c.kind === "berry") window.flyBerryToCart(srcEl, c.img);
+  }
+  function confirmProduct(p, qty, srcEl) {
+    const c = catOf(p.cat);
+    if (srcEl && c && c.kind === "berry") window.flyBerryToCart(srcEl, c.img);
+    addItem(p, qty); go("menu");
+    flashToast(lang === "ru" ? "Добавлено в корзину" : "Added to cart");
+  }
+  function addTour(p, adults, kids) {
+    addItem({ ...p, kids }, adults);
+    flashToast(lang === "ru" ? "Добавлено в корзину" : "Added to cart");
+  }
+
+  const payRef = React.useRef(0);
+  function finishOrder() {
+    setProcessing(false);
+    setPayStage("spin");
+    setOrderNo(String(Math.floor(20 + Math.random() * 80)).padStart(3, "0"));
+    setCountdown(15);
+    go("done");
+  }
+  function pay() {
+    const myId = ++payRef.current;
+    if (method === "sbp") {
+      // Отдельный экран: короткая прокрутка → QR-код
+      setPayStage("spin");
+      go("sbp");
+      setTimeout(() => { if (payRef.current === myId) setPayStage("qr"); }, 1300);
+      setTimeout(() => { if (payRef.current === myId) finishOrder(); }, 7000);
+      return;
+    }
+    // Карта: отдельный экран-инструкция «поднесите карту»
+    go("card");
+    setTimeout(() => { if (payRef.current === myId) finishOrder(); }, 6000);
+  }
+  function cancelPay() {
+    payRef.current++;
+    setProcessing(false);
+    setPayStage("spin");
+    go("payment");
+  }
+  function reset() {
+    payRef.current++;
+    setCart([]); setCat(null); setProduct(null); setMethod("sbp"); setPayStage("spin");
+    go(showAttract ? "attract" : "categories");
+  }
+
+  /* ---- авто-возврат с экрана «Готово» ---- */
+  React.useEffect(() => {
+    if (screen !== "done") return;
+    if (countdown <= 0) { reset(); return; }
+    const id = setTimeout(() => setCountdown((n) => n - 1), 1000);
+    return () => clearTimeout(id);
+  }, [screen, countdown]);
+
+  /* ---- стиль каркаса от твиков ---- */
+  const cta = CTA_MAP[ctaColor] || CTA_MAP["#1F4D2A"];
+  const stageStyle = {
+    "--btn-primary-bg": cta.bg,
+    "--btn-primary-bg-active": cta.bgActive,
+    "--btn-primary-fg": cta.fg,
+    background: t.screenTone === "white" ? "#FCFAF1" : "var(--cream)",
+  };
+
+  return (
+    <React.Fragment>
+      <KioskStage>
+        <div className={"kiosk" + (t.bigText ? " kiosk--big" : "")} style={stageStyle}>
+        {screen === "attract" && (
+          <AttractScreen S={S} lang={lang} onLang={setLang} onStart={start} style={t.attractStyle} />
+        )}
+        {screen === "categories" && (
+          <CategoriesScreen S={S} lang={lang} onLang={setLang} onPick={pickCat} style={t.catalogStyle}
+            onInfo={() => setInfoOpen(true)} onAdmin={() => setAdminStage("pin")}
+            cartCount={count} cartTotal={total} onCart={() => go("cart")} />
+        )}
+        {screen === "menu" && cat && (
+          <MenuScreen S={S} lang={lang} onLang={setLang} cat={cat} layout={menuLayout}
+            onBack={() => go("categories")} onOpen={openProduct} onQuickAdd={quickAdd} onAddTour={addTour}
+            cartCount={count} cartTotal={total} onCart={() => go("cart")} />
+        )}
+        {screen === "product" && product && (
+          <ProductScreen S={S} lang={lang} onLang={setLang} product={product} cat={catOf(product.cat)}
+            onBack={() => go("menu")} onConfirm={confirmProduct} />
+        )}
+        {screen === "cart" && (
+          <CartScreen S={S} lang={lang} onLang={setLang} items={cart} catOf={catOf}
+            onBack={() => go("categories")}
+            onInc={incItem} onDec={decItem} onRemove={removeItem}
+            onCheckout={() => go("payment")} total={total} count={count} />
+        )}
+        {screen === "payment" && (
+          <PaymentScreen S={S} lang={lang} onLang={setLang} total={total} count={count}
+            method={method} onMethod={setMethod} onBack={() => go("cart")} onPay={pay} processing={processing} payStage={payStage} />
+        )}
+        {screen === "sbp" && (
+          <SbpScreen S={S} lang={lang} onLang={setLang} total={total} payStage={payStage} onBack={cancelPay} />
+        )}
+        {screen === "card" && (
+          <CardScreen S={S} lang={lang} onLang={setLang} total={total} onBack={cancelPay} />
+        )}
+        {screen === "done" && (
+          <DoneScreen S={S} orderNo={orderNo} onNew={reset} countdown={countdown} />
+        )}
+
+        {toast && <div className="toast">{toast}</div>}
+        {infoOpen && <InfoModal S={S} lang={lang} hours={hours} onClose={() => setInfoOpen(false)} />}
+        {adminStage === "pin" && (
+          <AdminPinModal S={S} pin={ADMIN_PIN}
+            onClose={() => setAdminStage(null)}
+            onSuccess={() => setAdminStage("panel")} />
+        )}
+        {adminStage === "panel" && (
+          <AdminPanel S={S} menuLayout={menuLayout} onMenuLayout={changeMenuLayout}
+            showAttract={showAttract} onShowAttract={changeShowAttract}
+            btnColor={ctaColor} onBtnColor={changeCtaColor}
+            skipProduct={skipProduct} onSkipProduct={changeSkipProduct}
+            hours={hours} onHours={changeHours}
+            onClose={() => setAdminStage(null)} />
+        )}
+      </div>
+      </KioskStage>
+
+      <TweaksPanel title="Твики">
+        <TweakSection label="Экран приветствия" />
+        <TweakRadio label="Стиль аттракта" value={t.attractStyle}
+          options={["classic", "spotlight", "field"]}
+          onChange={(v) => setTweak("attractStyle", v)} />
+        <TweakSection label="Каталог" />
+        <TweakRadio label="Стиль каталога" value={t.catalogStyle}
+          options={["fullbleed", "tiles"]}
+          onChange={(v) => setTweak("catalogStyle", v)} />
+        <TweakSection label="Стиль" />
+        <TweakColor label="Акцент кнопок" value={t.ctaColor}
+          options={["#1F4D2A", "#D9143A", "#F4C90A"]}
+          onChange={(v) => setTweak("ctaColor", v)} />
+        <TweakRadio label="Фон экрана" value={t.screenTone}
+          options={["cream", "white"]}
+          onChange={(v) => setTweak("screenTone", v)} />
+        <TweakToggle label="Крупный режим (доступность)" value={t.bigText}
+          onChange={(v) => setTweak("bigText", v)} />
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+/* ---- Надёжный bootstrap: ждём готовности всех экранов/компонентов
+   (JSX-скрипты компилируются в браузере и могут быть не готовы
+   к моменту запуска этого файла), затем монтируем один раз. ---- */
+function mountKiosk() {
+  const need = [
+    "KioskStage", "BerryDrop", "BerryBowl", "LangToggle", "QtyControl", "BerryArt", "QRCode",
+    "AttractScreen", "CategoriesScreen", "MenuScreen", "ProductScreen",
+    "CartScreen", "PaymentScreen", "DoneScreen", "InfoModal", "AdminPinModal", "AdminPanel",
+  ];
+  const ready = need.every((k) => typeof window[k] === "function")
+    && typeof window.TweaksPanel !== "undefined"
+    && typeof window.useTweaks === "function";
+  if (!ready) { setTimeout(mountKiosk, 30); return; }
+  if (window.__kioskRoot) return;
+  window.__kioskRoot = ReactDOM.createRoot(document.getElementById("root"));
+  window.__kioskRoot.render(<App />);
+}
+mountKiosk();

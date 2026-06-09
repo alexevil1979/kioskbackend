@@ -1,0 +1,811 @@
+/* ============================================================
+   САДЫ КОЛОМНЫ — ЭКРАНЫ КИОСКА
+   Экспорт в window: AttractScreen, CategoriesScreen, MenuScreen,
+   ProductScreen, CartScreen, PaymentScreen, DoneScreen
+   ============================================================ */
+const { fmt } = window.KIOSK;
+
+/* ---------- общие мелкие части ---------- */
+function EstBadge({ S }) {
+  return <span className="est-badge">{S.estPrice}</span>;
+}
+
+function Price({ value, S, size = "h2" }) {
+  return (
+    <span className={"price price--" + size}>
+      {fmt(value)}&nbsp;<span className="price__cur">{S.cur}</span>
+    </span>
+  );
+}
+
+function TopBar({ S, lang, onLang, onBack, title, accent = "var(--green)", cartCount, cartTotal, onCart }) {
+  return (
+    <div className="topbar">
+      <div className="topbar__row">
+        {onBack ? (
+          <button className="topbar__back" onClick={onBack} aria-label={S.back}>
+            <span className="topbar__back-ic" aria-hidden="true">‹</span>
+            <span>{S.back}</span>
+          </button>
+        ) : (
+          <BerryDrop style={{ width: 150, height: 70 }} />
+        )}
+        <LangToggle lang={lang} onChange={onLang} />
+      </div>
+      {title && (
+        <div className="topbar__title-row">
+          <span className="topbar__dot" style={{ background: accent }}></span>
+          <h1 className="t-h1">{title}</h1>
+          {typeof cartCount === "number" && cartCount > 0 && (
+            <button className="cart-pill" onClick={onCart}>
+              <span className="cart-pill__count">{cartCount}</span>
+              <span className="cart-pill__sum">{fmt(cartTotal)}&nbsp;{S.cur}</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* helpers for naming */
+function gradeTitle(p, S) { return S.grade[p.grade]; }
+function fullName(p, S) {
+  if (p.cat === "tours") return S.grade[p.grade];
+  return S.cat[p.cat] + " · " + S.grade[p.grade];
+}
+function unitWord(p, S) { return p.unit === "person" ? S.peopleWord : S.packsWord; }
+function perWord(p, S) { return p.unit === "person" ? S.perPerson : S.perPack; }
+
+/* ============================================================
+   1. АТТРАКТ — 3 варианта (tweak attractStyle)
+   ============================================================ */
+function AttractScreen({ S, lang, onLang, onStart, style }) {
+  const cats = window.KIOSK.CATEGORIES;
+  const variant = style || "classic";
+
+  const cta = (
+    <div className="attract__cta-wrap">
+      <div className="attract__cta">{S.attractCta}</div>
+      <div className="attract__hand" aria-hidden="true">↑</div>
+    </div>
+  );
+
+  return (
+    <div className={"screen attract attract--" + variant} role="button" tabIndex={0} onClick={onStart}>
+      <div className="attract__lang" onClick={(e) => e.stopPropagation()}>
+        <LangToggle lang={lang} onChange={onLang} />
+      </div>
+
+      {variant === "classic" && (
+        <React.Fragment>
+          <div className="attract__inner">
+            <div className="attract__logo" role="img" aria-label="Сады Коломны"></div>
+            <div className="attract__tagline">{S.attractTagline}</div>
+            {cta}
+            <div className="attract__foot">{S.attractFoot}</div>
+          </div>
+        </React.Fragment>
+      )}
+
+      {variant === "spotlight" && (
+        <React.Fragment>
+          <div className="attract__halo" aria-hidden="true"></div>
+          <img src={cats[0].img} className="attract__hero-berry" alt="" aria-hidden="true" />
+          <div className="attract__inner">
+            <BerryDrop fill="var(--strawberry)" style={{ width: 380, height: 178 }} />
+            <div className="eyebrow attract__eyebrow">{S.attractEyebrow}</div>
+            {cta}
+            <div className="attract__foot">{S.attractFoot}</div>
+          </div>
+        </React.Fragment>
+      )}
+
+      {variant === "field" && (
+        <div className="attract__inner">
+          <div className="attract__row" aria-hidden="true">
+            <img src={cats[0].img} className="ab-row" alt="" />
+            <img src={cats[1].img} className="ab-row" alt="" />
+            <img src={cats[2].img} className="ab-row" alt="" />
+          </div>
+          <BerryDrop style={{ width: 360, height: 168 }} />
+          <div className="attract__big">{S.attractEyebrow}</div>
+          {cta}
+          <div className="attract__foot">{S.attractFoot}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   2. КАТЕГОРИИ — две раскладки: tiles | fullbleed
+   ============================================================ */
+/* Кнопка «Инфо»: короткое нажатие — модалка о ферме; удержание — вход в админку */
+function InfoButton({ S, onInfo, onAdmin }) {
+  const tRef = React.useRef(null);
+  const heldRef = React.useRef(false);
+  const start = () => { heldRef.current = false; tRef.current = setTimeout(() => { heldRef.current = true; onAdmin(); }, 1200); };
+  const end = () => clearTimeout(tRef.current);
+  const click = () => { if (heldRef.current) { heldRef.current = false; return; } onInfo(); };
+  return (
+    <button className="catalog__info" onClick={click}
+      onPointerDown={start} onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
+      aria-label={S.info}>
+      <span className="catalog__info-ic" aria-hidden="true">i</span>
+      <span className="catalog__info-tx">{S.info}</span>
+    </button>
+  );
+}
+
+function CategoriesScreen({ S, lang, onLang, onPick, onInfo, onAdmin, cartCount, cartTotal, onCart, style }) {
+  const cats = window.KIOSK.CATEGORIES;
+
+  if (style === "fullbleed") {
+    return (
+      <div className="screen catalog">
+        <div className="catalog__bar">
+          <InfoButton S={S} onInfo={onInfo} onAdmin={onAdmin} />
+          <BerryDrop style={{ width: 168, height: 78 }} />
+          <LangToggle lang={lang} onChange={onLang} />
+        </div>
+        <div className="catalog__cards">
+          {cats.map((c) => (
+            <button
+              key={c.id}
+              className={"cat-card cat-card--" + c.kind}
+              style={{ background: c.accent }}
+              onClick={() => onPick(c)}
+            >
+              {c.kind === "service" && (
+                <div className="cat-card__promo">
+                  <span className="cat-card__promo-h">Всей<br /><span className="cat-card__promo-y">семьёй</span></span>
+                  <span className="cat-card__promo-sub">Час на грядках, дегустация и ягода в подарок</span>
+                </div>
+              )}
+              <div className="cat-card__text">
+                <span className="cat-card__num">{c.num}</span>
+                <span className="cat-card__name">{S.cat[c.id]}</span>
+              </div>
+              <div className="cat-card__art">
+                {c.kind === "service"
+                  ? null
+                  : <img src={c.img} alt="" />}
+              </div>
+              <span className="cat-card__go" aria-hidden="true">→</span>
+            </button>
+          ))}
+        </div>
+        {cartCount > 0 && (
+          <div className="screen__footbar">
+            <button className="btn btn--primary btn--lg btn--block btn--breathe" onClick={onCart}>
+              <span>{S.cart} · {cartCount}</span>
+              <span className="footbar__sum">{window.KIOSK.fmt(cartTotal)}&nbsp;{S.cur}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} cartCount={cartCount} cartTotal={cartTotal} onCart={onCart} />
+      <div className="kiosk__main">
+        <div className="eyebrow">{S.menuEyebrow}</div>
+        <h1 className="t-display screen__h">{S.chooseCategory}</h1>
+        <div className="cat-grid">
+          {cats.map((c) => (
+            <button
+              key={c.id}
+              className={"cat-tile cat-tile--" + c.kind}
+              style={{ background: c.accent, borderBottomColor: c.edge }}
+              onClick={() => onPick(c)}
+            >
+              <div className="cat-tile__art">
+                {c.kind === "service"
+                  ? <span className="cat-tile__ticket" aria-hidden="true">★</span>
+                  : <img src={c.img} alt="" />}
+              </div>
+              <div className="cat-tile__name">{S.cat[c.id]}</div>
+              <div className="cat-tile__sub">{S.catSub[c.id]}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   3. МЕНЮ ТОВАРА (внутри категории)
+   ============================================================ */
+function TourSection({ S, cat, product, onAddTour }) {
+  const [adults, setAdults] = React.useState(1);
+  const [kids, setKids] = React.useState(0);
+  const sum = product.price * adults;
+  return (
+    <div className="tour-page">
+      <div className="coupon">
+        <div className="coupon__head">
+          <div className="coupon__dlabel">{S.tourDatesTitle}</div>
+          <div className="coupon__cal">
+            {window.KIOSK.TOUR_DATES.flatMap((g) => g.days.map((d) => ({ m: g.m, d }))).map((x, i) => (
+              <div className="coupon__cal-i" key={i}>
+                <span className="coupon__cal-m">{S.monthsNom[x.m].toUpperCase()}</span>
+                <span className="coupon__cal-d">{x.d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="coupon__tear" aria-hidden="true"></div>
+        <div className="coupon__body">
+          <div className="coupon__guests">
+            <div className="coupon__guest">
+              <div className="gl">
+                <div className="gt">{S.guestAdults}</div>
+                <div className="gp">{fmt(product.price)}&nbsp;{S.cur} · {S.perPerson}</div>
+              </div>
+              <QtyControl value={adults} min={1} onDec={() => setAdults((a) => Math.max(1, a - 1))} onInc={() => setAdults((a) => a + 1)} />
+            </div>
+            <div className="coupon__guest">
+              <div className="gl">
+                <div className="gt">{S.guestKids}</div>
+                <div className="gp free">{S.guestFree}</div>
+              </div>
+              <QtyControl value={kids} min={0} onDec={() => setKids((k) => Math.max(0, k - 1))} onInc={() => setKids((k) => k + 1)} />
+            </div>
+          </div>
+          <button className="btn btn--yellow btn--lg btn--block" onClick={() => onAddTour(product, adults, kids)}>
+            <span>{S.addToCart}</span>
+            <span className="footbar__sum">{fmt(sum)}&nbsp;{S.cur}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="tour-steps">
+        <div className="tour-steps__title">Что входит в экскурсию</div>
+        {[
+          { t: "Встреча у шатра", d: "Каждая семья получает холщовую сумку «Сады Коломны», а дети — наклейку «Юный агроном»." },
+          { t: "Обход фермы и плантаций", d: "Знакомство с тремя культурами — клубникой, голубикой и малиной. Узнаете, чем отличаются сорта клубники Азия, Ания, Мара де Буа, Флорида Бьюти, Мурано и другие, и почему магазинная ягода уступает собранной в поле в полной зрелости." },
+          { t: "Дегустация клубники", d: "Сорта, что в плодоношении в этот день — в полной зрелости, только что с куста." },
+          { t: "Закулисье фермы", d: "Пруд с осетрами, капельный полив, пасека и плёночные туннели изнутри. Рефрижератор «Катюша» — машина, в которой ягода едет в Москву в день сбора." },
+        ].map((s, i) => (
+          <div className="tour-step" key={i}>
+            <span className="tour-step__n">{i + 1}</span>
+            <div>
+              <div className="tour-step__t">{s.t}</div>
+              <div className="tour-step__d">{s.d}</div>
+            </div>
+          </div>
+        ))}
+        <div className="tour-step tour-step--gift">
+          <span className="tour-gift" aria-hidden="true">
+            <span className="tour-gift__box"></span>
+            <span className="tour-gift__lid"></span>
+            <span className="tour-gift__rib"></span>
+            <span className="tour-gift__bow"></span>
+          </span>
+          <div>
+            <div className="tour-step__t">Подарок на финал</div>
+            <div className="tour-step__d">Каждая семья уезжает с килограммом свежесобранной клубники и фото на поле.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MenuScreen({ S, lang, onLang, cat, onBack, onOpen, onQuickAdd, onAddTour, cartCount, cartTotal, onCart, layout }) {
+  const items = window.KIOSK.PRODUCTS.filter((p) => p.cat === cat.id);
+  // одна карточка всегда горизонтальная (строкой); плитка — только если товаров 2+
+  const grid = layout === "grid" && items.length > 1;
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} onBack={onBack} title={S.cat[cat.id]} accent={cat.accent}
+        cartCount={cartCount} cartTotal={cartTotal} onCart={onCart} />
+      <div className="kiosk__main">
+        {cat.kind === "service" ? (
+          <TourSection S={S} cat={cat} product={items[0]} onAddTour={onAddTour} />
+        ) : grid ? (
+          <div className="menu-grid menu-grid--bleed">
+            {items.map((p) => (
+              <div className="prod-tile" key={p.id} onClick={() => onOpen(p)}>
+                <div className="prod-tile__media"><BerryArt cat={cat} /></div>
+                <div className="prod-tile__body">
+                  <div className="prod-tile__head">
+                    <h2 className="t-h3">{gradeTitle(p, S)}</h2>
+                    {p.placeholder && <EstBadge S={S} />}
+                  </div>
+                  <div className="prod-tile__desc">{S.gradeDesc[p.grade]}</div>
+                  <div className="prod-tile__meta">
+                    <span className="chip">{p.unit === "person" ? S.peopleWord : p.pack}</span>
+                    <span className="prod-row__per">{perWord(p, S)}</span>
+                  </div>
+                  <div className="prod-tile__foot">
+                    <Price value={p.price} S={S} size="h3" />
+                    <button className="btn btn--yellow" onClick={(e) => { e.stopPropagation(); onQuickAdd(p, e.currentTarget.closest(".prod-tile").querySelector(".prod-tile__media")); }}>
+                      + {S.addShort}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="menu-list">
+            {items.map((p) => (
+              <div className="prod-row" key={p.id} onClick={() => onOpen(p)}>
+              <div className="prod-row__media" style={{ background: "#fff" }}>
+                <BerryArt cat={cat} />
+              </div>
+              <div className="prod-row__body">
+                <div className="prod-row__head">
+                  <h2 className="t-h2">{gradeTitle(p, S)}</h2>
+                  {p.placeholder && <EstBadge S={S} />}
+                </div>
+                <div className="prod-row__desc">{S.gradeDesc[p.grade]}</div>
+                <div className="prod-row__meta">
+                  <span className="chip">{p.unit === "person" ? S.peopleWord : p.pack}</span>
+                  <span className="prod-row__per">{perWord(p, S)}</span>
+                </div>
+                <div className="prod-row__foot">
+                  <Price value={p.price} S={S} size="h2" />
+                  <button className="btn btn--yellow" onClick={(e) => { e.stopPropagation(); onQuickAdd(p, e.currentTarget.closest(".prod-row").querySelector(".prod-row__media")); }}>
+                    + {S.addShort}
+                  </button>
+                </div>
+              </div>
+            </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {cartCount > 0 && (
+        <div className="screen__footbar">
+          <button className="btn btn--primary btn--lg btn--block btn--breathe" onClick={onCart}>
+            <span>{S.cart} · {cartCount}</span>
+            <span className="footbar__sum">{fmt(cartTotal)}&nbsp;{S.cur}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   4. КАРТОЧКА ТОВАРА — выбор количества
+   ============================================================ */
+function ProductScreen({ S, lang, onLang, product, cat, onBack, onConfirm }) {
+  const [qty, setQty] = React.useState(1);
+  const sum = product.price * qty;
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} onBack={onBack} />
+      <div className="kiosk__main product">
+        <div className="product__media" style={{ background: "var(--cream-deep)" }}>
+          <BerryArt cat={cat} className="berry-art--xl" />
+          {product.placeholder && <div className="product__est"><EstBadge S={S} /></div>}
+        </div>
+        <div className="product__info">
+          <div className="eyebrow" style={{ color: cat.accent }}>{S.cat[product.cat]}</div>
+          <h1 className="t-h1 product__title">{gradeTitle(product, S)}</h1>
+          <p className="t-lead product__desc">{S.gradeDesc[product.grade]}</p>
+          <div className="product__meta">
+            <span className="chip chip--lg">{product.unit === "person" ? S.peopleWord : product.pack}</span>
+            <span className="product__per">{perWord(product, S)} · <Price value={product.price} S={S} size="h3" /></span>
+          </div>
+        </div>
+
+        <div className="product__buy">
+          <div className="product__qty">
+            <span className="product__qty-label">{S.quantity}</span>
+            <QtyControl value={qty} onDec={() => setQty((q) => Math.max(1, q - 1))} onInc={() => setQty((q) => q + 1)} />
+            <span className="product__qty-word">{unitWord(product, S)}</span>
+          </div>
+          <button className="btn btn--yellow btn--lg btn--block" onClick={(e) => onConfirm(product, qty, e.currentTarget.closest(".product").querySelector(".product__media"))}>
+            <span>{S.addToCart}</span>
+            <span className="footbar__sum">{fmt(sum)}&nbsp;{S.cur}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   5. КОРЗИНА
+   ============================================================ */
+function CartScreen({ S, lang, onLang, items, catOf, onBack, onInc, onDec, onRemove, onCheckout, total, count }) {
+  const empty = items.length === 0;
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} onBack={onBack} title={S.cartTitle} />
+      <div className="kiosk__main">
+        {empty ? (
+          <div className="cart-empty">
+            <BerryDrop fill="var(--cream-deep)" edge="var(--cream-deep)" style={{ width: 260, height: 122, opacity: .9 }} />
+            <h2 className="t-h2">{S.cartEmpty}</h2>
+            <p className="t-lead" style={{ color: "var(--ink-60)" }}>{S.cartEmptySub}</p>
+            <button className="btn btn--primary btn--lg" onClick={onBack}>{S.toMenu}</button>
+          </div>
+        ) : (
+          <div className="cart-list">
+            {items.map((it) => {
+              const c = catOf(it.cat);
+              return (
+                <div className="cart-row" key={it.id}>
+                  <div className="cart-row__media"><BerryArt cat={c} /></div>
+                  <div className="cart-row__body">
+                    <div className="cart-row__name">{fullName(it, S)}</div>
+                    <div className="cart-row__sub">
+                      {it.cat === "tours" ? (
+                        <span className="cart-row__guests">{S.guestAdults} ×{it.qty}{it.kids > 0 ? ` · ${S.guestKidsShort} ×${it.kids} (${S.guestFree.toLowerCase()})` : ""}</span>
+                      ) : (
+                        <>
+                          <span className="chip">{it.unit === "person" ? S.peopleWord : it.pack}</span>
+                          <span className="cart-row__unit">{fmt(it.price)}&nbsp;{S.cur} · {perWord(it, S)}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="cart-row__controls">
+                      <QtyControl value={it.qty} size="sm"
+                        onDec={() => it.qty <= 1 ? onRemove(it.id) : onDec(it.id)}
+                        onInc={() => onInc(it.id)} min={1} />
+                      <button className="cart-row__remove" onClick={() => onRemove(it.id)}>{S.remove}</button>
+                    </div>
+                  </div>
+                  <div className="cart-row__sum"><Price value={it.price * it.qty} S={S} size="h3" /></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {!empty && (
+        <div className="screen__footbar cart-foot">
+          <div className="cart-total">
+            <span className="cart-total__label">{S.total} · {window.KIOSK.nItems(count, lang)}</span>
+            <Price value={total} S={S} size="display" />
+          </div>
+          <div className="cart-foot__btns">
+            <button className="btn btn--ghost btn--lg" onClick={onBack}>{S.keepShopping}</button>
+            <button className="btn btn--primary btn--lg btn--breathe" onClick={onCheckout}>{S.checkout}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   6. ОПЛАТА
+   ============================================================ */
+function PaymentScreen({ S, lang, onLang, total, count, method, onMethod, onBack, onPay, processing, payStage }) {
+  const methods = [
+    { id: "sbp", title: S.paySbp, sub: S.paySbpSub, mark: "QR" },
+    { id: "card", title: S.payCard, sub: S.payCardSub, mark: "▭" },
+  ];
+  const sbpUrl = `https://qr.nspk.ru/AD10006SADYKOLOMNA?type=02&sum=${total * 100}&cur=RUB&crc=2B4F`;
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} onBack={onBack} title={S.payTitle} />
+      <div className="kiosk__main">
+        <div className="eyebrow">{S.payMethod}</div>
+        <div className="pay-methods">
+          {methods.map((m) => (
+            <button key={m.id}
+              className={"pay-method" + (method === m.id ? " is-active" : "")}
+              onClick={() => onMethod(m.id)}>
+              <span className="pay-method__mark" aria-hidden="true">{m.mark}</span>
+              <span className="pay-method__text">
+                <span className="pay-method__title">{m.title}</span>
+                <span className="pay-method__sub">{m.sub}</span>
+              </span>
+              <span className={"pay-method__radio" + (method === m.id ? " is-on" : "")}></span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="screen__footbar cart-foot">
+        <div className="cart-total">
+          <span className="cart-total__label">{S.total} · {window.KIOSK.nItems(count, lang)}</span>
+          <Price value={total} S={S} size="display" />
+        </div>
+        <button className="btn btn--primary btn--lg btn--block btn--breathe" onClick={onPay}>
+          <span>{S.pay}</span>
+          <span className="footbar__sum">{fmt(total)}&nbsp;{S.cur}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   6b. ОПЛАТА СБП — отдельный экран с QR-кодом
+   ============================================================ */
+function SbpScreen({ S, lang, onLang, total, payStage, onBack }) {
+  const sbpUrl = `https://qr.nspk.ru/AD10006SADYKOLOMNA?type=02&sum=${total * 100}&cur=RUB&crc=2B4F`;
+  const showQr = payStage === "qr";
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} onBack={onBack} title={S.payTitle} />
+      <div className="kiosk__main pay-sbp">
+        {showQr ? (
+          <>
+            <h2 className="t-h3 pay-instr">{S.paySbpScan}</h2>
+            <div className="pay-qr"><QRCode url={sbpUrl} color="#000" px={560} /></div>
+            <div className="pay-due">
+              <span className="pay-due__label">{S.payDue}:</span>
+              <Price value={total} S={S} size="display" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="pay-spinner" aria-hidden="true"></div>
+            <h2 className="t-h2">{S.paySbpGen}</h2>
+            <p className="t-lead" style={{ color: "var(--ink-60)" }}>{S.paySbpGenSub}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   6c. ОПЛАТА КАРТОЙ — отдельный экран с инструкцией
+   ============================================================ */
+function CardScreen({ S, lang, onLang, total, onBack }) {
+  return (
+    <div className="screen">
+      <TopBar S={S} lang={lang} onLang={onLang} onBack={onBack} title={S.payTitle} />
+      <div className="kiosk__main pay-sbp">
+        <h2 className="t-h3 pay-instr">{S.payCardHold}</h2>
+        <div className="pay-cardvis pay-cardvis--lg" aria-hidden="true">
+          <div className="pay-cardvis__term"><span className="pay-cardvis__screen"></span></div>
+          <div className="pay-cardvis__card">
+            <span className="pay-cardvis__chip"></span>
+            <span className="pay-cardvis__wave"></span>
+          </div>
+        </div>
+        <div className="pay-due">
+          <span className="pay-due__label">{S.payDue}:</span>
+          <Price value={total} S={S} size="display" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   7. ГОТОВО
+   ============================================================ */
+function DoneScreen({ S, orderNo, onNew, countdown }) {
+  return (
+    <div className="screen done">
+      <div className="done__inner">
+        <div className="done__check" aria-hidden="true">
+          <span className="done__check-mark">✓</span>
+        </div>
+        <h1 className="t-display done__title">{S.doneTitle}</h1>
+        <p className="t-h3 done__thanks">{S.doneThanks}</p>
+
+        <div className="done__order">
+          <span className="done__order-label">{S.orderNo}</span>
+          <span className="done__order-no">№&nbsp;{orderNo}</span>
+        </div>
+
+        <p className="t-h3 done__collect">{S.collect}</p>
+        <p className="t-lead done__collect-sub">{S.collectSub}</p>
+
+        <button className="btn btn--primary btn--lg" onClick={onNew}>{S.newOrder}</button>
+        <div className="done__auto">{S.autoReturn} {countdown}&nbsp;{S.sec}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ИНФО-МОДАЛКА (о ферме)
+   ============================================================ */
+function InfoModal({ S, hours, onClose }) {
+  const contacts = [
+    [S.infoHoursLabel, hours],
+    [S.infoPhoneLabel, S.infoPhone],
+    [S.infoSiteLabel, S.infoSite],
+  ];
+  const qrs = [
+    { url: "https://sadkolomna.ru/", logo: "site", label: S.qrSite, color: "#1F4D2A" },
+    { url: "https://t.me/sadkolomna", logo: "tg", label: S.qrTg, color: "#1F4D2A" },
+    { url: "https://vk.com/sadkolomna1", logo: "vk", label: S.qrVk, color: "#1F4D2A" },
+    { url: "https://clck.ru/3TAxXz", logo: "max", label: S.qrMax, color: "#1F4D2A" },
+  ];
+  return (
+    <div className="info-modal" onClick={onClose}>
+      <div className="info-modal__box" onClick={(e) => e.stopPropagation()}>
+        <button className="info-modal__close" onClick={onClose} aria-label={S.infoClose}>×</button>
+        <h2 className="t-h1 info-modal__title">{S.infoTitle}</h2>
+
+        <div className="info-contacts">
+          {contacts.map((c, i) => (
+            <div className="info-contact" key={i}>
+              <span className="info-contact__k">{c[0]}:</span>
+              <span className="info-contact__v">{c[1]}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="info-qrs info-qrs--grid">
+          {qrs.map((q, i) => (
+            <div className="info-qr" key={i}>
+              <div className="info-qr__box"><QRCode url={q.url} logo={q.logo} color={q.color} /></div>
+              <span className="info-qr__label">{q.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="info-dev">
+          <span className="info-dev__lead">Разработано</span>
+          <span className="dev-logo" aria-label="Büro 901">
+            <span className="dev-logo__b">B</span><span className="dev-logo__word">üro</span><span className="dev-logo__num">901</span>
+          </span>
+          <span className="info-dev__meta">· {S.devPhone} · {S.devSite}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   АДМИНКА — PIN-вход + настройки терминала
+   ============================================================ */
+function AdminPinModal({ S, onClose, onSuccess, pin }) {
+  const [val, setVal] = React.useState("");
+  const [err, setErr] = React.useState(false);
+  const A = S.admin;
+  function push(d) {
+    if (val.length >= 4) return;
+    const next = val + d;
+    setVal(next);
+    if (next.length === 4) {
+      setTimeout(() => {
+        if (next === pin) onSuccess();
+        else { setErr(true); setTimeout(() => { setVal(""); setErr(false); }, 650); }
+      }, 160);
+    }
+  }
+  function back() { setErr(false); setVal((v) => v.slice(0, -1)); }
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
+  return (
+    <div className="admin-overlay" onClick={onClose}>
+      <div className="admin-pin" onClick={(e) => e.stopPropagation()}>
+        <span className="eyebrow">{A.access}</span>
+        <h2 className="t-h2">{A.pinPrompt}</h2>
+        <div className={"pin-dots" + (err ? " is-err" : "")}>
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className={"pin-dot" + (i < val.length ? " is-on" : "")}></span>
+          ))}
+        </div>
+        <div className="pin-msg">{err ? A.wrong : "\u00A0"}</div>
+        <div className="pin-pad">
+          {keys.map((k, i) => k === ""
+            ? <span key={i} className="pin-key pin-key--empty" aria-hidden="true"></span>
+            : <button key={i} className={"pin-key" + (k === "⌫" ? " pin-key--back" : "")}
+                onClick={() => k === "⌫" ? back() : push(k)}>{k}</button>
+          )}
+        </div>
+        <button className="btn btn--ghost btn--lg" onClick={onClose}>{A.cancel}</button>
+      </div>
+    </div>
+  );
+}
+
+function AdminPanel({ S, onClose, menuLayout, onMenuLayout, showAttract, onShowAttract, btnColor, onBtnColor, skipProduct, onSkipProduct, hours, onHours }) {
+  const A = S.admin;
+  const opts = [
+    { id: "list", title: A.layoutList, desc: A.layoutListDesc },
+    { id: "grid", title: A.layoutGrid, desc: A.layoutGridDesc },
+  ];
+  const colors = ["#1F4D2A", "#D9143A", "#F4C90A"];
+  return (
+    <div className="admin-overlay" onClick={onClose}>
+      <div className="admin-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="admin-panel__head">
+          <span className="eyebrow">{A.access}</span>
+          <h2 className="t-h1">{A.title}</h2>
+        </div>
+
+        <div className="admin-sec">
+          <div className="admin-sec__top">
+            <h3 className="t-h3 admin-sec__label">{A.startSection}</h3>
+            <p className="admin-sec__hint">{A.startHint}</p>
+          </div>
+          <button className="admin-toggle" onClick={() => onShowAttract(!showAttract)}>
+            <span className="admin-toggle__txt">
+              <span className="admin-choice__title">{A.startToggle}</span>
+            </span>
+            <span className={"admin-switch" + (showAttract ? " is-on" : "")} aria-hidden="true">
+              <span className="admin-switch__knob"></span>
+            </span>
+          </button>
+        </div>
+
+        <div className="admin-sec">
+          <div className="admin-sec__top">
+            <h3 className="t-h3 admin-sec__label">{A.skipSection}</h3>
+            <p className="admin-sec__hint">{A.skipHint}</p>
+          </div>
+          <button className="admin-toggle" onClick={() => onSkipProduct(!skipProduct)}>
+            <span className="admin-toggle__txt">
+              <span className="admin-choice__title">{A.skipToggle}</span>
+            </span>
+            <span className={"admin-switch" + (skipProduct ? " is-on" : "")} aria-hidden="true">
+              <span className="admin-switch__knob"></span>
+            </span>
+          </button>
+        </div>
+
+        <div className="admin-sec">
+          <div className="admin-sec__top">
+            <h3 className="t-h3 admin-sec__label">{A.hoursSection}</h3>
+            <p className="admin-sec__hint">{A.hoursHint}</p>
+          </div>
+          <input className="admin-input" type="text" value={hours}
+            onChange={(e) => onHours(e.target.value)} />
+        </div>
+
+        <div className="admin-sec">
+          <div className="admin-sec__top">
+            <h3 className="t-h3 admin-sec__label">{A.colorSection}</h3>
+            <p className="admin-sec__hint">{A.colorHint}</p>
+          </div>
+          <div className="admin-swatches">
+            {colors.map((c) => (
+              <button key={c} className={"admin-swatch" + (btnColor === c ? " is-on" : "")}
+                onClick={() => onBtnColor(c)}>
+                <span className="admin-swatch__chip" style={{ background: c }}>
+                  {btnColor === c && <span className="admin-swatch__check" style={c === "#F4C90A" ? { color: "var(--green)", textShadow: "none" } : null}>✓</span>}
+                </span>
+                <span className="admin-swatch__name">{A.colorName[c]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="admin-sec">
+          <div className="admin-sec__top">
+            <h3 className="t-h3 admin-sec__label">{A.layoutSection}</h3>
+            <p className="admin-sec__hint">{A.layoutHint}</p>
+          </div>
+          <div className="admin-choices">
+            {opts.map((o) => (
+              <button key={o.id}
+                className={"admin-choice" + (menuLayout === o.id ? " is-on" : "")}
+                onClick={() => onMenuLayout(o.id)}>
+                <span className={"admin-prev admin-prev--" + o.id} aria-hidden="true">
+                  {o.id === "list"
+                    ? [0, 1, 2].map((i) => <span key={i} className="admin-prev__bar"></span>)
+                    : [0, 1, 2, 3].map((i) => <span key={i} className="admin-prev__cell"></span>)}
+                </span>
+                <span className="admin-choice__text">
+                  <span className="admin-choice__title">{o.title}</span>
+                  <span className="admin-choice__desc">{o.desc}</span>
+                </span>
+                <span className={"admin-choice__radio" + (menuLayout === o.id ? " is-on" : "")}></span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button className="btn btn--primary btn--lg btn--block" onClick={onClose}>{A.done}</button>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, {
+  AttractScreen, CategoriesScreen, MenuScreen, ProductScreen, CartScreen, PaymentScreen, SbpScreen, CardScreen, DoneScreen, InfoModal,
+  AdminPinModal, AdminPanel,
+});

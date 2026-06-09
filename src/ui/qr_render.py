@@ -58,21 +58,16 @@ def _render_svg(svg_text: str, size: int) -> QPixmap | None:
 
 
 def _render_payload(payload: str, size: int) -> QPixmap | None:
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=4,
-        border=2,
-    )
-    qr.add_data(payload)
-    qr.make(fit=True)
-    img = qr.make_image()
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    qimg = QImage.fromData(buf.getvalue())
-    if qimg.isNull():
+    from src.ui.kolomna_qr_render import load_cached_qr_pixmap, render_kolomna_qr_pixmap, scale_qr_for_display
+
+    for px in (size, 264, 560):
+        pix = load_cached_qr_pixmap("pay", px=px)
+        if not pix.isNull():
+            return pix if pix.width() == size else scale_qr_for_display(pix, size)
+    pix = render_kolomna_qr_pixmap(payload, px=560, color="#000000", logo="")
+    if pix.isNull():
         return None
-    return _scale(QPixmap.fromImage(qimg), size)
+    return scale_qr_for_display(pix, size)
 
 
 def render_qr_pixmap(

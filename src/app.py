@@ -20,12 +20,18 @@ from src.core.kiosk_win import KeyboardBlocker
 from src.core.logging_setup import setup_logging
 from src.core.state_machine import NavigationController
 from src.services.catalog_sync import CatalogStore
-from src.ui.katusha_fonts import setup_katusha_fonts
+from src.ui.kolomna_fonts import setup_kolomna_fonts
 from src.ui.main_window import MainWindow
 
 
 def _load_styles(app: QApplication, settings) -> None:
     styles_dir = ROOT / "src" / "ui" / "styles"
+    theme = getattr(settings.app, "ui_theme", "kolomna")
+    if theme == "kolomna":
+        path = styles_dir / "theme_kolomna.qss"
+        if path.exists():
+            app.setStyleSheet(path.read_text(encoding="utf-8"))
+        return
     parts: list[str] = []
     base = styles_dir / "theme.qss"
     if base.exists():
@@ -77,7 +83,7 @@ def run() -> int:
     if fusion:
         app.setStyle(fusion)
 
-    setup_katusha_fonts(app)
+    setup_kolomna_fonts(app)
     _load_styles(app, settings)
 
     keyboard = KeyboardBlocker()

@@ -6,17 +6,18 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 
 class AppScreen(Enum):
-  START = auto()
-  CATEGORIES = auto()
-  MENU = auto()
-  CART = auto()
-  PAYMENT_METHOD = auto()
-  PAYMENT_SBP = auto()
-  PAYMENT_CARD = auto()
-  SUCCESS = auto()
-  PAYMENT_ERROR = auto()
-  OFFLINE = auto()
-  IDLE_WARNING = auto()
+    START = auto()
+    CATEGORIES = auto()
+    TOURS = auto()
+    MENU = auto()
+    CART = auto()
+    PAYMENT_METHOD = auto()
+    PAYMENT_SBP = auto()
+    PAYMENT_CARD = auto()
+    SUCCESS = auto()
+    PAYMENT_ERROR = auto()
+    OFFLINE = auto()
+    IDLE_WARNING = auto()
 
 
 class NavigationController(QObject):

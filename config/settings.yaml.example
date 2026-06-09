@@ -1,5 +1,6 @@
 app:
-  title: "Катюша — киоск"
+  title: "Сады Коломны — киоск"
+  ui_theme: kolomna   # kolomna | katusha
   locale: ru_RU
   fullscreen: true
   orientation: portrait   # portrait | landscape
@@ -103,7 +104,7 @@ logging:
 
 kiosk:
   block_keys: true
-  admin_pin: "1234"
+  admin_pin: "1111"
   # Телефон на экране ошибки оплаты (можно переопределить KIOSK_SUPPORT_PHONE в .env)
   support_phone: "+7 (900) 000-00-00"
   # Показывать номер под текстом «Свяжитесь с нами…» (по умолчанию включено)

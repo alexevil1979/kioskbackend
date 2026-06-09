@@ -1,0 +1,320 @@
+/* ============================================================
+   САДЫ КОЛОМНЫ — ДАННЫЕ КИОСКА (товары + i18n RU/EN)
+   Плечо: window.KIOSK = { CATEGORIES, PRODUCTS, STR, t }
+   Цены клубники — реальные («с поля»). Голубика/малина/
+   экскурсии — ЗАГЛУШКИ (placeholder:true), помечены в UI.
+   ============================================================ */
+(function () {
+  const IMG = "design-core/assets/img/";
+
+  // ---- Категории (3 ягоды + услуга) ----
+  const CATEGORIES = [
+    { id: "strawberry", num: "01", berry: "strawberry", accent: "var(--strawberry)", edge: "var(--strawberry-edge)", img: IMG + "berry-strawberry.webp", kind: "berry" },
+    { id: "blueberry",  num: "02", berry: "blueberry",  accent: "var(--blueberry)",  edge: "var(--blueberry-edge)",  img: IMG + "berry-blueberry.webp",  kind: "berry" },
+    { id: "raspberry",  num: "03", berry: "raspberry",  accent: "var(--raspberry)",  edge: "var(--raspberry-edge)",  img: IMG + "berry-raspberry.webp",  kind: "berry" },
+    { id: "tours",      num: "04", berry: "strawberry", accent: "var(--green)",      edge: "var(--green-deep)",      img: IMG + "berry-strawberry.webp", kind: "service" },
+  ];
+
+  // ---- Товары ----
+  // berry: 3 сорта (premium/standard/jam), продаются лотками (unit:'pack').
+  // tours: услуга, считается по людям (unit:'person').
+  const PRODUCTS = [
+    // КЛУБНИКА — реальные цены
+    { id: "str-prem", cat: "strawberry", grade: "premium",  pack: "2,5 кг", price: 2375, unit: "pack" },
+    { id: "str-std",  cat: "strawberry", grade: "standard", pack: "2,5 кг", price: 1900, unit: "pack" },
+    { id: "str-jam",  cat: "strawberry", grade: "jam",      pack: "5 кг",   price: 2250, unit: "pack" },
+    // ГОЛУБИКА — заглушки
+    { id: "blu-prem", cat: "blueberry", grade: "premium",  pack: "2,5 кг", price: 3200, unit: "pack", placeholder: true },
+    { id: "blu-std",  cat: "blueberry", grade: "standard", pack: "2,5 кг", price: 2600, unit: "pack", placeholder: true },
+    { id: "blu-jam",  cat: "blueberry", grade: "jam",      pack: "5 кг",   price: 3400, unit: "pack", placeholder: true },
+    // МАЛИНА — заглушки
+    { id: "ras-prem", cat: "raspberry", grade: "premium",  pack: "2,5 кг", price: 2900, unit: "pack", placeholder: true },
+    { id: "ras-std",  cat: "raspberry", grade: "standard", pack: "2,5 кг", price: 2300, unit: "pack", placeholder: true },
+    { id: "ras-jam",  cat: "raspberry", grade: "jam",      pack: "5 кг",   price: 2700, unit: "pack", placeholder: true },
+    // ЭКСКУРСИИ — заглушки
+    { id: "tour-walk", cat: "tours", grade: "tourWalk",    price: 2500, unit: "person", placeholder: true },
+  ];
+
+  // Доступные даты экскурсий (невыбираемые, для показа). Сгруппированы по месяцам.
+  const TOUR_DATES = [
+    { m: 6, days: [20, 27] },
+    { m: 7, days: [4] },
+    { m: 8, days: [15, 22] },
+  ];
+
+  // ---- Словарь ----
+  const STR = {
+    ru: {
+      lang: "RU",
+      // attract
+      attractEyebrow: "Свежие ягоды прямо с поля",
+      attractTagline: "Такой должна быть ягода",
+      tourDatesTitle: "Доступные даты",
+      monthsNom: { 6: "Июнь", 7: "Июль", 8: "Август" },
+      guestAdults: "Взрослые",
+      guestKids: "Дети до 14 лет",
+      guestKidsShort: "дети",
+      guestFree: "Бесплатно",
+      attractCta: "Коснитесь, чтобы начать",
+      attractFoot: "Самовывоз с фермы · оплата картой и СБП",
+      // categories
+      menuEyebrow: "Меню",
+      chooseCategory: "Что соберём?",
+      cat: { strawberry: "Клубника", blueberry: "Голубика", raspberry: "Малина", tours: "Экскурсии" },
+      catSub: { strawberry: "3 сорта · лотками", blueberry: "3 сорта · лотками", raspberry: "3 сорта · лотками", tours: "Услуга фермы" },
+      season: { strawberry: "Сезон · июнь", blueberry: "Сезон · июль", raspberry: "Сезон · июль–август", tours: "Круглый год" },
+      info: "Инфо",
+      infoTitle: "Сады Коломны",
+      infoLead: "Реквизиты хозяйства",
+      infoHoursLabel: "Часы работы",
+      infoPhoneLabel: "Телефон",
+      infoPhone: "+7 901 518-33-33",
+      infoSiteLabel: "Сайт",
+      infoSite: "sadkolomna.ru",
+      qrTg: "Telegram",
+      qrVk: "ВКонтакте",
+      qrSite: "Сайт",
+      qrMax: "MAX",
+      devTitle: "Разработано",
+      devName: "Бюро 901",
+      devPhone: "+7 997 9-901-901",
+      devSite: "buro901.ru",
+      infoRows: [
+        ["Полное наименование", "Крестьянское фермерское хозяйство «Сады Коломны»"],
+        ["Глава КФХ", "Булгаков Владимир Александрович"],
+        ["ИНН · КПП", "5022077920 · 502201001"],
+        ["ОГРН", "1245000040053"],
+        ["Юридический адрес", "140490, Московская область, г. о. Коломна, с. Коробчеево, ул. Советская, д. 94/1, помещ. 2"],
+        ["Банк", "АО «Россельхозбанк»"],
+        ["Расчётный счёт", "40702810763170000504"],
+        ["Корр. счёт", "30101810045250000430"],
+        ["БИК", "044525430"],
+      ],
+      infoClose: "Закрыть",
+      // grades
+      grade: { premium: "Премиум", standard: "Стандарт", jam: "На варенье", tourWalk: "Экскурсия по ферме", tourTaste: "Экскурсия + дегустация" },
+      gradeDesc: {
+        premium: "Крупная отборная ягода, ручной сбор",
+        standard: "Свежий сбор сегодня утром",
+        jam: "Для варенья и домашних заготовок",
+        tourWalk: "45 минут по полям и теплицам",
+        tourTaste: "Прогулка с дегустацией свежих ягод",
+      },
+      // menu
+      back: "Назад",
+      addShort: "В корзину",
+      perPack: "за лоток",
+      perPerson: "с человека",
+      estPrice: "ориентир. цена",
+      // product / qty
+      quantity: "Количество",
+      packsWord: "лотков",
+      peopleWord: "человек",
+      addToCart: "Добавить",
+      // cart
+      cartTitle: "Ваш заказ",
+      cartEmpty: "Корзина пуста",
+      cartEmptySub: "Добавьте ягоды из меню",
+      toMenu: "В меню",
+      remove: "Удалить",
+      total: "Итого",
+      positions: "позиций",
+      checkout: "Перейти к оплате",
+      keepShopping: "Добавить ещё",
+      cart: "Корзина",
+      // payment
+      payTitle: "Оплата",
+      payMethod: "Выберите способ оплаты",
+      paySbp: "СБП · по QR-коду",
+      paySbpSub: "Сканируйте код в приложении банка",
+      payCard: "Банковская карта",
+      payCardSub: "Приложите или вставьте карту в терминал",
+      pay: "Оплатить",
+      processing: "Проводим оплату…",
+      processingSub: "Не закрывайте экран",
+      payCardHold: "Поднесите карту к терминалу и произведите оплату",
+      paySbpGen: "Формируем QR-код…",
+      paySbpGenSub: "Подождите несколько секунд",
+      paySbpScan: "Отсканируйте QR-код для оплаты",
+      payDue: "К оплате",
+      paySbpScanSub: "Камерой или в приложении банка",
+      // done
+      doneTitle: "Готово!",
+      doneThanks: "Спасибо за заказ",
+      orderNo: "Заказ",
+      collect: "Заберите заказ на стойке выдачи",
+      collectSub: "Назовите номер заказа сотруднику фермы",
+      newOrder: "Новый заказ",
+      autoReturn: "Возврат на главный экран через",
+      // admin
+      admin: {
+        access: "Режим администратора",
+        pinPrompt: "Введите PIN",
+        wrong: "Неверный PIN",
+        title: "Настройки терминала",
+        layoutSection: "Раскладка меню",
+        layoutHint: "Как показывать сорта внутри категории",
+        layoutList: "Список",
+        layoutListDesc: "Крупные строки на всю ширину",
+        layoutGrid: "Плитка 2×2",
+        layoutGridDesc: "Карточки по две в ряд",
+        startSection: "Стартовый экран",
+        startToggle: "Показывать экран приветствия",
+        startHint: "Заставка с логотипом перед каталогом",
+        skipSection: "Карточка товара",
+        skipToggle: "Скрывать экран товара",
+        skipHint: "Без экрана товара — в корзину только по кнопке «+»",
+        hoursSection: "Режим работы",
+        hoursHint: "Отображается в информационном окне",
+        colorSection: "Цвет кнопок",
+        colorHint: "Акцент основных кнопок",
+        colorName: { "#1F4D2A": "Зелёный", "#D9143A": "Клубничный", "#F4C90A": "Жёлтый" },
+        cancel: "Отмена",
+        done: "Готово",
+      },
+      sec: "с",
+      cur: "₽",
+    },
+    en: {
+      lang: "EN",
+      attractEyebrow: "Fresh berries straight from the field",
+      attractTagline: "This is how a berry should be",
+      tourDatesTitle: "Available dates",
+      monthsNom: { 6: "June", 7: "July", 8: "August" },
+      guestAdults: "Adults",
+      guestKids: "Children under 14",
+      guestKidsShort: "kids",
+      guestFree: "Free",
+      attractCta: "Touch to start",
+      attractFoot: "Farm pickup · card & SBP payment",
+      menuEyebrow: "Menu",
+      chooseCategory: "What shall we pick?",
+      cat: { strawberry: "Strawberry", blueberry: "Blueberry", raspberry: "Raspberry", tours: "Farm tours" },
+      catSub: { strawberry: "3 grades · by tray", blueberry: "3 grades · by tray", raspberry: "3 grades · by tray", tours: "Farm service" },
+      season: { strawberry: "Season · June", blueberry: "Season · July", raspberry: "Season · Jul–Aug", tours: "Year-round" },
+      info: "Info",
+      infoTitle: "Sady Kolomny",
+      infoLead: "Company details",
+      infoHoursLabel: "Working hours",
+      infoPhoneLabel: "Phone",
+      infoPhone: "+7 901 518-33-33",
+      infoSiteLabel: "Website",
+      infoSite: "sadkolomna.ru",
+      qrTg: "Telegram",
+      qrVk: "VK",
+      qrSite: "Website",
+      qrMax: "MAX",
+      devTitle: "Developed by",
+      devName: "Buro 901",
+      devPhone: "+7 997 9-901-901",
+      devSite: "buro901.ru",
+      infoRows: [
+        ["Full name", "Peasant farm enterprise «Sady Kolomny»"],
+        ["Head of farm", "Bulgakov Vladimir Aleksandrovich"],
+        ["INN · KPP", "5022077920 · 502201001"],
+        ["OGRN", "1245000040053"],
+        ["Legal address", "140490, Moscow region, Kolomna, Korobcheevo, Sovetskaya st., 94/1, room 2"],
+        ["Bank", "JSC «Rosselkhozbank»"],
+        ["Account", "40702810763170000504"],
+        ["Corr. account", "30101810045250000430"],
+        ["BIC", "044525430"],
+      ],
+      infoClose: "Close",
+      grade: { premium: "Premium", standard: "Standard", jam: "For jam", tourWalk: "Farm tour", tourTaste: "Tour + tasting" },
+      gradeDesc: {
+        premium: "Large, hand-picked select berries",
+        standard: "Fresh-picked this morning",
+        jam: "For jam and home preserves",
+        tourWalk: "45 minutes across fields & greenhouses",
+        tourTaste: "A walk with a fresh-berry tasting",
+      },
+      back: "Back",
+      addShort: "Add",
+      perPack: "per tray",
+      perPerson: "per person",
+      estPrice: "est. price",
+      quantity: "Quantity",
+      packsWord: "trays",
+      peopleWord: "people",
+      addToCart: "Add",
+      cartTitle: "Your order",
+      cartEmpty: "Your cart is empty",
+      cartEmptySub: "Add some berries from the menu",
+      toMenu: "Go to menu",
+      remove: "Remove",
+      total: "Total",
+      positions: "items",
+      checkout: "Checkout",
+      keepShopping: "Add more",
+      cart: "Cart",
+      payTitle: "Payment",
+      payMethod: "Choose a payment method",
+      paySbp: "SBP · by QR code",
+      paySbpSub: "Scan the code in your bank app",
+      payCard: "Bank card",
+      payCardSub: "Tap or insert your card in the terminal",
+      pay: "Pay",
+      processing: "Processing payment…",
+      processingSub: "Please don't close the screen",
+      payCardHold: "Tap your card on the terminal and complete the payment",
+      paySbpGen: "Generating QR code…",
+      paySbpGenSub: "Please wait a few seconds",
+      paySbpScan: "Scan the QR code to pay",
+      payDue: "To pay",
+      paySbpScanSub: "With your camera or bank app",
+      doneTitle: "All set!",
+      doneThanks: "Thank you for your order",
+      orderNo: "Order",
+      collect: "Collect your order at the pickup counter",
+      collectSub: "Tell the farm staff your order number",
+      newOrder: "New order",
+      autoReturn: "Returning to home screen in",
+      admin: {
+        access: "Administrator mode",
+        pinPrompt: "Enter PIN",
+        wrong: "Wrong PIN",
+        title: "Terminal settings",
+        layoutSection: "Menu layout",
+        layoutHint: "How grades appear inside a category",
+        layoutList: "List",
+        layoutListDesc: "Large full-width rows",
+        layoutGrid: "Grid 2×2",
+        layoutGridDesc: "Two cards per row",
+        startSection: "Start screen",
+        startToggle: "Show welcome screen",
+        startHint: "Logo splash before the catalog",
+        skipSection: "Product card",
+        skipToggle: "Skip product screen",
+        skipHint: "No product screen — add to cart only via the «+» button",
+        hoursSection: "Working hours",
+        hoursHint: "Shown in the information window",
+        colorSection: "Button colour",
+        colorHint: "Accent of the primary buttons",
+        colorName: { "#1F4D2A": "Green", "#D9143A": "Strawberry", "#F4C90A": "Yellow" },
+        cancel: "Cancel",
+        done: "Done",
+      },
+      sec: "s",
+      cur: "₽",
+    },
+  };
+
+  // helper: number with thin spaces (1 900 -> "1 900")
+  function fmt(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202F");
+  }
+
+  // helper: «1 позиция / 2 позиции / 5 позиций» · «1 item / 3 items»
+  function nItems(n, lang) {
+    if (lang === "en") return n + (n === 1 ? " item" : " items");
+    const a = Math.abs(n) % 100, b = a % 10;
+    let w = "позиций";
+    if (a < 11 || a > 14) {
+      if (b === 1) w = "позиция";
+      else if (b >= 2 && b <= 4) w = "позиции";
+    }
+    return n + " " + w;
+  }
+
+  window.KIOSK = { CATEGORIES, PRODUCTS, TOUR_DATES, STR, fmt, nItems };
+})();

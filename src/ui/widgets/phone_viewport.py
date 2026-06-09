@@ -12,7 +12,7 @@ class PhoneViewport(QFrame):
     def __init__(self, app_cfg: AppConfig, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("PhoneViewport")
-        w, h = app_cfg.viewport_width, app_cfg.viewport_height
+        w, h = app_cfg.content_width, app_cfg.content_height
         self.setFixedSize(w, h)
 
         lay = QVBoxLayout(self)
