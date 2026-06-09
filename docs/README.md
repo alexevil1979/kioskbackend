@@ -21,6 +21,7 @@
 | **Архитектура** | [ARCHITECTURE.md](ARCHITECTURE.md) | Разработчики |
 | **Ассеты** | [ASSETS.md](ASSETS.md) | Контент, дизайн |
 | **Деплой** | [DEPLOYMENT.md](DEPLOYMENT.md) | NUC, поле |
+| **Установка Win10** | [INSTALL_TERMINAL_WIN10.md](INSTALL_TERMINAL_WIN10.md) | Терминал, монтаж |
 | **История версий** | [CHANGELOG.md](CHANGELOG.md) | Все |
 | **Git** | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | Разработчики |
 | **Вопросы заказчику** | [QUESTIONS.md](QUESTIONS.md) | Менеджер |

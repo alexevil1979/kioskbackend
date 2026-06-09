@@ -1,11 +1,14 @@
 # Деплой на NUC (киоск)
 
+**Полная инструкция для терминала Win10:** [INSTALL_TERMINAL_WIN10.md](INSTALL_TERMINAL_WIN10.md)  
+**Сборка ZIP-пакета:** `powershell -ExecutionPolicy Bypass -File scripts\build_terminal_package.ps1` → `dist/kiosk-terminal-*.zip`
+
 ## Подготовка ПК
 
 1. Windows 10 Pro, учётная запись только для киоска (рекомендуется).
-2. Установить Python 3.11+ или собрать exe (отдельная задача — пока запуск из venv).
-3. Клонировать репозиторий в **`C:\kiosk\`** (латиница в пути).
-4. `pip install -r requirements.txt`, скопировать `config/settings.yaml` из example.
+2. Установить Python 3.11+ (запуск из venv; exe — отдельная задача).
+3. Распаковать пакет в **`C:\kiosk\`** (латиница в пути) или клонировать репозиторий.
+4. `.\install.ps1` (из пакета) или вручную: venv + `pip install -r requirements.txt`, `settings.yaml` из example.
 5. Выбрать пресет: `config/presets/mode_aqsi.yaml` → merge в `settings.yaml`.
 
 ## Сеть
