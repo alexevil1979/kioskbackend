@@ -8,7 +8,7 @@ from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_product_meta import fmt_price, n_items_label
-from src.ui.kolomna_tokens import CREAM, GREEN, INK_60, KolomnaMetrics, STRAWBERRY, scale
+from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, STRAWBERRY, scale
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.scroll_utils import enable_kinetic_scroll
 from src.ui.widgets.kolomna_cart_footbar import PaySumPillBtn
@@ -82,7 +82,11 @@ class KolomnaPaymentScreen(BaseScreen):
 
         foot = QFrame()
         foot.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        foot.setStyleSheet(f"QFrame {{ background: {CREAM}; border: none; }}")
+        border = max(1, scale(2, w))
+        foot.setStyleSheet(
+            f"QFrame {{ background: {CREAM}; border: none; "
+            f"border-top: {border}px solid {CREAM_DEEP}; }}"
+        )
         foot_lay = QVBoxLayout(foot)
         foot_lay.setContentsMargins(
             self._m.pad, scale(30, w), self._m.pad, scale(48, w) + scale(24, w)

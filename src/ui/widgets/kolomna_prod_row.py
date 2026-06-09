@@ -127,6 +127,88 @@ class _PackChip(QWidget):
         p.end()
 
 
+# «+ В корзину» в prod-row: .btn.btn--yellow (tap-comfortable 88px, padding 22×44).
+PROD_ADD_BTN_MIN_HEIGHT_PX = 88
+PROD_ADD_BTN_PAD_V_PX = 22
+PROD_ADD_BTN_PAD_H_PX = 44
+
+# «+ В корзину» в prod-tile__foot — компактная pill в сетке.
+TILE_ADD_BTN_MIN_HEIGHT_PX = 72
+TILE_ADD_BTN_PAD_V_PX = 18
+TILE_ADD_BTN_PAD_H_PX = 32
+TILE_MEDIA_HEIGHT_PX = 340
+
+
+class _TileMediaHost(QFrame):
+    """prod-tile__media: фикс. высота, фото через geometry (без layout-петли 116%)."""
+
+    def __init__(self, berry: KolomnaBerryArt, media_h: int, border_css: str, parent=None) -> None:
+        super().__init__(parent)
+        self._berry = berry
+        berry.setParent(self)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFixedHeight(media_h)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setStyleSheet(border_css)
+        self.setMinimumWidth(0)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        w, h = max(1, self.width()), self.height()
+        self._berry.setGeometry(0, 0, w, h)
+
+
+class _TileAddBtn(QWidget):
+    """btn btn--yellow в prod-tile__foot."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, metrics: KolomnaMetrics, parent=None) -> None:
+        super().__init__(parent)
+        self._pressed = False
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        w = metrics.width
+        text = f"+ {S.ADD_SHORT}"
+        self._label = text
+        self._font = kolomna_font(metrics.fs_label, QFont.Weight.ExtraBold)
+        pad_v = scale(TILE_ADD_BTN_PAD_V_PX, w)
+        pad_h = scale(TILE_ADD_BTN_PAD_H_PX, w)
+        fm = QFontMetrics(self._font)
+        btn_w = fm.horizontalAdvance(text) + pad_h * 2
+        self._pill_h = scale(TILE_ADD_BTN_MIN_HEIGHT_PX, w)
+        self.setFixedSize(btn_w, self._pill_h)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        rect = QRectF(0.5, 0.5, self.width() - 1, self._pill_h - 1)
+        r = rect.height() / 2.0
+        bg = QColor("#E0B800" if self._pressed else YELLOW)
+        p.setBrush(bg)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawRoundedRect(rect, r, r)
+        p.setFont(self._font)
+        p.setPen(QColor(GREEN))
+        p.drawText(rect.toRect(), Qt.AlignmentFlag.AlignCenter, self._label)
+        p.end()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = False
+            self.update()
+            if self.rect().contains(event.position().toPoint()):
+                self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
 class _ProdAddBtn(QWidget):
     """btn btn--yellow в prod-row__foot."""
 
@@ -140,32 +222,28 @@ class _ProdAddBtn(QWidget):
         w = metrics.width
         text = f"+ {S.ADD_SHORT}"
         self._label = text
-        self._font = kolomna_font(metrics.fs_body, QFont.Weight.Black)
-        pad_v = scale(18, w)
-        pad_h = scale(32, w)
+        self._font = kolomna_font(metrics.fs_body, QFont.Weight.ExtraBold)
+        pad_v = scale(PROD_ADD_BTN_PAD_V_PX, w)
+        pad_h = scale(PROD_ADD_BTN_PAD_H_PX, w)
         fm = QFontMetrics(self._font)
         btn_w = fm.horizontalAdvance(text) + pad_h * 2
-        btn_h = max(scale(56, w), fm.height() + pad_v * 2)
-        self.setFixedSize(btn_w, btn_h)
+        self._pill_h = scale(PROD_ADD_BTN_MIN_HEIGHT_PX, w)
+        self.setFixedSize(btn_w, self._pill_h)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        rect = QRectF(0.5, 0.5, self.width() - 1, self._pill_h - 1)
         r = rect.height() / 2.0
-        vw = self._m.width
-        if not self._pressed:
-            sr = rect.translated(0, scale(8, vw))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(244, 201, 10, 100))
-            p.drawRoundedRect(sr, r, r)
         bg = QColor("#E0B800" if self._pressed else YELLOW)
         p.setBrush(bg)
         p.setPen(Qt.PenStyle.NoPen)
         p.drawRoundedRect(rect, r, r)
         p.setFont(self._font)
         p.setPen(QColor(GREEN))
-        p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._label)
+        text_rect = QRectF(rect)
+        p.drawText(text_rect.toRect(), Qt.AlignmentFlag.AlignCenter, self._label)
         p.end()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
@@ -197,15 +275,22 @@ class KolomnaProdRow(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumWidth(0)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._clip_w = 0
+        self._clip_h = 0
 
         media_w = scale(400, metrics.width)
         # prod-row на референсе ≈ scale(400) по высоте (400×400 @ 1080)
         self._card_h = scale(400, metrics.width)
         self._media_h = self._card_h
 
-        self._card = QFrame(self)
+        self._card = QFrame()
         self._card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._card.setStyleSheet("QFrame { background: transparent; border: none; }")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, self._shadow_bleed())
+        outer.setSpacing(0)
+        outer.addWidget(self._card)
 
         root = QHBoxLayout(self._card)
         root.setContentsMargins(0, 0, 0, 0)
@@ -218,18 +303,22 @@ class KolomnaProdRow(QWidget):
             radius=0,
             bg=CREAM_DEEP,
         )
-        media.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         self._media = media
-        root.addWidget(media)
+        root.addWidget(media, 0, Qt.AlignmentFlag.AlignTop)
 
         self._body_host = QWidget()
         self._body_host.setMinimumWidth(0)
         self._body_host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._body_host.setStyleSheet("background: transparent;")
-        self._body_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self._body_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         body = QVBoxLayout(self._body_host)
-        body.setContentsMargins(0, scale(34, metrics.width), scale(36, metrics.width), scale(30, metrics.width))
+        body.setContentsMargins(
+            0,
+            scale(34, metrics.width),
+            scale(36, metrics.width),
+            scale(30, metrics.width),
+        )
         body.setSpacing(scale(14, metrics.width))
 
         title = QLabel(product_title(product))
@@ -291,8 +380,15 @@ class KolomnaProdRow(QWidget):
 
         root.addWidget(self._body_host, stretch=1)
 
-        self._card.setMinimumHeight(self._card_h)
-        self._sync_geometry()
+        self._body_host.adjustSize()
+        self._card_h = max(self._card_h, self._body_host.sizeHint().height())
+        self._sync_heights()
+
+    def _sync_heights(self) -> None:
+        self._media.setFixedSize(scale(400, self._m.width), self._card_h)
+        self._card.setFixedHeight(self._card_h)
+        total = self._card_h + self._shadow_bleed()
+        self.setFixedHeight(total)
 
     def _shadow_bleed(self) -> int:
         return scale(36, self._m.width)
@@ -300,16 +396,12 @@ class KolomnaProdRow(QWidget):
     def _apply_round_clip(self) -> None:
         w = max(1, self._card.width())
         h = max(1, self._card.height())
+        if w == self._clip_w and h == self._clip_h:
+            return
+        self._clip_w, self._clip_h = w, h
         path = QPainterPath()
         path.addRoundedRect(QRectF(0, 0, w, h), self._radius, self._radius)
         self._card.setMask(QRegion(path.toFillPolygon().toPolygon()))
-
-    def _sync_geometry(self) -> None:
-        w = max(1, self.width())
-        h = self._card_h
-        self._card.setGeometry(0, 0, w, h)
-        self._apply_round_clip()
-        self.setFixedHeight(h + self._shadow_bleed())
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -327,11 +419,241 @@ class KolomnaProdRow(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        self._sync_geometry()
+        self._apply_round_clip()
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
-        self._sync_geometry()
+        self._apply_round_clip()
+
+    def media_widget(self) -> QWidget:
+        return self._media
+
+    @property
+    def product_id(self) -> str:
+        return self._product.id
+
+    def _on_add(self) -> None:
+        self.add_clicked.emit(self._product.id)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            pos = event.position().toPoint()
+            add_pos = self._add_btn.mapFrom(self, pos)
+            if self._add_btn.rect().contains(add_pos):
+                super().mouseReleaseEvent(event)
+                return
+            self.clicked.emit(self._product.id)
+        super().mouseReleaseEvent(event)
+
+
+class KolomnaProdTile(QWidget):
+    """prod-tile: сетка 2×N в menu-grid (референс)."""
+
+    clicked = pyqtSignal(str)
+    add_clicked = pyqtSignal(str)
+
+    def __init__(self, product: Product, metrics: KolomnaMetrics, parent=None) -> None:
+        super().__init__(parent)
+        self._product = product
+        self._m = metrics
+        self._radius = metrics.radius
+        self._media_h = scale(TILE_MEDIA_HEIGHT_PX, metrics.width)
+        self._body_w = max(40, (metrics.width - metrics.gap * 3) // 2 - scale(64, metrics.width))
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._clip_w = 0
+        self._clip_h = 0
+
+        self._card = QFrame()
+        self._card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._card.setStyleSheet("QFrame { background: transparent; border: none; }")
+        self._card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, self._shadow_bleed())
+        outer.setSpacing(0)
+        outer.addWidget(self._card)
+
+        root = QVBoxLayout(self._card)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        border = max(1, scale(2, metrics.width))
+        border_css = (
+            f"QFrame {{ background: #FFFFFF; border: none; "
+            f"border-bottom: {border}px solid {CREAM_DEEP}; }}"
+        )
+        col_w = max(scale(200, metrics.width), (metrics.width - metrics.gap * 3) // 2)
+        media = KolomnaBerryArt(
+            product,
+            col_w,
+            self._media_h,
+            radius=0,
+            bg="#FFFFFF",
+            img_scale=1.16,
+            fluid_width=True,
+        )
+        self._media = media
+        media_wrap = _TileMediaHost(media, self._media_h, border_css)
+        root.addWidget(media_wrap)
+
+        body = QWidget()
+        body.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        body.setStyleSheet("background: transparent;")
+        body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        body_lay = QVBoxLayout(body)
+        body_lay.setContentsMargins(
+            scale(32, metrics.width),
+            scale(30, metrics.width),
+            scale(32, metrics.width),
+            scale(32, metrics.width),
+        )
+        body_lay.setSpacing(scale(14, metrics.width))
+
+        title_font = kolomna_font(metrics.fs_h3, QFont.Weight.Black)
+        title_text, title_h = _clamp_wrapped_text(
+            product_title(product), title_font, self._body_w, max_lines=2, line_height=1.2
+        )
+        title = QLabel(title_text)
+        title.setWordWrap(True)
+        title.setMinimumWidth(0)
+        title.setMaximumWidth(self._body_w)
+        title.setFixedHeight(title_h)
+        title.setFont(title_font)
+        title.setStyleSheet(f"color: {GREEN}; background: transparent;")
+        body_lay.addWidget(title)
+
+        desc_raw = product_description(product)
+        if desc_raw:
+            desc_font = kolomna_font(metrics.fs_lead, QFont.Weight.Medium)
+            desc_text, desc_h = _clamp_wrapped_text(
+                desc_raw, desc_font, self._body_w, max_lines=2, line_height=1.3
+            )
+            d = QLabel(desc_text)
+            d.setWordWrap(True)
+            d.setMinimumWidth(0)
+            d.setMaximumWidth(self._body_w)
+            d.setFixedHeight(desc_h)
+            d.setFont(desc_font)
+            d.setStyleSheet(f"color: {INK_60}; background: transparent; line-height: 130%;")
+            body_lay.addWidget(d)
+
+        meta = QHBoxLayout()
+        meta.setSpacing(scale(16, metrics.width))
+        meta.addWidget(_PackChip(product_pack_label(product), metrics))
+        per = QLabel(product_per_word(product))
+        per.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Bold))
+        per.setStyleSheet(f"color: {INK_60}; background: transparent;")
+        meta.addWidget(per, alignment=Qt.AlignmentFlag.AlignVCenter)
+        meta.addStretch(1)
+        body_lay.addLayout(meta)
+
+        body_lay.addStretch(1)
+
+        foot = QHBoxLayout()
+        foot.setSpacing(scale(16, metrics.width))
+        foot.setContentsMargins(0, scale(14, metrics.width), 0, 0)
+        price = QLabel(f"{fmt_price(product.price_rub)}\u00a0{S.CUR}")
+        price.setFont(kolomna_font(metrics.fs_h3, QFont.Weight.Black))
+        price.setStyleSheet(f"color: {GREEN}; background: transparent;")
+        price.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        foot.addWidget(price, alignment=Qt.AlignmentFlag.AlignVCenter)
+        add = _TileAddBtn(metrics)
+        add.clicked.connect(self._on_add)
+        self._add_btn = add
+        foot.addWidget(add, alignment=Qt.AlignmentFlag.AlignVCenter)
+        body_lay.addLayout(foot)
+        root.addWidget(body)
+        self._body = body
+
+        self._sync_card_height(self._media_h + self._measure_body_height())
+
+    def _measure_body_height(self) -> int:
+        m = self._m
+        bw = self._body_w
+        pad_t = scale(30, m.width)
+        pad_b = scale(32, m.width)
+        gap = scale(14, m.width)
+        total = pad_t + pad_b
+
+        title_font = kolomna_font(m.fs_h3, QFont.Weight.Black)
+        _, title_h = _clamp_wrapped_text(
+            product_title(self._product),
+            title_font,
+            bw,
+            max_lines=2,
+            line_height=1.2,
+        )
+        total += title_h
+
+        desc_raw = product_description(self._product)
+        if desc_raw:
+            total += gap
+            desc_font = kolomna_font(m.fs_lead, QFont.Weight.Medium)
+            _, desc_h = _clamp_wrapped_text(
+                desc_raw, desc_font, bw, max_lines=2, line_height=1.3
+            )
+            total += desc_h
+
+        total += gap
+        chip_fs = scale(22, m.width)
+        chip_pad_v = scale(10, m.width)
+        chip_fm = QFontMetrics(kolomna_font(chip_fs, QFont.Weight.ExtraBold))
+        total += chip_fm.height() + chip_pad_v * 2
+
+        total += gap
+        total += scale(14, m.width) + scale(TILE_ADD_BTN_MIN_HEIGHT_PX, m.width)
+        return total
+
+    def _shadow_bleed(self) -> int:
+        return scale(36, self._m.width)
+
+    def content_height(self) -> int:
+        return self._card_h + self._shadow_bleed()
+
+    def _sync_card_height(self, card_h: int) -> None:
+        self._card_h = max(self._media_h, card_h)
+        self._card.setFixedHeight(self._card_h)
+        self.setFixedHeight(self.content_height())
+        self._clip_h = 0
+        self._apply_round_clip()
+
+    def set_row_height(self, total_h: int) -> None:
+        """Высота ряда сетки: обе плитки в строке — как у более высокой."""
+        self._sync_card_height(total_h - self._shadow_bleed())
+
+    def _apply_round_clip(self) -> None:
+        w = max(1, self._card.width())
+        h = max(1, self._card.height())
+        if w == self._clip_w and h == self._clip_h:
+            return
+        self._clip_w, self._clip_h = w, h
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(0, 0, w, h), self._radius, self._radius)
+        self._card.setMask(QRegion(path.toFillPolygon().toPolygon()))
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w = max(1, self.width())
+        h = self._card_h
+        r = float(self._radius)
+        card_rect = QRectF(0, 0, w, h)
+        _paint_card_shadow(p, card_rect, r, self._m)
+        p.setBrush(QColor("#FFFFFF"))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawRoundedRect(card_rect, r, r)
+        p.end()
+        super().paintEvent(event)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._apply_round_clip()
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._apply_round_clip()
 
     def media_widget(self) -> QWidget:
         return self._media

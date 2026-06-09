@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayou
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_product_meta import fmt_price
+from src.ui.kolomna_cta import cta_palette
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, scale
 
 _BREATHE_CYCLE_MS = 1800
@@ -142,11 +143,12 @@ class _FootPillBtn(QWidget):
                     p.setPen(Qt.PenStyle.NoPen)
                     p.setBrush(QColor(20, 56, 33, alpha))
                     p.drawRoundedRect(sr, r, r)
-            bg = QColor("#143821" if self._pressed else GREEN)
+            pal = cta_palette()
+            bg = QColor(pal.bg_active if self._pressed else pal.bg)
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(bg)
             p.drawRoundedRect(rect, r, r)
-            text_color = QColor(CREAM)
+            text_color = QColor(pal.fg)
 
         font = self._fit_font()
         p.setFont(font)
@@ -157,6 +159,9 @@ class _FootPillBtn(QWidget):
             self._text,
         )
         p.end()
+
+    def refresh_cta(self) -> None:
+        self.update()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
@@ -274,7 +279,8 @@ class PaySumPillBtn(QWidget):
             p.setBrush(QColor(20, 56, 33, alpha))
             p.drawRoundedRect(sr, r, r)
 
-        bg = QColor("#143821" if self._pressed else GREEN)
+        pal = cta_palette()
+        bg = QColor(pal.bg_active if self._pressed else pal.bg)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(bg)
         p.drawRoundedRect(rect, r, r)
@@ -288,12 +294,15 @@ class PaySumPillBtn(QWidget):
         baseline_s = _vcenter_baseline(fm_s, by, pill_h)
         inner_l = bx + pad
         inner_r = self.width() - bx - pad
-        p.setPen(QColor(CREAM))
+        p.setPen(QColor(pal.fg))
         p.setFont(font_l)
         p.drawText(int(inner_l), int(baseline_l), self._label_text)
         p.setFont(font_s)
         p.drawText(int(inner_r - fm_s.horizontalAdvance(self._sum_text)), int(baseline_s), self._sum_text)
         p.end()
+
+    def refresh_cta(self) -> None:
+        self.update()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:

@@ -28,6 +28,9 @@ class KolomnaAddedToast(QWidget):
         self._pill_rect = QRectF()
         self._opacity = 1.0
         self._slide_y = 0.0
+        self._slide_max = float(scale(22, w))
+        self._anchor_x = 0
+        self._anchor_y = 0
         self._anim_ms = 0
 
         self._hide_timer = QTimer(self)
@@ -65,8 +68,9 @@ class KolomnaAddedToast(QWidget):
         else:
             pill_bottom = parent.height() - scale(self.BOTTOM_REF, self._m.width)
         y = pill_bottom - int(self._pill_rect.bottom())
-        x = (parent.width() - self.width()) // 2
-        self.setGeometry(x, max(0, y), self.width(), self.height())
+        self._anchor_x = (parent.width() - self.width()) // 2
+        self._anchor_y = max(0, y)
+        self.setGeometry(self._anchor_x, self._anchor_y, self.width(), self.height())
 
     def flash(
         self,
@@ -79,8 +83,10 @@ class KolomnaAddedToast(QWidget):
         self._measure()
         self._position(above=above)
         self._opacity = 0.0
-        self._slide_y = float(scale(22, self._m.width))
+        self._slide_max = float(scale(22, self._m.width))
+        self._slide_y = self._slide_max
         self._anim_ms = 0
+        self.move(self._anchor_x, self._anchor_y + int(self._slide_max))
         self.show()
         self.raise_()
         self._anim_timer.start(16)
@@ -93,7 +99,8 @@ class KolomnaAddedToast(QWidget):
         t = min(1.0, self._anim_ms / 250.0)
         ease = t * t * (3.0 - 2.0 * t)
         self._opacity = ease
-        self._slide_y = float(scale(22, self._m.width)) * (1.0 - ease)
+        self._slide_y = self._slide_max * (1.0 - ease)
+        self.move(self._anchor_x, self._anchor_y + int(self._slide_y))
         self.update()
         if t >= 1.0:
             self._anim_timer.stop()
@@ -103,7 +110,6 @@ class KolomnaAddedToast(QWidget):
             return
         p = QPainter(self)
         p.setOpacity(self._opacity)
-        p.translate(0, self._slide_y)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         rect = self._pill_rect

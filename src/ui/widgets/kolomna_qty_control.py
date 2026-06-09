@@ -8,6 +8,12 @@ from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_shadow import draw_shadow_soft_ellipse
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, scale
 
+# Высота бежевого pill (красная линия на макете), px при ширине 1080.
+QTY_CONTROL_PILL_HEIGHT_PX = 74
+QTY_CONTROL_PILL_HEIGHT_COMPACT_PX = 72
+QTY_CONTROL_PAD_PX = 6
+QTY_CONTROL_PAD_COMPACT_PX = 4
+
 
 class _QtyCircleBtn(QWidget):
     """qty__btn — белый круг + box-shadow: var(--shadow-soft)."""
@@ -98,15 +104,19 @@ class KolomnaQtyControl(QWidget):
         self._value = self._min
         self._m = metrics
         w = metrics.width
-        pad = scale(4 if compact else 6, w)
+        pad = scale(QTY_CONTROL_PAD_COMPACT_PX if compact else QTY_CONTROL_PAD_PX, w)
+        pill_h = scale(
+            QTY_CONTROL_PILL_HEIGHT_COMPACT_PX if compact else QTY_CONTROL_PILL_HEIGHT_PX,
+            w,
+        )
         circle_shadow = scale(28, w)
-        btn_sz = scale(64 if compact else 72, w)
+        btn_sz = max(scale(48, w), pill_h - pad * 2)
         val_min_w = scale(56 if compact else 64, w)
         fs_btn = scale(34 if compact else 40, w)
         fs_val = scale(34, w) if compact else metrics.fs_h3
 
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(pad, pad, pad, pad)
+        lay.setContentsMargins(pad, pad, pad, 0)
         lay.setSpacing(0)
 
         self._dec = _QtyCircleBtn("−", btn_sz, fs_btn, metrics)
@@ -115,25 +125,22 @@ class KolomnaQtyControl(QWidget):
 
         self._dec.clicked.connect(self._dec_value)
         self._inc.clicked.connect(self._inc_value)
-        btn_block_h = btn_sz + circle_shadow
-        # Круги ± и значение — по верхнему краю (тень уходит вниз в отступ pill).
         align = Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter
         lay.addWidget(self._dec, alignment=align)
         lay.addWidget(self._val, alignment=align)
         lay.addWidget(self._inc, alignment=align)
 
-        total_h = btn_block_h + pad * 2
-        self.setFixedHeight(total_h)
+        self._pill_h = pill_h
+        self.setFixedHeight(pill_h + circle_shadow)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._radius = (btn_sz + pad * 2) // 2
-        self._btn_block_h = btn_block_h
+        self._radius = pill_h // 2
         self._val.setText(str(self._value))
         self._dec.set_enabled(self._value > self._min)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = QRectF(0, 0, self.width(), self._btn_block_h)
+        rect = QRectF(0, 0, self.width(), self._pill_h)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(CREAM))
         p.drawRoundedRect(rect, self._radius, self._radius)

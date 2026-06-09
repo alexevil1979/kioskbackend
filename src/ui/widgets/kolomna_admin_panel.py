@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QRectF
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_cta import cta_swatch_check_color, normalize_cta_color
 from src.ui.kolomna_prefs import KolomnaPrefs, save_kolomna_prefs
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, KolomnaMetrics, scale
 
@@ -428,10 +429,51 @@ class _AdminLayoutChoice(QFrame):
         super().mouseReleaseEvent(event)
 
 
+class _SwatchChip(QWidget):
+    """Цветной квадрат с нарисованной галочкой (не зависит от глифа шрифта)."""
+
+    def __init__(self, code: str, metrics: KolomnaMetrics, parent=None) -> None:
+        super().__init__(parent)
+        self._code = code
+        self._m = metrics
+        self._active = False
+        chip_sz = scale(132, metrics.width)
+        self._chip_r = scale(26, metrics.width)
+        self.setFixedSize(chip_sz, chip_sz)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        r = float(self._chip_r)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(self._code))
+        p.drawRoundedRect(rect, r, r)
+        if self._active:
+            stroke = max(3, scale(6, self._m.width))
+            pen = QPen(QColor(cta_swatch_check_color(self._code)), stroke)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            p.setPen(pen)
+            cx, cy = rect.center().x(), rect.center().y()
+            size = min(rect.width(), rect.height()) * 0.34
+            path = QPainterPath()
+            path.moveTo(cx - size * 0.42, cy + size * 0.02)
+            path.lineTo(cx - size * 0.06, cy + size * 0.36)
+            path.lineTo(cx + size * 0.46, cy - size * 0.34)
+            p.drawPath(path)
+        p.end()
+
+
 class _SwatchStack(QFrame):
     """admin-swatch__chip + кольца: box-shadow 0 0 0 6px cream, 0 0 0 12px green."""
 
-    def __init__(self, chip: QLabel, metrics: KolomnaMetrics, parent=None) -> None:
+    def __init__(self, chip: QWidget, metrics: KolomnaMetrics, parent=None) -> None:
         super().__init__(parent)
         self._chip = chip
         self._m = metrics
@@ -446,41 +488,44 @@ class _SwatchStack(QFrame):
         chip.setParent(self)
         chip.move(self._ring_outer, self._ring_outer)
         self._active = False
-        self._chip_shadow = QGraphicsDropShadowEffect(chip)
-        self._chip_shadow.setBlurRadius(scale(60, w))
-        self._chip_shadow.setOffset(0, scale(24, w))
-        self._chip_shadow.setColor(QColor(20, 56, 33, 102))
-        chip.setGraphicsEffect(self._chip_shadow)
 
     def set_active(self, active: bool) -> None:
         self._active = active
-        if active:
-            self._chip.setGraphicsEffect(None)
-        else:
-            self._chip.setGraphicsEffect(self._chip_shadow)
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802
-        if not self._active:
-            super().paintEvent(event)
-            return
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         cx = self.width() / 2
         cy = self.height() / 2
         half = self._chip_sz / 2
-        for extra, color in (
-            (self._ring_outer, QColor(GREEN)),
-            (self._ring_cream, QColor(CREAM)),
-        ):
-            side = (half + extra) * 2
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(color)
-            p.drawRoundedRect(
-                QRectF(cx - side / 2, cy - side / 2, side, side),
-                self._chip_r + extra,
-                self._chip_r + extra,
-            )
+        chip_rect = QRectF(cx - half, cy - half, self._chip_sz, self._chip_sz)
+        vw = self._m.width
+
+        if not self._active:
+            for y_off, alpha in (
+                (scale(12, vw), 40),
+                (scale(20, vw), 64),
+                (scale(24, vw), 40),
+            ):
+                sr = chip_rect.translated(0, y_off)
+                p.setPen(Qt.PenStyle.NoPen)
+                p.setBrush(QColor(20, 56, 33, alpha))
+                p.drawRoundedRect(sr, self._chip_r, self._chip_r)
+
+        if self._active:
+            for extra, color in (
+                (self._ring_outer, QColor(GREEN)),
+                (self._ring_cream, QColor(CREAM)),
+            ):
+                side = (half + extra) * 2
+                p.setPen(Qt.PenStyle.NoPen)
+                p.setBrush(color)
+                p.drawRoundedRect(
+                    QRectF(cx - side / 2, cy - side / 2, side, side),
+                    self._chip_r + extra,
+                    self._chip_r + extra,
+                )
         p.end()
         super().paintEvent(event)
 
@@ -506,11 +551,7 @@ class _ColorSwatch(QFrame):
         lay.setSpacing(scale(14, w))
         lay.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        self._chip = QLabel()
-        self._chip.setFixedSize(chip_sz, chip_sz)
-        self._chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._chip.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-
+        self._chip = _SwatchChip(code, metrics)
         self._stack = _SwatchStack(self._chip, metrics)
         lay.addWidget(self._stack, alignment=Qt.AlignmentFlag.AlignHCenter)
 
@@ -526,17 +567,7 @@ class _ColorSwatch(QFrame):
 
     def set_active(self, active: bool) -> None:
         self._active = active
-        w = self._m.width
-        chip_r = scale(26, w)
-        check_color = GREEN if self._code == "#F4C90A" else "#FFFFFF"
-        check = "✓" if active else ""
-        fs = scale(56, w)
-        self._chip.setText(check)
-        self._chip.setFont(kolomna_font(fs, QFont.Weight.Black))
-        self._chip.setStyleSheet(
-            f"QLabel {{ background: {self._code}; color: {check_color}; "
-            f"border-radius: {chip_r}px; border: none; }}"
-        )
+        self._chip.set_active(active)
         self._stack.set_active(active)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
@@ -765,9 +796,10 @@ class KolomnaAdminPanel(QWidget):
         return host
 
     def _set_color(self, code: str) -> None:
-        self._prefs.cta_color = code
+        self._prefs.cta_color = normalize_cta_color(code)
+        chosen = self._prefs.cta_color
         for c, sw in self._color_swatches.items():
-            sw.set_active(c == code)
+            sw.set_active(normalize_cta_color(c) == chosen)
 
     def _set_layout(self, mode: str) -> None:
         self._prefs.menu_layout = mode
@@ -790,8 +822,9 @@ class KolomnaAdminPanel(QWidget):
         self._start_toggle.set_on(self._prefs.show_attract)
         self._skip_toggle.set_on(self._prefs.skip_product)
         self._hours_edit.setText(self._prefs.hours)
+        chosen = normalize_cta_color(self._prefs.cta_color)
         for c, sw in self._color_swatches.items():
-            sw.set_active(c == self._prefs.cta_color)
+            sw.set_active(normalize_cta_color(c) == chosen)
         for m, ch in self._layout_choices.items():
             ch.set_active(m == self._prefs.menu_layout)
         self.setGeometry(0, 0, self.parentWidget().width(), self.parentWidget().height())

@@ -65,12 +65,6 @@ class _ProductAddBtn(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         r = rect.height() / 2.0
-        w = self._m.width
-        if not self._pressed:
-            sr = rect.translated(0, scale(12, w))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(244, 201, 10, 128))
-            p.drawRoundedRect(sr, r, r)
         bg = QColor("#E6B800" if self._pressed else YELLOW)
         p.setBrush(bg)
         p.setPen(Qt.PenStyle.NoPen)

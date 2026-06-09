@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontDatabase
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QRectF
+from PyQt6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -28,41 +27,151 @@ def _pin_backspace_font(px: int) -> QFont:
     return kolomna_font(px, QFont.Weight.ExtraBold)
 
 
-def _pin_key_button(
-    metrics: KolomnaMetrics,
-    label: str,
-    *,
-    is_back: bool,
-    on_click,
-) -> QPushButton:
-    w = metrics.width
-    key_h = scale(110, w)
-    key_r = metrics.radius
-    key_fs = scale(42 if is_back else 48, w)
+def _paint_pin_key_shadow(p: QPainter, rect: QRectF, radius: float, vw: int) -> None:
+    """box-shadow: var(--shadow-soft) — с запасом по бокам (колонки 1/3 и 3/3)."""
+    for y_off, alpha, spread in (
+        (scale(10, vw), 18, scale(6, vw)),
+        (scale(14, vw), 30, scale(10, vw)),
+        (scale(18, vw), 22, scale(14, vw)),
+    ):
+        sr = rect.adjusted(-spread, 0, spread, 0).translated(0, y_off)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(20, 56, 33, alpha))
+        p.drawRoundedRect(sr, radius + spread * 0.25, radius + spread * 0.25)
 
-    btn = QPushButton("\u232b" if is_back else label)
-    btn.setMinimumHeight(key_h)
-    btn.setMaximumHeight(key_h)
-    btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-    btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-    btn.setCursor(Qt.CursorShape.PointingHandCursor)
-    if is_back:
-        btn.setFont(_pin_backspace_font(key_fs))
-    else:
-        btn.setFont(kolomna_font(key_fs, QFont.Weight.ExtraBold))
-    btn.setStyleSheet(
-        f"QPushButton {{ background: #FFFFFF; color: {GREEN}; border: none; "
-        f"border-radius: {key_r}px; font-size: {key_fs}px; font-weight: 800; "
-        f"min-height: {key_h}px; max-height: {key_h}px; padding: 0; }}"
-        f"QPushButton:pressed {{ background: {CREAM_DEEP}; }}"
-    )
-    key_shadow = QGraphicsDropShadowEffect(btn)
-    key_shadow.setBlurRadius(scale(28, w))
-    key_shadow.setOffset(0, scale(12, w))
-    key_shadow.setColor(QColor(20, 56, 33, 102))
-    btn.setGraphicsEffect(key_shadow)
-    btn.clicked.connect(on_click)
-    return btn
+
+class _PinKeyBtn(QWidget):
+    """pin-key: белая клавиша + shadow-soft (рисуем в paintEvent, без обрезки по краям сетки)."""
+
+    clicked = pyqtSignal()
+
+    def __init__(
+        self,
+        metrics: KolomnaMetrics,
+        label: str,
+        *,
+        is_back: bool,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._m = metrics
+        self._label = "\u232b" if is_back else label
+        self._is_back = is_back
+        self._pressed = False
+        w = metrics.width
+        self._key_h = scale(110, w)
+        self._bleed = scale(28, w)
+        self._shadow_b = scale(32, w)
+        key_fs = scale(42 if is_back else 48, w)
+        self._font = _pin_backspace_font(key_fs) if is_back else kolomna_font(key_fs, QFont.Weight.ExtraBold)
+        self._radius = float(metrics.radius)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setFixedHeight(self._key_h + self._shadow_b)
+        self.setMinimumWidth(self._bleed * 2 + scale(48, w))
+
+    def _key_rect(self) -> QRectF:
+        return QRectF(
+            float(self._bleed),
+            0.5,
+            max(1.0, self.width() - 2 * self._bleed - 1),
+            float(self._key_h) - 1,
+        )
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        rect = self._key_rect()
+        r = self._radius
+        vw = self._m.width
+        if not self._pressed:
+            _paint_pin_key_shadow(p, rect, r, vw)
+        bg = QColor(CREAM_DEEP if self._pressed else "#FFFFFF")
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(bg)
+        p.drawRoundedRect(rect, r, r)
+        p.setFont(self._font)
+        p.setPen(QColor(GREEN))
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, self._label)
+        p.end()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = False
+            self.update()
+            if self.rect().contains(event.position().toPoint()):
+                self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
+class _PinCancelBtn(QWidget):
+    """btn btn--ghost btn--lg — pill с корректным скруглением."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, metrics: KolomnaMetrics, text: str, parent=None) -> None:
+        super().__init__(parent)
+        self._m = metrics
+        self._text = text
+        self._pressed = False
+        w = metrics.width
+        self._h = scale(104, w)
+        self._pad_h = scale(56, w)
+        self._border = max(2, scale(3, w))
+        self._font = kolomna_font(metrics.fs_h3, QFont.Weight.ExtraBold)
+        fm = QFontMetrics(self._font)
+        self.setFixedSize(fm.horizontalAdvance(text) + self._pad_h * 2, self._h)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        r = rect.height() / 2.0
+        if self._pressed:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(GREEN))
+            p.drawRoundedRect(rect, r, r)
+            fg = QColor(CREAM)
+        else:
+            pen = QPen(QColor(GREEN))
+            pen.setWidth(self._border)
+            p.setPen(pen)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(rect, r, r)
+            fg = QColor(GREEN)
+        p.setFont(self._font)
+        p.setPen(fg)
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, self._text)
+        p.end()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = True
+            self.update()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._pressed = False
+            self.update()
+            if self.rect().contains(event.position().toPoint()):
+                self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+    def set_text(self, text: str) -> None:
+        self._text = text
+        fm = QFontMetrics(self._font)
+        self.setFixedSize(fm.horizontalAdvance(text) + self._pad_h * 2, self._h)
+        self.update()
 
 
 class KolomnaAdminPinModal(QWidget):
@@ -156,51 +265,36 @@ class KolomnaAdminPinModal(QWidget):
         pad_host.setFixedWidth(pad_w)
         pad_host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         pad_host.setStyleSheet("background: transparent;")
+        key_bleed = scale(28, metrics.width)
+        pad_host.setFixedWidth(pad_w + key_bleed * 2)
         pad = QGridLayout(pad_host)
         pad.setSpacing(scale(22, metrics.width))
-        pad.setContentsMargins(0, 0, 0, scale(22, metrics.width))
+        pad.setContentsMargins(key_bleed, 0, key_bleed, scale(22, metrics.width))
         for col in range(3):
             pad.setColumnStretch(col, 1)
         keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
         key_h = scale(110, metrics.width)
+        key_shadow_b = scale(32, metrics.width)
         key_policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         for i, k in enumerate(keys):
             if not k:
                 spacer = QWidget()
-                spacer.setFixedHeight(key_h)
+                spacer.setFixedHeight(key_h + key_shadow_b)
                 spacer.setSizePolicy(key_policy)
                 spacer.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
                 spacer.setStyleSheet("background: transparent;")
                 pad.addWidget(spacer, i // 3, i % 3)
                 continue
             is_back = k == "⌫"
-            btn = _pin_key_button(
-                metrics,
-                k,
-                is_back=is_back,
-                on_click=self._back if is_back else (lambda checked=False, d=k: self._push(d)),
-            )
+            btn = _PinKeyBtn(metrics, k, is_back=is_back)
+            if is_back:
+                btn.clicked.connect(self._back)
+            else:
+                btn.clicked.connect(lambda d=k: self._push(d))
             pad.addWidget(btn, i // 3, i % 3)
         bl.addWidget(pad_host, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-        cancel_h = scale(104, metrics.width)
-        cancel_ph = scale(56, metrics.width)
-        self._cancel = QPushButton(S.ADMIN_CANCEL)
-        self._cancel.setObjectName("KolomnaAdminCancel")
-        self._cancel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self._cancel.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._cancel.setFixedHeight(cancel_h)
-        self._cancel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._cancel.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._cancel.setFont(kolomna_font(metrics.fs_h3, QFont.Weight.ExtraBold))
-        self._cancel.setStyleSheet(
-            f"QPushButton#KolomnaAdminCancel {{ background: transparent; color: {GREEN}; "
-            f"border: 3px solid {GREEN}; border-radius: 999px; "
-            f"padding: 0 {cancel_ph}px; margin: 0; "
-            f"font-size: {metrics.fs_h3}px; font-weight: 800; "
-            f"min-height: {cancel_h}px; max-height: {cancel_h}px; }}"
-            f"QPushButton#KolomnaAdminCancel:pressed {{ background: {GREEN}; color: {CREAM}; }}"
-        )
+        self._cancel = _PinCancelBtn(metrics, S.ADMIN_CANCEL)
         self._cancel.clicked.connect(self.hide)
         bl.addWidget(self._cancel, alignment=Qt.AlignmentFlag.AlignHCenter)
 
@@ -272,7 +366,7 @@ class KolomnaAdminPinModal(QWidget):
     def retranslate(self) -> None:
         self._eyebrow.setText(S.ADMIN_ACCESS.upper())
         self._title.setText(S.ADMIN_PIN_PROMPT)
-        self._cancel.setText(S.ADMIN_CANCEL)
+        self._cancel.set_text(S.ADMIN_CANCEL)
         if self._err:
             self._msg.setText(S.ADMIN_WRONG_PIN)
 

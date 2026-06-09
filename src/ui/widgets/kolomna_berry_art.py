@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QColor, QPainterPath, QRegion
-from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt, QRectF, QSize
+from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap, QRegion
+from PyQt6.QtWidgets import QSizePolicy, QWidget
 
 from src.core.config import ROOT
 from src.models.product import Product
-from src.ui.image_utils import load_pixmap, scale_pixmap
+from src.ui.image_utils import load_pixmap
 from src.ui.kolomna_tokens import scale
 
 
 class KolomnaBerryArt(QWidget):
-    """berry-art в prod-row__media: cream-deep фон, фото 150% с тенью."""
+    """berry-art: рисует фото в paintEvent, overflow:hidden (без QLabel → layout)."""
 
     def __init__(
         self,
@@ -23,56 +23,93 @@ class KolomnaBerryArt(QWidget):
         *,
         radius: int = 0,
         bg: str = "#FFFFFF",
+        img_scale: float = 1.5,
+        fluid_width: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._radius = radius
         self._media_h = media_h
-        self.setFixedWidth(media_w)
-        self.setMinimumHeight(media_h)
+        self._img_scale = img_scale
+        self._fluid = fluid_width
+        self._base_w = max(1, media_w)
+        self._bg = bg
+        self._product = product
+        self._source = self._load_pixmap(product)
+        self._cache_key = -1
+        self._cache_pm: QPixmap | None = None
+
+        if fluid_width:
+            self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+            self.setMinimumSize(0, 0)
+            self.setMaximumSize(16777215, media_h)
+        else:
+            self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            self.setFixedWidth(self._base_w)
+            self.setFixedHeight(media_h)
+
         if radius > 0:
             self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-            self.setStyleSheet(
-                f"background: {bg}; border-radius: {radius}px;"
-            )
+            self.setStyleSheet(f"background: {bg}; border-radius: {radius}px;")
         else:
+            self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
             self.setStyleSheet(f"background: {bg};")
 
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return QSize(0, self._media_h)
 
-        img = QLabel()
-        img.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        img.setStyleSheet("background: transparent;")
-        self._img_label = img
-        self._product = product
-        pix = self._load_pixmap(product)
-        if pix and not pix.isNull():
-            self._apply_pixmap(pix, media_w)
-            shadow = QGraphicsDropShadowEffect(img)
-            shadow.setBlurRadius(scale(26, media_w))
-            shadow.setOffset(0, scale(18, media_w))
-            shadow.setColor(QColor(20, 56, 33, 41))  # drop-shadow .16
-            img.setGraphicsEffect(shadow)
-        lay.addWidget(img)
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        return QSize(0, self._media_h)
 
-    def _apply_pixmap(self, pix, width: int) -> None:
-        aw = int(width * 1.5)
-        ph = pix.height() * aw / max(1, pix.width())
-        self._img_label.setPixmap(scale_pixmap(pix, aw, int(ph)))
+    def hasHeightForWidth(self) -> bool:  # noqa: N802
+        return False
 
-    def showEvent(self, event) -> None:  # noqa: N802
-        super().showEvent(event)
-        self.refresh_image()
+    def _draw_w(self) -> int:
+        if self._fluid:
+            w = self.width()
+            return max(1, w if w > 0 else self._base_w)
+        return self._base_w
 
-    def refresh_image(self) -> None:
-        w = self.width()
-        if w < 8:
+    def _scaled_pixmap(self, draw_w: int) -> QPixmap | None:
+        if self._source is None or self._source.isNull():
+            return None
+        if draw_w == self._cache_key and self._cache_pm is not None and not self._cache_pm.isNull():
+            return self._cache_pm
+        aw = max(1, int(draw_w * self._img_scale))
+        ph = max(1, int(self._source.height() * aw / max(1, self._source.width())))
+        pm = self._source.scaled(
+            aw,
+            ph,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._cache_key = draw_w
+        self._cache_pm = pm
+        return pm
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        p.fillRect(self.rect(), QColor(self._bg))
+
+        pm = self._scaled_pixmap(self._draw_w())
+        if pm is None or pm.isNull():
+            p.end()
             return
-        pix = self._load_pixmap(self._product)
-        if pix and not pix.isNull():
-            self._apply_pixmap(pix, w)
+
+        aw, ph = pm.width(), pm.height()
+        x = (self.width() - aw) / 2.0
+        y = (self.height() - ph) / 2.0
+        vw = max(self._base_w, self.width())
+        shadow = QRectF(x, y + ph - scale(8, vw), aw, scale(18, vw))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(20, 56, 33, 41))
+        p.drawEllipse(shadow)
+
+        p.setClipRect(self.rect())
+        p.drawPixmap(int(x), int(y), pm)
+        p.end()
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
@@ -82,9 +119,15 @@ class KolomnaBerryArt(QWidget):
                 path = QPainterPath()
                 path.addRoundedRect(QRectF(0, 0, w, h), self._radius, self._radius)
                 self.setMask(QRegion(path.toFillPolygon().toPolygon()))
-        self.refresh_image()
 
-    def _load_pixmap(self, product: Product):
+    def refresh_image(self) -> None:
+        """Сброс кэша после смены ширины (overlay / каталог)."""
+        self._source = self._load_pixmap(self._product)
+        self._cache_key = -1
+        self._cache_pm = None
+        self.update()
+
+    def _load_pixmap(self, product: Product) -> QPixmap | None:
         if product.image_local:
             p = Path(product.image_local)
             if p.is_file():

@@ -9,6 +9,21 @@ from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QVBoxLayout, QWidget
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_tokens import CREAM, GREEN, scale
 
+# ---------------------------------------------------------------------------
+# Заставка: стрелка ↑ (attract__hand) — подстройка по вертикали (база 1080px).
+# Меняйте значения ниже; на экране они масштабируются через scale(..., viewport_width).
+# ---------------------------------------------------------------------------
+# Y вершины стрелки внутри виджета _AttractHand (до анимации handBob, bobOffset=0).
+ATTRACT_HAND_TIP_ORIGIN_Y_PX = 22
+# Отступ сверху у блока «кнопка + стрелка» (CSS: .attract__cta-wrap margin-top).
+ATTRACT_CTA_WRAP_MARGIN_TOP_PX = 8
+# Зазор между кнопкой CTA и стрелкой (CSS: .attract__cta-wrap gap).
+ATTRACT_CTA_TO_HAND_GAP_PX = 22
+# Доп. зазор под тень кнопки (только PyQt, в HTML нет).
+ATTRACT_HAND_EXTRA_GAP_PX = 30
+# Амплитуда покачивания handBob вверх-вниз (px при 1080).
+ATTRACT_HAND_BOB_PX = 16
+
 
 def _fit_cta_font(text: str, viewport_width: int, fs: int, pad_h: int, border: int) -> tuple[int, int, QFont]:
     """Уместить одну строку в attract__inner (padding 90px с боков)."""
@@ -157,7 +172,8 @@ class _AttractHand(QWidget):
         self._arrow_h = scale(60, viewport_width)
         self._stroke = max(2, scale(4, viewport_width))
         self._bob_offset = 0.0
-        bob_px = scale(16, viewport_width)
+        self._tip_origin_y = scale(ATTRACT_HAND_TIP_ORIGIN_Y_PX, viewport_width)
+        bob_px = scale(ATTRACT_HAND_BOB_PX, viewport_width)
         self.setFixedSize(scale(32, viewport_width), self._arrow_h + bob_px)
         self._bob_anim = QPropertyAnimation(self, b"bobOffset", self)
         self._bob_anim.setDuration(1600)
@@ -189,7 +205,7 @@ class _AttractHand(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         vw = self._vw
         cx = self.width() / 2.0
-        top = self._bob_offset + scale(2, vw)
+        top = self._bob_offset + self._tip_origin_y
         bottom = top + self._arrow_h - scale(4, vw)
         head_h = scale(18, vw)
         head_w = scale(11, vw)
@@ -212,11 +228,16 @@ class AttractCtaBlock(QWidget):
 
     def __init__(self, text: str, viewport_width: int, parent=None) -> None:
         super().__init__(parent)
-        gap = scale(22, viewport_width)
         shadow_room = scale(28, viewport_width)
+        hand_gap = scale(ATTRACT_CTA_TO_HAND_GAP_PX + ATTRACT_HAND_EXTRA_GAP_PX, viewport_width)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(shadow_room, scale(8, viewport_width), shadow_room, 0)
+        lay.setContentsMargins(
+            shadow_room,
+            scale(ATTRACT_CTA_WRAP_MARGIN_TOP_PX, viewport_width),
+            shadow_room,
+            0,
+        )
         lay.setSpacing(0)
         lay.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
@@ -227,7 +248,7 @@ class AttractCtaBlock(QWidget):
         shadow.setColor(QColor(20, 56, 33, 102))
         self._cta.setGraphicsEffect(shadow)
         lay.addWidget(self._cta, alignment=Qt.AlignmentFlag.AlignHCenter)
-        lay.addSpacing(gap + scale(30, viewport_width))
+        lay.addSpacing(hand_gap)
 
         self._hand = _AttractHand(viewport_width)
         lay.addWidget(self._hand, alignment=Qt.AlignmentFlag.AlignHCenter)

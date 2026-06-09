@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QFrame, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtWidgets import QFrame, QGridLayout, QLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from src.core.cart import Cart
 from src.core.config import Settings
@@ -12,12 +12,12 @@ from src.ui.katusha_hub_catalog import _category_sort_key
 from src.ui.kolomna_catalog import KOLOMNA_TOURS_ID, hub_slot_index_for_category, kolomna_card_accent
 from src.ui.kolomna_i18n import hub_label_for_slot
 from src.ui.kolomna_fly_berry import fly_berry_to_cart, fly_pixmap_for_product
-from src.ui.kolomna_prefs import load_kolomna_prefs
+from src.ui.kolomna_prefs import KolomnaPrefs, load_kolomna_prefs
 from src.ui.kolomna_tokens import CREAM, KolomnaMetrics
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.scroll_utils import enable_kinetic_scroll
 from src.ui.widgets.kolomna_footbar import KolomnaFootBar
-from src.ui.widgets.kolomna_prod_row import KolomnaProdRow
+from src.ui.widgets.kolomna_prod_row import KolomnaProdRow, KolomnaProdTile
 from src.ui.widgets.kolomna_product_overlay import KolomnaProductOverlay
 from src.ui.widgets.kolomna_toast import KolomnaAddedToast
 from src.ui.widgets.kolomna_topbar import KolomnaTopBar
@@ -36,6 +36,7 @@ class KolomnaMenuScreen(BaseScreen):
         h = settings.app.content_height
         self._m = KolomnaMetrics.from_viewport(w, h)
         self._category_id: str | None = None
+        self._grid_tiles: list[KolomnaProdTile] = []
         self._toast = KolomnaAddedToast(self._m, parent=self)
 
         self.setObjectName("KolomnaMenuScreen")
@@ -62,10 +63,9 @@ class KolomnaMenuScreen(BaseScreen):
         enable_kinetic_scroll(self._scroll)
 
         self._list_host = QWidget()
+        self._list_host.setMinimumWidth(0)
         self._list_host.setStyleSheet(f"background: {CREAM};")
-        self._list_lay = QVBoxLayout(self._list_host)
-        pad = self._m.pad
-        # menu-list: margin -pad + padding gap → отступ gap от края экрана
+        self._list_lay: QVBoxLayout | QGridLayout = QVBoxLayout(self._list_host)
         self._list_lay.setContentsMargins(self._m.gap, self._m.gap, self._m.gap, self._m.gap)
         self._list_lay.setSpacing(self._m.gap)
         self._scroll.setWidget(self._list_host)
@@ -120,23 +120,79 @@ class KolomnaMenuScreen(BaseScreen):
             return []
         return [p for p in self._catalog.products_for_category(self._category_id) if p.in_stock]
 
+    @staticmethod
+    def _clear_layout(layout: QLayout | None) -> None:
+        if layout is None:
+            return
+        while layout.count():
+            item = layout.takeAt(0)
+            if item is None:
+                continue
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+            sub = item.layout()
+            if sub is not None:
+                KolomnaMenuScreen._clear_layout(sub)
+
+    def _reset_list_layout(self, grid: bool) -> QVBoxLayout | QGridLayout:
+        old = self._list_host.layout()
+        if old is not None:
+            self._clear_layout(old)
+            QWidget().setLayout(old)
+        if grid:
+            lay: QVBoxLayout | QGridLayout = QGridLayout(self._list_host)
+        else:
+            lay = QVBoxLayout(self._list_host)
+        lay.setContentsMargins(self._m.gap, self._m.gap, self._m.gap, self._m.gap)
+        lay.setSpacing(self._m.gap)
+        self._list_lay = lay
+        return lay
+
     def _rebuild(self) -> None:
         title = self._category_title()
         accent = self._category_accent()
         self._top.set_title(title, accent=accent)
 
-        while self._list_lay.count():
-            item = self._list_lay.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        prefs = load_kolomna_prefs()
+        products = self._products()
+        use_grid = prefs.menu_layout == "grid" and len(products) > 1
+        lay = self._reset_list_layout(use_grid)
 
-        for product in self._products():
-            row = KolomnaProdRow(product, self._m)
-            row.add_clicked.connect(self._quick_add)
-            row.clicked.connect(self._open_product)
-            self._list_lay.addWidget(row)
+        if use_grid:
+            assert isinstance(lay, QGridLayout)
+            lay.setColumnStretch(0, 1)
+            lay.setColumnStretch(1, 1)
+            self._grid_tiles = []
+            for i, product in enumerate(products):
+                tile = KolomnaProdTile(product, self._m)
+                tile.add_clicked.connect(self._quick_add)
+                tile.clicked.connect(self._open_product)
+                self._grid_tiles.append(tile)
+                lay.addWidget(tile, i // 2, i % 2, Qt.AlignmentFlag.AlignTop)
+            QTimer.singleShot(0, self._sync_grid_tile_rows)
+        else:
+            self._grid_tiles = []
+            for product in products:
+                row = KolomnaProdRow(product, self._m)
+                row.add_clicked.connect(self._quick_add)
+                row.clicked.connect(self._open_product)
+                lay.addWidget(row)
+            lay.addStretch(1)
 
-        self._list_lay.addStretch(1)
+    def _sync_grid_tile_rows(self) -> None:
+        tiles = self._grid_tiles
+        if not tiles:
+            return
+        row_heights: dict[int, int] = {}
+        for i, tile in enumerate(tiles):
+            row = i // 2
+            row_heights[row] = max(row_heights.get(row, 0), tile.content_height())
+        for i, tile in enumerate(tiles):
+            tile.set_row_height(row_heights[i // 2])
+
+    def apply_prefs(self, prefs: KolomnaPrefs) -> None:
+        self._rebuild()
 
     def _product_by_id(self, product_id: str) -> Product | None:
         for p in self._products():
@@ -152,13 +208,13 @@ class KolomnaMenuScreen(BaseScreen):
     def _is_berry_menu(self) -> bool:
         return bool(self._category_id) and self._category_id != KOLOMNA_TOURS_ID
 
-    def _row_for_product(self, product_id: str) -> KolomnaProdRow | None:
+    def _row_for_product(self, product_id: str) -> KolomnaProdRow | KolomnaProdTile | None:
         for i in range(self._list_lay.count()):
             item = self._list_lay.itemAt(i)
             if item is None:
                 continue
             w = item.widget()
-            if isinstance(w, KolomnaProdRow) and w.product_id == product_id:
+            if isinstance(w, (KolomnaProdRow, KolomnaProdTile)) and w.product_id == product_id:
                 return w
         return None
 

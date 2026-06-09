@@ -159,18 +159,30 @@ def _fit_logo_pixmap(pix: QPixmap, max_w: int, max_h: int) -> QPixmap:
 
 
 class LogoDrop(QWidget):
-    """logo-drop: ягодная капля + кремовый логотип (catalog__bar)."""
+    """logo-drop / BerryDrop: капля + логотип (catalog__bar, cart-empty)."""
 
-    def __init__(self, width: int, height: int | None = None, parent=None) -> None:
+    def __init__(
+        self,
+        width: int,
+        height: int | None = None,
+        *,
+        fill: str | None = None,
+        edge: str | None = None,
+        logo_tint: str | None = None,
+        opacity: float = 1.0,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self._vw = width
+        self._fill = fill or STRAWBERRY
+        self._edge = edge or STRAWBERRY_EDGE
+        self._logo_tint = logo_tint or CREAM
+        self._opacity = max(0.0, min(1.0, opacity))
         h = height if height is not None else max(1, round(width * 158 / 340))
         self.setFixedSize(width, h)
 
-        self._use_raster = False
         pad_top = scale(6, width)
         avail_h = max(1, h - pad_top - scale(30, width))
-        # logo-drop img: max-height 100% с padding — чуть меньше капли
         logo_inset = 0.86
         max_w = max(1, int(width * logo_inset))
         max_h = max(1, int(avail_h * logo_inset))
@@ -182,7 +194,9 @@ class LogoDrop(QWidget):
         if logo_path.is_file():
             pix = load_pixmap(logo_path)
             if not pix.isNull():
-                self._logo = _tint_logo_cream(_fit_logo_pixmap(pix, max_w, max_h), CREAM)
+                self._logo = _tint_logo_cream(
+                    _fit_logo_pixmap(pix, max_w, max_h), self._logo_tint
+                )
         if self._logo.isNull():
             self._logo = _cream_logo_from_mask(max_w, max_h)
 
@@ -194,6 +208,8 @@ class LogoDrop(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self._opacity < 1.0:
+            painter.setOpacity(self._opacity)
 
         if not self._ref_pixmap.isNull():
             scaled = self._ref_pixmap.scaled(
@@ -206,12 +222,12 @@ class LogoDrop(QWidget):
 
         rect = QRectF(0, 0, self.width(), self.height())
         path = _logo_drop_path(rect)
-        painter.fillPath(path, QColor(STRAWBERRY))
+        painter.fillPath(path, QColor(self._fill))
         edge_h = scale(6, self._vw)
         edge_rect = QRectF(0, self.height() - edge_h, self.width(), edge_h + 1)
         edge_path = QPainterPath()
         edge_path.addRect(edge_rect)
-        painter.fillPath(path.intersected(edge_path), QColor(STRAWBERRY_EDGE))
+        painter.fillPath(path.intersected(edge_path), QColor(self._edge))
 
         if not self._logo.isNull():
             lx = (self.width() - self._logo.width()) // 2
@@ -224,3 +240,25 @@ class LogoDrop(QWidget):
 
 
 BerryDropLogo = LogoDrop
+
+
+def BerryDrop(
+    width: int,
+    height: int | None = None,
+    *,
+    fill: str = STRAWBERRY,
+    edge: str = STRAWBERRY_EDGE,
+    logo_tint: str = CREAM,
+    opacity: float = 1.0,
+    parent=None,
+) -> LogoDrop:
+    """BerryDrop из референса — капля с настраиваемой заливкой."""
+    return LogoDrop(
+        width,
+        height,
+        fill=fill,
+        edge=edge,
+        logo_tint=logo_tint,
+        opacity=opacity,
+        parent=parent,
+    )

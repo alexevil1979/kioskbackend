@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
 
         self._screens: dict[AppScreen, QWidget] = {}
         self._register_screens()
-        self._idle_overlay = IdleWarningOverlay(overlay_parent)
+        self._idle_overlay = IdleWarningOverlay(overlay_parent, settings=settings)
 
         nav.screen_changed.connect(self._on_screen_changed)
         idle.warning.connect(self._show_idle_warning)
@@ -335,6 +335,11 @@ class MainWindow(QMainWindow):
             self._idle.pause()
         else:
             self._idle.resume()
+        if self._idle_overlay.isVisible():
+            parent = self._idle_overlay.parentWidget()
+            if parent is not None:
+                self._idle_overlay.setGeometry(parent.rect())
+            self._idle_overlay.raise_()
         logger.info("Экран: %s", screen.name)
 
     def _on_kolomna_pay_requested(self, method: str) -> None:
@@ -669,7 +674,23 @@ class MainWindow(QMainWindow):
             self._nav.reset_to_categories()
 
     def _on_kolomna_prefs_changed(self, prefs) -> None:
-        pass
+        from src.core.state_machine import AppScreen
+
+        self._refresh_kolomna_cta()
+        menu = self._menu_screen
+        if hasattr(menu, "apply_prefs"):
+            menu.apply_prefs(prefs)
+        if self._nav.current == AppScreen.START and not prefs.show_attract:
+            self._nav.go(AppScreen.CATEGORIES, replace=True)
+
+    def _refresh_kolomna_cta(self) -> None:
+        from PyQt6.QtWidgets import QWidget
+
+        for widget in self._screens.values():
+            for child in widget.findChildren(QWidget):
+                refresh = getattr(child, "refresh_cta", None)
+                if callable(refresh):
+                    refresh()
 
     def _on_idle_reset(self) -> None:
         self._idle_overlay.hide()

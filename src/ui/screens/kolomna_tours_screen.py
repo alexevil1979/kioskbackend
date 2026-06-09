@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QRectF
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QRegion
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -29,34 +29,101 @@ from src.ui.widgets.kolomna_qty_control import KolomnaQtyControl
 from src.ui.widgets.kolomna_toast import KolomnaAddedToast
 from src.ui.widgets.kolomna_topbar import KolomnaTopBar
 
+class _CouponCard(QWidget):
+    """coupon: border-radius + overflow hidden (как в референсе)."""
+
+    def __init__(self, radius: int, parent=None) -> None:
+        super().__init__(parent)
+        self._radius = radius
+        self._junction_head: QWidget | None = None
+        self._tear: _CouponTear | None = None
+        self._host = QWidget(self)
+        self._host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._host.setStyleSheet("background: transparent;")
+        self._root = QVBoxLayout(self._host)
+        self._root.setContentsMargins(0, 0, 0, 0)
+        self._root.setSpacing(0)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self._host)
+
+    def layout(self) -> QVBoxLayout:
+        return self._root
+
+    def set_junction(self, head: QWidget, tear: "_CouponTear") -> None:
+        """coupon__tear: height 0 в потоке, рисуется поверх стыка head/body."""
+        self._junction_head = head
+        self._tear = tear
+        tear.setParent(self._host)
+        tear.raise_()
+        self._position_tear()
+
+    def _position_tear(self) -> None:
+        if not self._junction_head or not self._tear:
+            return
+        y = self._junction_head.geometry().bottom()
+        half = self._tear._notch // 2
+        self._tear.setGeometry(0, y - half, self._host.width(), self._tear._notch)
+        self._tear.raise_()
+
+    def _apply_clip(self) -> None:
+        w = max(1, self._host.width())
+        h = max(1, self._host.height())
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(0, 0, w, h), self._radius, self._radius)
+        self._host.setMask(QRegion(path.toFillPolygon().toPolygon()))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._host.setGeometry(0, 0, self.width(), self.height())
+        self._position_tear()
+        self._apply_clip()
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._position_tear()
+        self._apply_clip()
+
+
 class _CouponTear(QWidget):
-    """coupon__tear — пунктир на стыке head/body + cream-полукруги по краям."""
+    """coupon__tear — border-top 4px dashed + cream-полукруги по краям (оверлей на стыке)."""
 
     def __init__(self, width: int, parent=None) -> None:
         super().__init__(parent)
-        self._vw = width
         self._notch = scale(48, width)
         self._dash = max(1, scale(4, width))
-        self.setFixedHeight(self._notch)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        y = self._dash // 2
+        w, h = self.width(), self.height()
         r = self._notch
         half = r // 2
-        pen = QPen(QColor(31, 77, 42, 128), self._dash, Qt.PenStyle.DashLine)
+        cy = h // 2
+
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(GREEN))
+        p.drawRect(0, 0, w, cy)
+        p.setBrush(QColor("#FFFFFF"))
+        p.drawRect(0, cy, w, h - cy)
+
+        pen = QPen(QColor(31, 77, 42, 128), self._dash)
+        pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+        pen.setStyle(Qt.PenStyle.CustomDashLine)
+        pen.setDashPattern([max(1, int(self._dash * 3)), max(1, int(self._dash * 2))])
         p.setPen(pen)
-        p.drawLine(half, y, self.width() - half, y)
+        p.drawLine(half, cy, w - half, cy)
+
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(CREAM))
-        p.drawEllipse(-half, y - half, r, r)
-        p.drawEllipse(self.width() - half, y - half, r, r)
+        p.drawEllipse(-half, cy - half, r, r)
+        p.drawEllipse(w - half, cy - half, r, r)
 
 
 class _TourAddButton(QWidget):
-    """btn btn--yellow btn--lg btn--block — pill с тенью (Qt не скругляет QPushButton с layout)."""
+    """btn btn--yellow btn--lg btn--block — сплошной pill без тени."""
 
     clicked = pyqtSignal()
 
@@ -65,7 +132,8 @@ class _TourAddButton(QWidget):
         self._m = metrics
         w = metrics.width
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(scale(104, w))
+        self._pill_h = scale(104, w)
+        self.setMinimumHeight(self._pill_h)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._pressed = False
 
@@ -90,14 +158,8 @@ class _TourAddButton(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        rect = QRectF(0.5, 0.5, self.width() - 1, self._pill_h - 1)
         r = rect.height() / 2.0
-        w = self._m.width
-        if not self._pressed:
-            sr = rect.translated(0, scale(12, w))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(244, 201, 10, 128))
-            p.drawRoundedRect(sr, r, r)
         bg = QColor("#E6B800" if self._pressed else YELLOW)
         p.setBrush(bg)
         p.setPen(Qt.PenStyle.NoPen)
@@ -138,9 +200,15 @@ class _TourGiftIcon(QWidget):
         p.drawRoundedRect(0, int(24 * sx), int(72 * sx), int(16 * sx), int(6 * sx), int(6 * sx))
         p.setBrush(QColor(YELLOW))
         p.drawRect(int(31 * sx), int(h - 46 * sx), int(10 * sx), int(46 * sx))
-        bow_y = int(10 * sx)
-        p.drawEllipse(int(50 * sx - 22 * sx), bow_y, int(22 * sx), int(16 * sx))
-        p.drawEllipse(int(50 * sx), bow_y, int(22 * sx), int(16 * sx))
+        bow_w, bow_h = 22 * sx, 16 * sx
+        bow_y = 10 * sx
+        center_x = w / 2.0
+        for left_off, angle in ((-bow_w, -20), (0, 20)):
+            p.save()
+            p.translate(center_x + left_off + bow_w / 2, bow_y + bow_h / 2)
+            p.rotate(angle)
+            p.drawEllipse(int(-bow_w / 2), int(-bow_h / 2), int(bow_w), int(bow_h))
+            p.restore()
 
 
 class KolomnaToursScreen(BaseScreen):
@@ -208,15 +276,8 @@ class KolomnaToursScreen(BaseScreen):
     def _build_coupon(self) -> QWidget:
         m = self._m
         w = m.width
-        coupon = QFrame()
-        coupon.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        coupon.setStyleSheet(
-            f"QFrame {{ background: transparent; border-radius: {m.radius_lg}px; }}"
-        )
-
-        root = QVBoxLayout(coupon)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        coupon = _CouponCard(m.radius_lg)
+        root = coupon.layout()
 
         head = QFrame()
         head.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -245,15 +306,17 @@ class KolomnaToursScreen(BaseScreen):
                 cal_lay.addWidget(self._cal_item(month, day), stretch=1)
         head_lay.addWidget(cal_wrap)
         root.addWidget(head)
-        root.addWidget(_CouponTear(w))
 
         body = QFrame()
         body.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        body.setStyleSheet(
-            f"QFrame {{ background: #FFFFFF; border-radius: 0 0 {m.radius_lg}px {m.radius_lg}px; }}"
-        )
+        body.setStyleSheet("QFrame { background: #FFFFFF; border: none; }")
         body_lay = QVBoxLayout(body)
-        body_lay.setContentsMargins(scale(56, w), scale(50, w), scale(56, w), scale(56, w))
+        body_lay.setContentsMargins(
+            scale(56, w),
+            scale(50, w),
+            scale(56, w),
+            scale(56, w),
+        )
         body_lay.setSpacing(scale(28, w))
 
         guests = QHBoxLayout()
@@ -269,6 +332,7 @@ class KolomnaToursScreen(BaseScreen):
         body_lay.addWidget(self._add_btn)
 
         root.addWidget(body)
+        coupon.set_junction(head, _CouponTear(w))
         return coupon
 
     def _cal_item(self, month: int, day: int) -> QWidget:

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QLabel, QPushButton, QVBo
 from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_cta import cta_palette
 from src.ui.kolomna_tokens import CREAM, GREEN, INK_60, KolomnaMetrics, scale
 from src.ui.screens.base_screen import BaseScreen
 
@@ -34,18 +35,15 @@ class KolomnaDoneScreen(BaseScreen):
         lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.setSpacing(scale(24, w))
 
-        check = QLabel("✓")
-        check.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        check.setFixedSize(scale(230, w), scale(230, w))
-        check.setFont(kolomna_font(scale(140, w), QFont.Weight.Black))
-        check.setStyleSheet(
-            f"QLabel {{ background: {GREEN}; color: {CREAM}; border-radius: {scale(115, w)}px; }}"
-        )
-        check_shadow = QGraphicsDropShadowEffect(check)
+        self._check = QLabel("✓")
+        self._check.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._check.setFixedSize(scale(230, w), scale(230, w))
+        self._check.setFont(kolomna_font(scale(140, w), QFont.Weight.Black))
+        check_shadow = QGraphicsDropShadowEffect(self._check)
         check_shadow.setBlurRadius(scale(60, w))
         check_shadow.setOffset(0, scale(24, w))
         check_shadow.setColor(QColor(20, 56, 33, 102))
-        check.setGraphicsEffect(check_shadow)
+        self._check.setGraphicsEffect(check_shadow)
 
         self._title = QLabel(S.DONE_TITLE)
         self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -96,18 +94,15 @@ class KolomnaDoneScreen(BaseScreen):
         self._new_order_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._new_order_btn.setMinimumHeight(self._m.footbar_btn_h)
         self._new_order_btn.setFont(kolomna_font(self._m.fs_body, QFont.Weight.Black))
-        self._new_order_btn.setStyleSheet(
-            f"QPushButton {{ background: {GREEN}; color: {CREAM}; border: none; border-radius: 999px; "
-            f"padding: 0 {scale(48, w)}px; }}"
-        )
         self._new_order_btn.clicked.connect(self.new_order.emit)
+        self.refresh_cta()
 
         self._auto = QLabel()
         self._auto.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._auto.setFont(kolomna_font(self._m.fs_label, QFont.Weight.Bold))
         self._auto.setStyleSheet(f"color: {INK_60}; background: transparent;")
 
-        lay.addWidget(check, alignment=Qt.AlignmentFlag.AlignHCenter)
+        lay.addWidget(self._check, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self._title, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self._thanks, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addSpacing(scale(16, w))
@@ -127,6 +122,17 @@ class KolomnaDoneScreen(BaseScreen):
 
     def set_countdown_text(self, text: str) -> None:
         self._auto.setText(text)
+
+    def refresh_cta(self) -> None:
+        w = self._m.width
+        pal = cta_palette()
+        self._check.setStyleSheet(
+            f"QLabel {{ background: {pal.bg}; color: {pal.fg}; border-radius: {scale(115, w)}px; }}"
+        )
+        self._new_order_btn.setStyleSheet(
+            f"QPushButton {{ background: {pal.bg}; color: {pal.fg}; border: none; "
+            f"border-radius: 999px; padding: 0 {scale(48, w)}px; }}"
+        )
 
     def retranslate(self) -> None:
         self._title.setText(S.DONE_TITLE)

@@ -24,6 +24,8 @@ class KolomnaPrefs:
 
 
 def load_kolomna_prefs() -> KolomnaPrefs:
+    from src.ui.kolomna_cta import normalize_cta_color
+
     if not PREFS_PATH.is_file():
         return KolomnaPrefs()
     try:
@@ -31,10 +33,13 @@ def load_kolomna_prefs() -> KolomnaPrefs:
         lang = str(raw.get("lang", "ru"))
         if lang not in ("ru", "en"):
             lang = "ru"
+        layout = str(raw.get("menu_layout", "list"))
+        if layout not in ("list", "grid"):
+            layout = "list"
         return KolomnaPrefs(
             show_attract=bool(raw.get("show_attract", True)),
-            menu_layout=str(raw.get("menu_layout", "list")),
-            cta_color=str(raw.get("cta_color", "#1F4D2A")),
+            menu_layout=layout,
+            cta_color=normalize_cta_color(str(raw.get("cta_color", "#1F4D2A"))),
             skip_product=bool(raw.get("skip_product", False)),
             hours=str(raw.get("hours", "Ежедневно 10:00–19:00")),
             lang=lang,
@@ -45,6 +50,11 @@ def load_kolomna_prefs() -> KolomnaPrefs:
 
 
 def save_kolomna_prefs(prefs: KolomnaPrefs) -> None:
+    from src.ui.kolomna_cta import normalize_cta_color
+
+    prefs.cta_color = normalize_cta_color(prefs.cta_color)
+    if prefs.menu_layout not in ("list", "grid"):
+        prefs.menu_layout = "list"
     PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
     PREFS_PATH.write_text(
         json.dumps(asdict(prefs), ensure_ascii=False, indent=2),
