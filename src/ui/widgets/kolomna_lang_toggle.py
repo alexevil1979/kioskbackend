@@ -5,6 +5,7 @@ from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PyQt6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_chrome import chrome_row_height
 from src.ui.kolomna_shadow import draw_shadow_soft_pill, shadow_soft_bleed
 from src.ui.kolomna_tokens import CREAM, GREEN, INK_60, scale
 
@@ -95,7 +96,7 @@ class KolomnaLangToggle(QWidget):
         self._en.clicked.connect(lambda: self._set_lang("en"))
 
         outer.addWidget(self._pill)
-        self.setFixedSize(pill_w + bleed_l + bleed_r, pill_h + bleed_t + bleed_b)
+        self.setFixedSize(pill_w + bleed_l + bleed_r, chrome_row_height(viewport_width))
         self._sync()
 
     def _set_lang(self, lang: str) -> None:

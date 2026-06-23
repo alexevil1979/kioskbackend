@@ -3,6 +3,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QGridLayout, QWidget
 
+from src.ui.kolomna_chrome import chrome_top_pad
 from src.ui.kolomna_tokens import CREAM, KolomnaMetrics, scale
 from src.ui.widgets.kolomna_info_btn import KolomnaInfoButton
 from src.ui.widgets.kolomna_lang_toggle import KolomnaLangToggle
@@ -10,7 +11,7 @@ from src.ui.widgets.kolomna_logo import LogoDrop
 
 
 class KolomnaCatalogBar(QWidget):
-    """catalog__bar: Инфо | logo-drop | lang-toggle."""
+    """catalog__bar: Инфо | logo-drop | lang-toggle — одна строка, верх по уровню кнопок."""
 
     info_clicked = pyqtSignal()
     admin_requested = pyqtSignal()
@@ -23,7 +24,7 @@ class KolomnaCatalogBar(QWidget):
         self.setStyleSheet(f"background: {CREAM};")
 
         grid = QGridLayout(self)
-        grid.setContentsMargins(m.pad, scale(36, m.width), m.pad, scale(28, m.width))
+        grid.setContentsMargins(m.pad, chrome_top_pad(m), m.pad, scale(28, m.width))
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 0)
         grid.setColumnStretch(2, 1)

@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_chrome import chrome_pill_height, chrome_row_height, chrome_top_pad
 from src.ui.kolomna_shadow import draw_shadow_soft_pill, shadow_soft_bleed
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, YELLOW, scale
 from src.ui.widgets.kolomna_lang_toggle import KolomnaLangToggle
@@ -171,12 +172,10 @@ class _TopBarBackButton(QWidget):
         w = metrics.width
         pad_l = scale(20, w)
         pad_r = scale(30, w)
-        pad_v = scale(12, w)
 
         self._content = _BackRowContent(metrics)
-        fm = QFontMetrics(kolomna_font(metrics.fs_body, QFont.Weight.ExtraBold))
         pill_w = pad_l + self._content.width() + pad_r
-        pill_h = max(metrics.tap_min, fm.height() + pad_v * 2)
+        pill_h = chrome_pill_height(w)
         radius = pill_h // 2
 
         bleed_l, bleed_t, bleed_r, bleed_b = shadow_soft_bleed(w)
@@ -188,13 +187,13 @@ class _TopBarBackButton(QWidget):
         self._pill.setFixedSize(pill_w, pill_h)
 
         lay = QHBoxLayout(self._pill)
-        lay.setContentsMargins(pad_l, pad_v, pad_r, pad_v)
+        lay.setContentsMargins(pad_l, 0, pad_r, 0)
         lay.setSpacing(0)
         lay.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(self._content, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         outer.addWidget(self._pill)
-        self.setFixedSize(pill_w + bleed_l + bleed_r, pill_h + bleed_t + bleed_b)
+        self.setFixedSize(pill_w + bleed_l + bleed_r, chrome_row_height(w))
         self._metrics = metrics
 
     def retranslate(self) -> None:
@@ -203,12 +202,10 @@ class _TopBarBackButton(QWidget):
         pad_l = scale(20, w)
         pad_r = scale(30, w)
         pill_w = pad_l + self._content.width() + pad_r
-        pill_h = self._pill.height()
+        pill_h = chrome_pill_height(w)
         self._pill.setFixedSize(pill_w, pill_h)
-        self.setFixedSize(
-            pill_w + shadow_soft_bleed(w)[0] + shadow_soft_bleed(w)[2],
-            pill_h + shadow_soft_bleed(w)[1] + shadow_soft_bleed(w)[3],
-        )
+        bleed_l, bleed_t, bleed_r, bleed_b = shadow_soft_bleed(w)
+        self.setFixedSize(pill_w + bleed_l + bleed_r, chrome_row_height(w))
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton and self._pill.geometry().contains(
@@ -246,17 +243,21 @@ class KolomnaTopBar(QWidget):
         self._m = metrics
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(metrics.pad, metrics.pad, metrics.pad, scale(8, metrics.width))
+        root.setContentsMargins(
+            chrome_top_pad(metrics), chrome_top_pad(metrics), metrics.pad, scale(8, metrics.width)
+        )
         root.setSpacing(scale(30, metrics.width))
 
-        row = QHBoxLayout()
+        chrome_row = QWidget()
+        chrome_row.setFixedHeight(chrome_row_height(metrics.width))
+        row = QHBoxLayout(chrome_row)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(scale(24, metrics.width))
 
         self._back = _TopBarBackButton(metrics)
         self._back.clicked.connect(self.back_clicked.emit)
         self._back.setVisible(show_back)
-        row.addWidget(self._back, alignment=Qt.AlignmentFlag.AlignTop)
+        row.addWidget(self._back, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         row.addStretch(1)
 
@@ -264,9 +265,9 @@ class KolomnaTopBar(QWidget):
         if show_lang:
             self._lang = KolomnaLangToggle(metrics.width)
             self._lang.lang_changed.connect(self.lang_changed.emit)
-            row.addWidget(self._lang, alignment=Qt.AlignmentFlag.AlignTop)
+            row.addWidget(self._lang, alignment=Qt.AlignmentFlag.AlignVCenter)
 
-        root.addLayout(row)
+        root.addWidget(chrome_row)
 
         title_row = QHBoxLayout()
         title_row.setSpacing(scale(22, metrics.width))

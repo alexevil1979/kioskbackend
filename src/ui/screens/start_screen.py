@@ -7,7 +7,8 @@ from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_tokens import CREAM, INK_60, scale
+from src.ui.kolomna_chrome import chrome_top_pad
+from src.ui.kolomna_tokens import CREAM, INK_60, KolomnaMetrics, scale
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.attract_cta import AttractCtaBlock
 from src.ui.widgets.attract_tagline import AttractTagline
@@ -36,11 +37,11 @@ class StartScreen(BaseScreen):
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(0)
 
-        pad = scale(56, w)
+        top = chrome_top_pad(KolomnaMetrics.from_viewport(w, h))
 
         self._lang = KolomnaLangToggle(w, parent=self)
         self._lang.setCursor(Qt.CursorShape.ArrowCursor)
-        self._lang.move(w - pad - self._lang.width(), pad)
+        self._lang.move(w - top - self._lang.width(), top)
         self._lang.raise_()
 
         # attract__inner — вертикальный центр как flex center в референсе
@@ -85,8 +86,9 @@ class StartScreen(BaseScreen):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         if hasattr(self, "_lang"):
-            pad = scale(56, self.width())
-            self._lang.move(self.width() - pad - self._lang.width(), pad)
+            m = KolomnaMetrics.from_viewport(self.width(), self.height())
+            top = chrome_top_pad(m)
+            self._lang.move(self.width() - top - self._lang.width(), top)
 
     def _hits_lang_toggle(self, pos) -> bool:
         if not hasattr(self, "_lang"):
