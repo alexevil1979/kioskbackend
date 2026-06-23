@@ -79,6 +79,13 @@ def run() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(settings.app.title)
 
+    import os
+
+    if os.environ.get("KIOSK_QT_PAINT_TRACE", "").lower() in ("1", "true", "yes"):
+        from src.ui.qt_paint_trace import install_qt_paint_trace
+
+        install_qt_paint_trace(log_dir=settings.log_path.parent)
+
     fusion = QStyleFactory.create("Fusion")
     if fusion:
         app.setStyle(fusion)

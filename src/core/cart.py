@@ -11,10 +11,17 @@ from src.models.product import Product
 class CartLine:
     product: Product
     quantity: int = 1
+    tour_kids: int = 0
 
     @property
     def line_total(self) -> float:
         return self.product.price_rub * self.quantity
+
+    @property
+    def is_tour(self) -> bool:
+        from src.ui.kolomna_catalog import is_tour_product
+
+        return is_tour_product(self.product)
 
 
 class Cart(QObject):
@@ -24,8 +31,17 @@ class Cart(QObject):
         super().__init__()
         self._lines: dict[str, CartLine] = {}
 
-    def add(self, product: Product, qty: int = 1) -> None:
+    def add(self, product: Product, qty: int = 1, *, tour_kids: int | None = None) -> None:
         if not product.in_stock:
+            return
+        if tour_kids is not None:
+            adults = max(1, qty)
+            self._lines[product.id] = CartLine(
+                product=product,
+                quantity=adults,
+                tour_kids=max(0, tour_kids),
+            )
+            self.changed.emit()
             return
         if product.id in self._lines:
             self._lines[product.id].quantity += qty

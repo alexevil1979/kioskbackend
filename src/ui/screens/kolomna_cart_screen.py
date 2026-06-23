@@ -38,11 +38,10 @@ class _CartEmptyMenuBtn(QWidget):
         self._pressed = False
         w = metrics.width
         self._h = scale(104, w)
-        self._shadow = scale(18, w)
         self._pad_x = scale(56, w)
         self._font = kolomna_font(metrics.fs_h3, QFont.Weight.ExtraBold)
         fm = QFontMetrics(self._font)
-        self.setFixedHeight(self._h + self._shadow)
+        self.setFixedHeight(self._h)
         self.setMinimumWidth(fm.horizontalAdvance(text) + self._pad_x * 2)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -50,18 +49,9 @@ class _CartEmptyMenuBtn(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
-        vw = self._m.width
         rect = QRectF(1, 1, self.width() - 2, self._h - 2)
         r = rect.height() / 2.0
         pal = cta_palette()
-        for y_off, alpha in (
-            (scale(10, vw), 18),
-            (scale(14, vw), 30),
-            (scale(18, vw), 22),
-        ):
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(20, 56, 33, alpha))
-            p.drawRoundedRect(rect.translated(0, y_off), r, r)
         bg = QColor(pal.bg_active if self._pressed else pal.bg)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(bg)

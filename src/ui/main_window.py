@@ -7,7 +7,10 @@ import uuid
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QEvent, Qt, QTimer
-from PyQt6.QtWidgets import QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget
+from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget
+
+from src.core.display_target import resolve_kiosk_screen
 
 from src.core.cart import Cart
 from src.core.config import Settings
@@ -121,8 +124,6 @@ class MainWindow(QMainWindow):
         self._idle_overlay.leave.connect(self._full_reset)
 
         catalog.offline_changed.connect(self._on_offline)
-
-        from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance()
         if app:
@@ -286,15 +287,30 @@ class MainWindow(QMainWindow):
             logger.exception("Ошибка загрузки каталога при старте")
         self._apply_kiosk_geometry()
 
+    def _target_screen(self):
+        app = QGuiApplication.instance()
+        if not app:
+            return self.screen()
+        return resolve_kiosk_screen(app, self._settings.app)
+
+    def _place_on_screen(self, screen) -> None:
+        if not screen:
+            return
+        geo = screen.geometry()
+        if self.windowHandle():
+            self.windowHandle().setScreen(screen)
+        self.setGeometry(geo)
+        self.move(geo.topLeft())
+
     def _apply_kiosk_geometry(self) -> None:
+        target = self._target_screen()
+
         if self._dev_mode:
             self.setWindowFlags(Qt.WindowType.Window)
             self.show()
             self.adjustSize()
-            # В dev-режиме центрируем окно, чтобы viewport не выглядел "обрезанным".
-            screen = self.screen() or self.windowHandle().screen() if self.windowHandle() else None
-            if screen:
-                center = screen.availableGeometry().center()
+            if target:
+                center = target.availableGeometry().center()
                 frame = self.frameGeometry()
                 frame.moveCenter(center)
                 self.move(frame.topLeft())
@@ -303,6 +319,9 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
         )
+        self.show()
+        if target:
+            self._place_on_screen(target)
         if self._settings.app.fullscreen:
             self.showFullScreen()
         else:

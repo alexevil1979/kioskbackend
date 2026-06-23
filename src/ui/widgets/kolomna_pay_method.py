@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayou
 
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_tokens import CREAM, GREEN, INK_30, INK_60, KolomnaMetrics, scale
-from src.ui.widgets.kolomna_prod_row import _paint_card_shadow
+from src.ui.widgets.kolomna_prod_row import _paint_card_shadow, card_shadow_bleed
 
 
 class _PayMethodRadio(QWidget):
@@ -134,7 +134,7 @@ class KolomnaPayMethod(QWidget):
         )
 
     def _shadow_bleed(self) -> int:
-        return scale(20, self._m.width)
+        return card_shadow_bleed(self._m)
 
     def _sync_geometry(self) -> None:
         w = max(1, self.width())

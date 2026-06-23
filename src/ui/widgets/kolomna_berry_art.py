@@ -25,6 +25,7 @@ class KolomnaBerryArt(QWidget):
         bg: str = "#FFFFFF",
         img_scale: float = 1.5,
         fluid_width: bool = False,
+        ground_shadow: bool = True,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -32,6 +33,7 @@ class KolomnaBerryArt(QWidget):
         self._media_h = media_h
         self._img_scale = img_scale
         self._fluid = fluid_width
+        self._ground_shadow = ground_shadow
         self._base_w = max(1, media_w)
         self._bg = bg
         self._product = product
@@ -101,11 +103,12 @@ class KolomnaBerryArt(QWidget):
         aw, ph = pm.width(), pm.height()
         x = (self.width() - aw) / 2.0
         y = (self.height() - ph) / 2.0
-        vw = max(self._base_w, self.width())
-        shadow = QRectF(x, y + ph - scale(8, vw), aw, scale(18, vw))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(20, 56, 33, 41))
-        p.drawEllipse(shadow)
+        if self._ground_shadow:
+            vw = max(self._base_w, self.width())
+            shadow = QRectF(x, y + ph - scale(8, vw), aw, scale(18, vw))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(20, 56, 33, 41))
+            p.drawEllipse(shadow)
 
         p.setClipRect(self.rect())
         p.drawPixmap(int(x), int(y), pm)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QRectF
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter
-from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
@@ -34,6 +34,7 @@ class _InfoIcon(QWidget):
         # небольшой сдвиг вправо — оптическое центрирование курсивной «i»
         rect = self.rect().adjusted(1, 0, 0, 0)
         p.drawText(rect, Qt.AlignmentFlag.AlignCenter, "i")
+        p.end()
 
 
 class KolomnaInfoButton(QWidget):
@@ -49,7 +50,7 @@ class KolomnaInfoButton(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         ic_sz = scale(56, m.width)
-        pad_v = scale(12, m.width)
+        pad_v = scale(10, m.width)
         pad_l = scale(12, m.width)
         pad_r = scale(30, m.width)
         gap = scale(16, m.width)
@@ -74,12 +75,6 @@ class KolomnaInfoButton(QWidget):
         self.setFixedSize(total_w, btn_h)
         self._radius = btn_h // 2
         self._pressed = False
-
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(scale(28, m.width))
-        shadow.setOffset(0, scale(12, m.width))
-        shadow.setColor(QColor(20, 56, 33, 102))
-        self.setGraphicsEffect(shadow)
 
         self._held = False
         self._hold_timer = QTimer(self)
@@ -136,7 +131,7 @@ class KolomnaInfoButton(QWidget):
         pad_r = scale(30, m.width)
         ic_sz = scale(56, m.width)
         gap = scale(16, m.width)
-        pad_v = scale(12, m.width)
+        pad_v = scale(10, m.width)
         total_w = pad_l + ic_sz + gap + fm.horizontalAdvance(S.INFO) + pad_r
         btn_h = max(m.tap_min, ic_sz + pad_v * 2)
         self.setFixedSize(total_w, btn_h)

@@ -31,16 +31,16 @@ class KolomnaCatalogBar(QWidget):
         self._info = KolomnaInfoButton(m)
         self._info.clicked.connect(self.info_clicked.emit)
         self._info.admin_requested.connect(self.admin_requested.emit)
-        grid.addWidget(self._info, 0, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(self._info, 0, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
         logo_w = scale(340, m.width)
         logo_h = scale(158, m.width)
         self._logo = LogoDrop(logo_w, logo_h)
-        grid.addWidget(self._logo, 0, 1, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(self._logo, 0, 1, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
         self._lang = KolomnaLangToggle(m.width)
         self._lang.lang_changed.connect(self.lang_changed.emit)
-        grid.addWidget(self._lang, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(self._lang, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
     def set_lang(self, lang: str) -> None:
         self._lang.set_lang(lang)

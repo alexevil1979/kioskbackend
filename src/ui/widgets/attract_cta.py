@@ -1,12 +1,21 @@
 from __future__ import annotations
 
-import math
+import time
 
-from PyQt6.QtCore import QEasingCurve, QLineF, QPropertyAnimation, Qt, QRectF, pyqtProperty
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QVBoxLayout, QWidget
+from PyQt6.QtCore import QEasingCurve, QLineF, QPropertyAnimation, Qt, QRectF, QTimer, pyqtProperty
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QStaticText
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.ui.kolomna_breathe import (
+    apply_pill_scale,
+    breathe_pad,
+    breathe_scale_at,
+    draw_static_text,
+    font_for_breathe,
+    start_breathe_timer,
+)
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_shadow import draw_shadow_soft_pill
 from src.ui.kolomna_tokens import CREAM, GREEN, scale
 
 # ---------------------------------------------------------------------------
@@ -44,104 +53,80 @@ def _fit_cta_font(text: str, viewport_width: int, fs: int, pad_h: int, border: i
     return fs, pad_h, font
 
 
+def _cta_layout(text: str, viewport_width: int, fs: int, pad_v: int, pad_h: int, border: int) -> tuple:
+    fs, pad_h, font = _fit_cta_font(text, viewport_width, fs, pad_h, border)
+    fm = QFontMetrics(font)
+    inner_w = fm.horizontalAdvance(text) + pad_h * 2
+    inner_h = fm.height() + pad_v * 2
+    pill_w = inner_w + border
+    pill_h = inner_h + border
+    pulse_pad = breathe_pad(max(pill_w, pill_h)) + border
+    inner = QRectF(
+        pulse_pad + border / 2,
+        pulse_pad + border / 2,
+        pill_w,
+        pill_h,
+    )
+    size = (int(pill_w + 2 * pulse_pad), int(pill_h + 2 * pulse_pad))
+    return fs, pad_h, font, inner, pulse_pad, size
+
+
 class _AttractCtaPaint(QWidget):
     """
     attract__cta: одна строка, широкая pill, border 9px, shadow-card.
-    ctaPulse 2.2s ease-in-out.
+    btnBreathe — та же синусоида, что у корзины.
     """
 
     def __init__(self, text: str, viewport_width: int, parent=None) -> None:
         super().__init__(parent)
         self._text = text
         self._vw = viewport_width
-        fs = scale(46, viewport_width)
         self._pad_v = scale(40, viewport_width)
         pad_h = scale(78, viewport_width)
         self._border = max(2, scale(9, viewport_width))
-        self._pulse_scale = 1.0
-        self._pulse_max = 1.045
+        self._breathe_t0 = time.perf_counter()
+        self._st_cache: dict[str, QStaticText] = {}
+        self._anim_timer = QTimer(self)
+        self._anim_timer.timeout.connect(self.update)
+        start_breathe_timer(self._anim_timer)
 
-        self._fs, self._pad_h, self._font = _fit_cta_font(
-            text, viewport_width, fs, pad_h, self._border
+        fs = scale(46, viewport_width)
+        self._fs, self._pad_h, self._font, self._inner, self._pulse_pad, size = _cta_layout(
+            text, viewport_width, fs, self._pad_v, pad_h, self._border
         )
-        fm = QFontMetrics(self._font)
-        inner_w = fm.horizontalAdvance(text) + self._pad_h * 2
-        inner_h = fm.height() + self._pad_v * 2
-        pill_w = inner_w + self._border
-        pill_h = inner_h + self._border
-        # Запас под ctaPulse scale(1.045) — иначе pill обрезается по бокам
-        self._pulse_pad = math.ceil(max(pill_w, pill_h) * (self._pulse_max - 1) / 2) + self._border
-        self._inner = QRectF(
-            self._pulse_pad + self._border / 2,
-            self._pulse_pad + self._border / 2,
-            pill_w,
-            pill_h,
-        )
-        self.setFixedSize(
-            int(pill_w + 2 * self._pulse_pad),
-            int(pill_h + 2 * self._pulse_pad),
-        )
-
-        self._pulse_anim = QPropertyAnimation(self, b"pulseScale", self)
-        self._pulse_anim.setDuration(2200)
-        self._pulse_anim.setStartValue(1.0)
-        self._pulse_anim.setKeyValueAt(0.5, 1.045)
-        self._pulse_anim.setEndValue(1.0)
-        self._pulse_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
-        self._pulse_anim.setLoopCount(-1)
-
-    @pyqtProperty(float)
-    def pulseScale(self) -> float:
-        return self._pulse_scale
-
-    @pulseScale.setter
-    def pulseScale(self, value: float) -> None:
-        self._pulse_scale = value
-        self.update()
+        self.setFixedSize(size[0], size[1])
 
     def start_animation(self) -> None:
-        if self._pulse_anim.state() != QPropertyAnimation.State.Running:
-            self._pulse_anim.start()
+        if not self._anim_timer.isActive():
+            self._breathe_t0 = time.perf_counter()
+            start_breathe_timer(self._anim_timer)
 
     def stop_animation(self) -> None:
-        self._pulse_anim.stop()
-        self.pulseScale = 1.0
+        self._anim_timer.stop()
+        self.update()
 
     def set_text(self, text: str) -> None:
         self._text = text
+        self._st_cache.clear()
         fs = scale(46, self._vw)
         pad_h = scale(78, self._vw)
-        self._fs, self._pad_h, self._font = _fit_cta_font(
-            text, self._vw, fs, pad_h, self._border
+        self._fs, self._pad_h, self._font, self._inner, self._pulse_pad, size = _cta_layout(
+            text, self._vw, fs, self._pad_v, pad_h, self._border
         )
-        fm = QFontMetrics(self._font)
-        inner_w = fm.horizontalAdvance(text) + self._pad_h * 2
-        inner_h = fm.height() + self._pad_v * 2
-        pill_w = inner_w + self._border
-        pill_h = inner_h + self._border
-        self._pulse_pad = math.ceil(max(pill_w, pill_h) * (self._pulse_max - 1) / 2) + self._border
-        self._inner = QRectF(
-            self._pulse_pad + self._border / 2,
-            self._pulse_pad + self._border / 2,
-            pill_w,
-            pill_h,
-        )
-        self.setFixedSize(
-            int(pill_w + 2 * self._pulse_pad),
-            int(pill_h + 2 * self._pulse_pad),
-        )
+        self.setFixedSize(size[0], size[1])
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cx, cy = self.width() / 2, self.height() / 2
-        painter.translate(cx, cy)
-        painter.scale(self._pulse_scale, self._pulse_scale)
-        painter.translate(-cx, -cy)
-
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         rect = QRectF(self._inner)
         radius = rect.height() / 2
+        draw_shadow_soft_pill(painter, rect, radius, self._vw)
+
+        cx, cy = self.width() / 2, self.height() / 2
+        scaled = apply_pill_scale(painter, cx, cy, breathe_scale_at(self._breathe_t0))
+
         path = QPainterPath()
         path.addRoundedRect(rect, radius, radius)
 
@@ -158,13 +143,23 @@ class _AttractCtaPaint(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
 
+        font = font_for_breathe(self._font, True)
         painter.setPen(QColor(CREAM))
-        painter.setFont(self._font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self._text)
+        draw_static_text(
+            painter,
+            font,
+            self._text,
+            rect,
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+            self._st_cache,
+        )
+        if scaled:
+            painter.restore()
+        painter.end()
 
 
 class _AttractHand(QWidget):
-    """attract__hand — тонкая ↑ ~60px, handBob 1.6s (как в референсе)."""
+    """attract__hand — стрелка ↑, handBob 1.6s."""
 
     def __init__(self, viewport_width: int, parent=None) -> None:
         super().__init__(parent)
@@ -221,6 +216,7 @@ class _AttractHand(QWidget):
         painter.drawLine(QLineF(cx, top, cx - head_w, stem_top))
         painter.drawLine(QLineF(cx, top, cx + head_w, stem_top))
         painter.drawLine(QLineF(cx, stem_top, cx, stem_bottom))
+        painter.end()
 
 
 class AttractCtaBlock(QWidget):
@@ -242,11 +238,6 @@ class AttractCtaBlock(QWidget):
         lay.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
         self._cta = _AttractCtaPaint(text, viewport_width)
-        shadow = QGraphicsDropShadowEffect(self._cta)
-        shadow.setBlurRadius(scale(60, viewport_width))
-        shadow.setOffset(0, scale(24, viewport_width))
-        shadow.setColor(QColor(20, 56, 33, 102))
-        self._cta.setGraphicsEffect(shadow)
         lay.addWidget(self._cta, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addSpacing(hand_gap)
 

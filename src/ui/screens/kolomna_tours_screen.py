@@ -120,6 +120,7 @@ class _CouponTear(QWidget):
         p.setBrush(QColor(CREAM))
         p.drawEllipse(-half, cy - half, r, r)
         p.drawEllipse(w - half, cy - half, r, r)
+        p.end()
 
 
 class _TourAddButton(QWidget):
@@ -209,6 +210,7 @@ class _TourGiftIcon(QWidget):
             p.rotate(angle)
             p.drawEllipse(int(-bow_w / 2), int(-bow_h / 2), int(bow_w), int(bow_h))
             p.restore()
+        p.end()
 
 
 class KolomnaToursScreen(BaseScreen):
@@ -467,7 +469,7 @@ class KolomnaToursScreen(BaseScreen):
     def _add_to_cart(self) -> None:
         if not self._product:
             return
-        self._cart.add(self._product, self._adults.value())
+        self._cart.add(self._product, self._adults.value(), tour_kids=self._kids.value())
         self._flash_toast(S.ADDED_TOAST)
 
     def _flash_toast(self, text: str) -> None:

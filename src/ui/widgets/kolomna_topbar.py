@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_shadow import apply_shadow_soft, shadow_soft_bleed
+from src.ui.kolomna_shadow import draw_shadow_soft_pill, shadow_soft_bleed
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, YELLOW, scale
 from src.ui.widgets.kolomna_lang_toggle import KolomnaLangToggle
 
@@ -49,6 +49,7 @@ class _BackRowContent(QWidget):
         p.drawText(0, int(chevron_y), "‹")
         p.setFont(self._body_font)
         p.drawText(QFontMetrics(self._icon_font).horizontalAdvance("‹") + self._gap, baseline, self._text)
+        p.end()
 
 
 class _CartPillButton(QWidget):
@@ -147,6 +148,8 @@ class _BackPill(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        r = float(self._radius)
+        draw_shadow_soft_pill(p, rect, r, max(1, self.width()))
         bg = QColor(CREAM if self._pressed else "#FFFFFF")
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(bg)
@@ -183,7 +186,6 @@ class _TopBarBackButton(QWidget):
 
         self._pill = _BackPill(radius)
         self._pill.setFixedSize(pill_w, pill_h)
-        apply_shadow_soft(self._pill, w)
 
         lay = QHBoxLayout(self._pill)
         lay.setContentsMargins(pad_l, pad_v, pad_r, pad_v)

@@ -12,11 +12,93 @@ from src.ui.kolomna_product_meta import (
     full_product_name,
     product_pack_label,
     product_per_word,
+    product_title,
+    tour_cart_guests_label,
 )
-from src.ui.kolomna_tokens import GREEN, INK_60, KolomnaMetrics, RASPBERRY, scale
+from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, GREEN_DEEP, INK_60, KolomnaMetrics, RASPBERRY, scale
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
-from src.ui.widgets.kolomna_prod_row import _PackChip, _clamp_wrapped_text, _paint_card_shadow
+from src.ui.widgets.kolomna_logo import BerryDrop
+from src.ui.widgets.kolomna_prod_row import _PackChip, _clamp_wrapped_text, _paint_card_shadow, card_shadow_bleed
 from src.ui.widgets.kolomna_qty_control import KolomnaQtyControl
+
+_STRIPE_ALT = "#e6d8b2"
+
+
+def _paint_service_stripes(p: QPainter, rect: QRectF, radius: float, vw: int) -> None:
+    """berry-art--service: repeating-linear-gradient(135deg, cream-deep, #e6d8b2)."""
+    stripe = max(6, scale(18, vw))
+    c1, c2 = QColor(CREAM_DEEP), QColor(_STRIPE_ALT)
+    w, h = rect.width(), rect.height()
+    p.save()
+    clip = QPainterPath()
+    clip.addRoundedRect(rect, radius, radius)
+    p.setClipPath(clip)
+    p.translate(rect.center())
+    p.rotate(-45)
+    span = int(w + h) + stripe * 4
+    idx = 0
+    for i in range(-span, span, stripe):
+        p.fillRect(QRectF(-span, i, span * 2, stripe), c1 if idx % 2 == 0 else c2)
+        idx += 1
+    p.restore()
+
+
+class _TourCartThumb(QWidget):
+    """cart-row: berry-art--service — полосы, logo-drop, «фото • экскурсия»."""
+
+    def __init__(self, size: int, metrics: KolomnaMetrics, parent=None) -> None:
+        super().__init__(parent)
+        self._m = metrics
+        self._size = size
+        self._radius = scale(18, metrics.width)
+        self.setFixedSize(size, size)
+
+        w = metrics.width
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(scale(8, w), scale(10, w), scale(8, w), scale(8, w))
+        lay.setSpacing(scale(6, w))
+
+        drop_w = scale(120, w)
+        drop_h = max(1, round(drop_w * 158 / 340))
+        self._drop = BerryDrop(
+            drop_w,
+            drop_h,
+            fill=GREEN,
+            edge=GREEN_DEEP,
+            parent=self,
+        )
+        lay.addWidget(self._drop, stretch=1, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        cap_fs = scale(15, w)
+        cap = QLabel(S.CART_TOUR_PHOTO.replace(" ", "\u00a0"))
+        cap.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cap.setFont(kolomna_font(cap_fs, QFont.Weight.Bold))
+        cap.setMaximumWidth(size - scale(16, w))
+        cap.setStyleSheet(
+            f"color: {GREEN}; background: {CREAM}; "
+            f"border-radius: {scale(10, w)}px; "
+            f"padding: {scale(5, w)}px {scale(10, w)}px;"
+        )
+        lay.addWidget(cap, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        p = QPainter(self)
+        try:
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            rect = QRectF(0, 0, self.width(), self.height())
+            _paint_service_stripes(p, rect, float(self._radius), self._m.width)
+        finally:
+            if p.isActive():
+                p.end()
+        super().paintEvent(event)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        w, h = self.width(), self.height()
+        if w >= 2 and h >= 2:
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(0, 0, w, h), self._radius, self._radius)
+            self.setMask(QRegion(path.toFillPolygon().toPolygon()))
 
 
 class _CartSumBadge(QWidget):
@@ -62,24 +144,28 @@ class KolomnaCartRow(QWidget):
         root.setSpacing(scale(28, metrics.width))
         root.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        media = QFrame()
-        media.setFixedSize(media_sz, media_sz)
-        media.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         media_r = scale(18, metrics.width)
-        media.setStyleSheet(f"QFrame {{ background: #FFFFFF; border-radius: {media_r}px; }}")
-        clip = QPainterPath()
-        clip.addRoundedRect(QRectF(0, 0, media_sz, media_sz), media_r, media_r)
-        media.setMask(QRegion(clip.toFillPolygon().toPolygon()))
-        media_lay = QVBoxLayout(media)
-        media_lay.setContentsMargins(0, 0, 0, 0)
-        art = KolomnaBerryArt(
-            line.product,
-            media_sz,
-            media_sz,
-            radius=media_r,
-            bg="#FFFFFF",
-        )
-        media_lay.addWidget(art)
+        if line.is_tour:
+            media = _TourCartThumb(media_sz, metrics)
+        else:
+            media = QFrame()
+            media.setFixedSize(media_sz, media_sz)
+            media.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            media.setStyleSheet(f"QFrame {{ background: #FFFFFF; border-radius: {media_r}px; }}")
+            clip = QPainterPath()
+            clip.addRoundedRect(QRectF(0, 0, media_sz, media_sz), media_r, media_r)
+            media.setMask(QRegion(clip.toFillPolygon().toPolygon()))
+            media_lay = QVBoxLayout(media)
+            media_lay.setContentsMargins(0, 0, 0, 0)
+            art = KolomnaBerryArt(
+                line.product,
+                media_sz,
+                media_sz,
+                radius=media_r,
+                bg="#FFFFFF",
+                ground_shadow=False,
+            )
+            media_lay.addWidget(art)
         root.addWidget(media, alignment=Qt.AlignmentFlag.AlignVCenter)
 
         body_host = QWidget()
@@ -103,7 +189,7 @@ class KolomnaCartRow(QWidget):
             - sum_w,
         )
         name_text, name_h = _clamp_wrapped_text(
-            full_product_name(line.product),
+            product_title(line.product) if line.is_tour else full_product_name(line.product),
             name_font,
             body_w,
             max_lines=2,
@@ -117,18 +203,25 @@ class KolomnaCartRow(QWidget):
         name.setStyleSheet(f"color: {GREEN}; background: transparent;")
         body.addWidget(name)
 
-        sub = QHBoxLayout()
-        sub.setSpacing(scale(16, metrics.width))
-        pack_chip = _PackChip(product_pack_label(line.product), metrics)
-        sub.addWidget(pack_chip, alignment=Qt.AlignmentFlag.AlignVCenter)
-        unit = QLabel(
-            f"{fmt_price(line.product.price_rub)}\u00a0{S.CUR} · {product_per_word(line.product)}"
-        )
-        unit.setFont(kolomna_font(metrics.fs_label, QFont.Weight.DemiBold))
-        unit.setStyleSheet(f"color: {INK_60}; background: transparent;")
-        sub.addWidget(unit)
-        sub.addStretch(1)
-        body.addLayout(sub)
+        if line.is_tour:
+            guests = QLabel(tour_cart_guests_label(line.quantity, line.tour_kids))
+            guests.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Medium))
+            guests.setStyleSheet(f"color: {GREEN}; background: transparent;")
+            guests.setWordWrap(True)
+            body.addWidget(guests)
+        else:
+            sub = QHBoxLayout()
+            sub.setSpacing(scale(16, metrics.width))
+            pack_chip = _PackChip(product_pack_label(line.product), metrics)
+            sub.addWidget(pack_chip, alignment=Qt.AlignmentFlag.AlignVCenter)
+            unit = QLabel(
+                f"{fmt_price(line.product.price_rub)}\u00a0{S.CUR} · {product_per_word(line.product)}"
+            )
+            unit.setFont(kolomna_font(metrics.fs_label, QFont.Weight.DemiBold))
+            unit.setStyleSheet(f"color: {INK_60}; background: transparent;")
+            sub.addWidget(unit)
+            sub.addStretch(1)
+            body.addLayout(sub)
 
         controls = QHBoxLayout()
         controls.setContentsMargins(0, scale(6, metrics.width), 0, 0)
@@ -163,7 +256,7 @@ class KolomnaCartRow(QWidget):
         self._sync_geometry()
 
     def _shadow_bleed(self) -> int:
-        return scale(20, self._m.width)
+        return card_shadow_bleed(self._m)
 
     def _apply_round_clip(self) -> None:
         w = max(1, self._card.width())

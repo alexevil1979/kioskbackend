@@ -219,6 +219,7 @@ class _ToggleTitle(QWidget):
                 | Qt.TextFlag.TextWordWrap,
                 self._title,
             )
+        p.end()
 
 
 class _AdminToggleRow(QFrame):
@@ -471,7 +472,7 @@ class _SwatchChip(QWidget):
 
 
 class _SwatchStack(QFrame):
-    """admin-swatch__chip + кольца: box-shadow 0 0 0 6px cream, 0 0 0 12px green."""
+    """admin-swatch__chip + кольца выбора (без тени у невыбранных)."""
 
     def __init__(self, chip: QWidget, metrics: KolomnaMetrics, parent=None) -> None:
         super().__init__(parent)
@@ -499,19 +500,6 @@ class _SwatchStack(QFrame):
         cx = self.width() / 2
         cy = self.height() / 2
         half = self._chip_sz / 2
-        chip_rect = QRectF(cx - half, cy - half, self._chip_sz, self._chip_sz)
-        vw = self._m.width
-
-        if not self._active:
-            for y_off, alpha in (
-                (scale(12, vw), 40),
-                (scale(20, vw), 64),
-                (scale(24, vw), 40),
-            ):
-                sr = chip_rect.translated(0, y_off)
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(QColor(20, 56, 33, alpha))
-                p.drawRoundedRect(sr, self._chip_r, self._chip_r)
 
         if self._active:
             for extra, color in (

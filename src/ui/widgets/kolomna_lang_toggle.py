@@ -5,7 +5,7 @@ from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PyQt6.QtWidgets import QPushButton, QVBoxLayout, QWidget
 
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_shadow import apply_shadow_soft, shadow_soft_bleed
+from src.ui.kolomna_shadow import draw_shadow_soft_pill, shadow_soft_bleed
 from src.ui.kolomna_tokens import CREAM, GREEN, INK_60, scale
 
 
@@ -53,6 +53,7 @@ class _LangTogglePill(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         r = rect.height() / 2.0
+        draw_shadow_soft_pill(painter, rect, r, max(1, self.width()))
         path = QPainterPath()
         path.addRoundedRect(rect, r, r)
         painter.fillPath(path, QColor("#FFFFFF"))
@@ -84,7 +85,6 @@ class KolomnaLangToggle(QWidget):
 
         self._pill = _LangTogglePill()
         self._pill.setFixedSize(pill_w, pill_h)
-        apply_shadow_soft(self._pill, viewport_width)
 
         self._ru = _LangPillBtn("RU", btn_w, btn_h, fs, self._pill)
         self._ru.move(pad, pad)

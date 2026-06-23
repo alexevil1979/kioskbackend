@@ -218,6 +218,7 @@ class LogoDrop(QWidget):
                 Qt.TransformationMode.SmoothTransformation,
             )
             painter.drawPixmap(0, 0, scaled)
+            painter.end()
             return
 
         rect = QRectF(0, 0, self.width(), self.height())
@@ -237,6 +238,7 @@ class LogoDrop(QWidget):
             painter.setClipPath(path)
             painter.drawPixmap(lx, ly, self._logo)
             painter.restore()
+        painter.end()
 
 
 BerryDropLogo = LogoDrop

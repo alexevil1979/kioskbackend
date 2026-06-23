@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QRegion
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QRadialGradient, QRegion
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -25,23 +25,24 @@ from src.ui.kolomna_tokens import CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, YEL
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 
 
+def card_shadow_bleed(metrics: KolomnaMetrics) -> int:
+    return scale(22, metrics.width)
+
+
 def _paint_card_shadow(p: QPainter, card_rect: QRectF, radius: float, metrics: KolomnaMetrics) -> None:
+    """Мягкая одинарная тень под карточкой (радиальный градиент, не полоса)."""
     w = metrics.width
-    shrink = scale(24, w)
-    for y_off, alpha in (
-        (scale(18, w), 14),
-        (scale(24, w), 28),
-        (scale(30, w), 16),
-    ):
-        sr = QRectF(
-            shrink / 2,
-            y_off,
-            card_rect.width() - shrink,
-            card_rect.height() - shrink / 2,
-        )
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(20, 56, 33, alpha))
-        p.drawRoundedRect(sr, radius, radius)
+    cx = card_rect.center().x()
+    cy = card_rect.bottom() + scale(5, w)
+    rx = max(scale(40, w), card_rect.width() / 2.0 - scale(18, w))
+    ry = scale(14, w)
+    grad = QRadialGradient(cx, cy, max(rx, ry))
+    grad.setColorAt(0.0, QColor(20, 56, 33, 26))
+    grad.setColorAt(0.55, QColor(20, 56, 33, 10))
+    grad.setColorAt(1.0, QColor(20, 56, 33, 0))
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(grad)
+    p.drawEllipse(QRectF(cx - rx, cy - ry * 0.55, rx * 2.0, ry * 1.1))
 
 
 def _clamp_wrapped_text(
@@ -391,7 +392,7 @@ class KolomnaProdRow(QWidget):
         self.setFixedHeight(total)
 
     def _shadow_bleed(self) -> int:
-        return scale(36, self._m.width)
+        return card_shadow_bleed(self._m)
 
     def _apply_round_clip(self) -> None:
         w = max(1, self._card.width())
@@ -479,11 +480,7 @@ class KolomnaProdTile(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        border = max(1, scale(2, metrics.width))
-        border_css = (
-            f"QFrame {{ background: #FFFFFF; border: none; "
-            f"border-bottom: {border}px solid {CREAM_DEEP}; }}"
-        )
+        border_css = "QFrame { background: #FFFFFF; border: none; }"
         col_w = max(scale(200, metrics.width), (metrics.width - metrics.gap * 3) // 2)
         media = KolomnaBerryArt(
             product,
@@ -607,7 +604,7 @@ class KolomnaProdTile(QWidget):
         return total
 
     def _shadow_bleed(self) -> int:
-        return scale(36, self._m.width)
+        return card_shadow_bleed(self._m)
 
     def content_height(self) -> int:
         return self._card_h + self._shadow_bleed()

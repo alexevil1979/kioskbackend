@@ -42,6 +42,14 @@ def apply_env_overrides(settings: Settings) -> None:
         if app.dev_mode:
             app.fullscreen = False
 
+    screen_pos = os.getenv("KIOSK_SCREEN")
+    if screen_pos:
+        app.screen_position = screen_pos.strip().lower()
+
+    screen_idx = os.getenv("KIOSK_SCREEN_INDEX")
+    if screen_idx is not None and screen_idx.strip().isdigit():
+        app.screen_index = int(screen_idx.strip())
+
     kiosk = settings.kiosk
     if app.dev_mode:
         kiosk.block_keys = False

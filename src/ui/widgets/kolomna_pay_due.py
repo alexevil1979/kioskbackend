@@ -73,3 +73,4 @@ class KolomnaPayDueRow(QWidget):
         if self._sum_text:
             p.setFont(self._sum_font)
             p.drawText(x + self._gap, baseline, self._sum_text)
+        p.end()

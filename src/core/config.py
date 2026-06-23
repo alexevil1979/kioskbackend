@@ -25,6 +25,9 @@ class AppConfig:
     dev_mode: bool = False
     viewport_width: int = 499
     viewport_height: int = 913
+    # primary | left | right | 0..N (индекс слева направо)
+    screen_position: str = "primary"
+    screen_index: int | None = None
 
     @property
     def kiosk_scale(self) -> float:

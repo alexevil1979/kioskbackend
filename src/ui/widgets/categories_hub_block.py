@@ -33,6 +33,7 @@ class CategoriesScrollContent(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
         p.fillRect(self.rect(), QColor("#FFFFFF"))
+        p.end()
         super().paintEvent(event)
 
     def _clear_cards(self) -> None:

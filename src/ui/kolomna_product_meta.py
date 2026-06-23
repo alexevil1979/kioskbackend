@@ -77,6 +77,16 @@ def product_per_word(product: Product) -> str:
     return S.PER_PACK
 
 
+def tour_cart_guests_label(adults: int, kids: int) -> str:
+    from src.ui import kolomna_strings as S
+
+    adults = max(1, adults)
+    kids = max(0, kids)
+    if kids > 0:
+        return S.CART_TOUR_GUESTS.format(adults=adults, kids=kids, free=S.TOUR_GUEST_FREE.lower())
+    return S.CART_TOUR_GUESTS_ADULTS.format(adults=adults)
+
+
 def full_product_name(product: Product) -> str:
     cat = product.category_name.strip()
     title = product_title(product)

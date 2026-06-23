@@ -9,8 +9,6 @@ from PyQt6.QtWidgets import QWidget
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, scale
 
-_SHADOW = QColor(20, 56, 33, 102)
-
 
 class KolomnaAddedToast(QWidget):
     """Зелёная pill-плашка над кнопкой корзины (референс .toast)."""
@@ -24,7 +22,6 @@ class KolomnaAddedToast(QWidget):
         self._text = ""
         self._pad_v = scale(24, w)
         self._pad_h = scale(46, w)
-        self._shadow_bleed = scale(24, w)
         self._pill_rect = QRectF()
         self._opacity = 1.0
         self._slide_y = 0.0
@@ -53,7 +50,7 @@ class KolomnaAddedToast(QWidget):
         pill_h = th + self._pad_v * 2
         total_w = pill_w
         pill_x = 0
-        total_h = pill_h + self._shadow_bleed
+        total_h = pill_h
         self._pill_rect = QRectF(pill_x, 0, pill_w, pill_h)
         self.setFixedSize(total_w, total_h)
 
@@ -114,25 +111,12 @@ class KolomnaAddedToast(QWidget):
 
         rect = self._pill_rect
         radius = rect.height() / 2.0
-        vw = self._m.width
 
-        shadow_y = rect.bottom() + scale(8, vw)
-        shadow_rect = QRectF(
-            rect.left() + scale(8, vw),
-            shadow_y,
-            rect.width() - scale(16, vw),
-            scale(28, vw),
-        )
         p.setPen(Qt.PenStyle.NoPen)
-        for i, alpha in ((0, 28), (1, 20), (2, 12)):
-            spread = scale(6 + i * 4, vw)
-            sr = shadow_rect.adjusted(-spread, -spread / 2, spread, spread)
-            p.setBrush(QColor(_SHADOW.red(), _SHADOW.green(), _SHADOW.blue(), alpha))
-            p.drawEllipse(sr)
-
         p.setBrush(QColor(GREEN))
         p.drawRoundedRect(rect, radius, radius)
 
         p.setPen(QColor(CREAM))
         p.setFont(self._pill_font())
         p.drawText(rect, int(Qt.AlignmentFlag.AlignCenter), self._text)
+        p.end()

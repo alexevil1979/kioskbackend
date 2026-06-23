@@ -5,7 +5,6 @@ from PyQt6.QtGui import QColor, QFont, QPainter
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
 
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_shadow import draw_shadow_soft_ellipse
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, scale
 
 # Высота бежевого pill (красная линия на макете), px при ширине 1080.
@@ -16,7 +15,7 @@ QTY_CONTROL_PAD_COMPACT_PX = 4
 
 
 class _QtyCircleBtn(QWidget):
-    """qty__btn — белый круг + box-shadow: var(--shadow-soft)."""
+    """qty__btn — белый круг без тени."""
 
     clicked = pyqtSignal()
 
@@ -26,9 +25,8 @@ class _QtyCircleBtn(QWidget):
         self._m = metrics
         self._font_px = font_px
         self._btn_sz = btn_sz
-        self._shadow_pad = scale(28, metrics.width)
         self._pressed = False
-        self.setFixedSize(btn_sz, btn_sz + self._shadow_pad)
+        self.setFixedSize(btn_sz, btn_sz)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def set_enabled(self, enabled: bool) -> None:
@@ -41,9 +39,6 @@ class _QtyCircleBtn(QWidget):
         if not self.isEnabled():
             p.setOpacity(0.4)
         rect = QRectF(0, 0, self._btn_sz, self._btn_sz).adjusted(0.5, 0.5, -0.5, -0.5)
-        vw = self._m.width
-        if not self._pressed:
-            draw_shadow_soft_ellipse(p, rect, vw)
         bg = QColor(CREAM if self._pressed else "#FFFFFF")
         p.setBrush(bg)
         p.setPen(Qt.PenStyle.NoPen)
@@ -109,14 +104,13 @@ class KolomnaQtyControl(QWidget):
             QTY_CONTROL_PILL_HEIGHT_COMPACT_PX if compact else QTY_CONTROL_PILL_HEIGHT_PX,
             w,
         )
-        circle_shadow = scale(28, w)
         btn_sz = max(scale(48, w), pill_h - pad * 2)
         val_min_w = scale(56 if compact else 64, w)
         fs_btn = scale(34 if compact else 40, w)
         fs_val = scale(34, w) if compact else metrics.fs_h3
 
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(pad, pad, pad, 0)
+        lay.setContentsMargins(pad, pad, pad, pad)
         lay.setSpacing(0)
 
         self._dec = _QtyCircleBtn("−", btn_sz, fs_btn, metrics)
@@ -131,7 +125,7 @@ class KolomnaQtyControl(QWidget):
         lay.addWidget(self._inc, alignment=align)
 
         self._pill_h = pill_h
-        self.setFixedHeight(pill_h + circle_shadow)
+        self.setFixedHeight(pill_h)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._radius = pill_h // 2
         self._val.setText(str(self._value))

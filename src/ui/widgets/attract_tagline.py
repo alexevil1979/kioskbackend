@@ -51,3 +51,4 @@ class AttractTagline(QWidget):
             x += fm.horizontalAdvance(ch)
             if i < len(self._text) - 1:
                 x += self._spacing
+        painter.end()

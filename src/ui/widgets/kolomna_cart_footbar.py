@@ -1,17 +1,41 @@
 from __future__ import annotations
 
+import time
+
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal, QTimer
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QStaticText
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from src.ui import kolomna_strings as S
+from src.ui.kolomna_breathe import (
+    apply_pill_scale,
+    breathe_scale_at,
+    draw_static_text,
+    font_for_breathe,
+    start_breathe_timer,
+)
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_product_meta import fmt_price
 from src.ui.kolomna_cta import cta_palette
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, scale
 
-_BREATHE_CYCLE_MS = 1800
-_BREATHE_SCALE = 0.028
+_BUMP_DURATION_MS = 400
+
+
+def _smoothstep(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _cart_bump_scale(t: float) -> float:
+    """cartBump .4s — амплитуда ×0.5 от референса (меньше раздвигает кнопку)."""
+    if t >= 1.0:
+        return 1.0
+    if t <= 0.35:
+        return 1.0 + 0.045 * _smoothstep(t / 0.35)
+    if t <= 0.70:
+        return 1.045 - 0.06 * _smoothstep((t - 0.35) / 0.35)
+    return 0.985 + 0.015 * _smoothstep((t - 0.70) / 0.30)
 
 
 def _foot_canvas(metrics: KolomnaMetrics) -> tuple[int, int, int, int]:
@@ -23,24 +47,17 @@ def _foot_canvas(metrics: KolomnaMetrics) -> tuple[int, int, int, int]:
     return edge_pad, shadow_bleed, pill_h, pill_h + edge_pad * 2 + shadow_bleed
 
 
-def _vcenter_baseline(fm: QFontMetrics, top: float, height: float) -> float:
-    cy = top + height / 2.0
-    return cy + (fm.ascent() - fm.descent()) / 2.0
-
-
-def _breathe_scale(breathe_ms: int) -> float:
-    """btnBreathe 1.8s ease-in-out infinite — scale(1) ↔ scale(1.028)."""
-    phase = (breathe_ms % _BREATHE_CYCLE_MS) / _BREATHE_CYCLE_MS
-    t = phase * 2.0 if phase <= 0.5 else (1.0 - phase) * 2.0
-    ease = t * t * (3.0 - 2.0 * t)
-    return 1.0 + _BREATHE_SCALE * ease
-
-
-def _paint_pill_scale(p: QPainter, cx: float, cy: float, s: float) -> None:
-    if abs(s - 1.0) > 0.001:
-        p.translate(cx, cy)
-        p.scale(s, s)
-        p.translate(-cx, -cy)
+def _draw_pill_shadows(p: QPainter, rect: QRectF, vw: int) -> None:
+    r = rect.height() / 2.0
+    for y_off, alpha in (
+        (scale(10, vw), 18),
+        (scale(14, vw), 30),
+        (scale(18, vw), 22),
+    ):
+        sr = rect.translated(0, y_off)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(20, 56, 33, alpha))
+        p.drawRoundedRect(sr, r, r)
 
 
 class _FootPillBtn(QWidget):
@@ -53,16 +70,14 @@ class _FootPillBtn(QWidget):
         metrics: KolomnaMetrics,
         *,
         ghost: bool = False,
-        breathe: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._m = metrics
         self._ghost = ghost
-        self._breathe = breathe and not ghost
         self._pressed = False
         self._text = ""
-        self._breathe_ms = 0
+        self._st_cache: dict[str, QStaticText] = {}
         w = metrics.width
         self._edge_pad, self._shadow_bleed, self._btn_h, canvas_h = _foot_canvas(metrics)
         self._base_fs = scale(40, w)
@@ -71,10 +86,10 @@ class _FootPillBtn(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(canvas_h)
-        if self._breathe:
-            self._anim_timer = QTimer(self)
-            self._anim_timer.timeout.connect(self._tick_breathe)
-            self._anim_timer.start(16)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        self._st_cache.clear()
+        super().resizeEvent(event)
 
     def _fit_font(self) -> QFont:
         weight = QFont.Weight.ExtraBold if self._ghost else QFont.Weight.Black
@@ -91,16 +106,8 @@ class _FootPillBtn(QWidget):
 
     def setText(self, text: str) -> None:  # noqa: N802
         self._text = text
+        self._st_cache.clear()
         self.update()
-
-    def _tick_breathe(self) -> None:
-        self._breathe_ms += 16
-        self.update()
-
-    def _current_scale(self) -> float:
-        if not self._breathe or self._pressed:
-            return 1.0
-        return _breathe_scale(self._breathe_ms)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -110,9 +117,6 @@ class _FootPillBtn(QWidget):
         pill_h = float(self._btn_h)
         bx = self._edge_pad
         by = self._edge_pad
-        cx = self.width() / 2.0
-        cy = by + pill_h / 2.0
-        _paint_pill_scale(p, cx, cy, self._current_scale())
         rect = QRectF(bx + 1.5, by + 1.5, self.width() - bx * 2 - 3, pill_h - 3)
         r = rect.height() / 2.0
 
@@ -133,16 +137,6 @@ class _FootPillBtn(QWidget):
                 p.drawRoundedRect(rect, r, r)
                 text_color = QColor(GREEN)
         else:
-            if not self._ghost:
-                for y_off, alpha in (
-                    (scale(10, vw), 18),
-                    (scale(14, vw), 30),
-                    (scale(18, vw), 22),
-                ):
-                    sr = rect.translated(0, y_off)
-                    p.setPen(Qt.PenStyle.NoPen)
-                    p.setBrush(QColor(20, 56, 33, alpha))
-                    p.drawRoundedRect(sr, r, r)
             pal = cta_palette()
             bg = QColor(pal.bg_active if self._pressed else pal.bg)
             p.setPen(Qt.PenStyle.NoPen)
@@ -151,12 +145,14 @@ class _FootPillBtn(QWidget):
             text_color = QColor(pal.fg)
 
         font = self._fit_font()
-        p.setFont(font)
         p.setPen(text_color)
-        p.drawText(
+        draw_static_text(
+            p,
+            font,
+            self._text,
             QRectF(bx, by, self.width() - bx * 2, pill_h),
             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-            self._text,
+            self._st_cache,
         )
         p.end()
 
@@ -190,12 +186,13 @@ class PaySumPillBtn(QWidget):
         self._label_text = label
         self._sum_text = ""
         self._bump_scale = 1.0
-        self._bump_ms = 0
-        self._breathe_ms = 0
+        self._bump_t0 = 0.0
+        self._breathe_t0 = time.perf_counter()
         self._breathe_enabled = True
+        self._st_cache: dict[str, QStaticText] = {}
         self._anim_timer = QTimer(self)
         self._anim_timer.timeout.connect(self._tick_anim)
-        self._anim_timer.start(16)
+        start_breathe_timer(self._anim_timer)
         w = metrics.width
         self._edge_pad, self._shadow_bleed, self._btn_h, canvas_h = _foot_canvas(metrics)
         self._pad_x = scale(56, w)
@@ -205,44 +202,48 @@ class PaySumPillBtn(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(canvas_h)
 
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        self._st_cache.clear()
+        super().resizeEvent(event)
+
     def set_sum(self, text: str) -> None:
         self._sum_text = text
+        self._st_cache.clear()
         self.update()
 
     def set_label(self, text: str) -> None:
         self._label_text = text
+        self._st_cache.clear()
         self.update()
 
     def set_breathe(self, enabled: bool) -> None:
         self._breathe_enabled = enabled
-        if not enabled:
-            self._breathe_ms = 0
+        if enabled:
+            self._breathe_t0 = time.perf_counter()
 
     def bump(self) -> None:
         """cartBump .4s ease — как .btn--primary.is-bump в референсе."""
-        self._bump_ms = 0
+        self._bump_t0 = time.perf_counter()
         self._bump_scale = 1.0
 
-    def _breathe_scale(self) -> float:
+    def _breathe_scale_value(self) -> float:
         if not self._breathe_enabled or self._pressed:
             return 1.0
-        return _breathe_scale(self._breathe_ms)
+        return breathe_scale_at(self._breathe_t0)
 
     def _tick_anim(self) -> None:
-        self._breathe_ms += 16
-        if self._bump_ms > 0:
-            self._bump_ms += 16
-            t = self._bump_ms / 400.0
+        if self._bump_t0 > 0:
+            t = (time.perf_counter() - self._bump_t0) * 1000.0 / _BUMP_DURATION_MS
             if t >= 1.0:
-                self._bump_ms = 0
+                self._bump_t0 = 0.0
                 self._bump_scale = 1.0
-            elif t <= 0.35:
-                self._bump_scale = 1.0 + 0.09 * (t / 0.35)
-            elif t <= 0.70:
-                self._bump_scale = 1.09 - 0.12 * ((t - 0.35) / 0.35)
             else:
-                self._bump_scale = 0.97 + 0.03 * ((t - 0.70) / 0.30)
+                self._bump_scale = _cart_bump_scale(t)
         self.update()
+
+    def _pill_scale(self) -> float:
+        breathe = self._breathe_scale_value() if self._bump_t0 <= 0 else 1.0
+        return breathe * self._bump_scale
 
     def _fit_font(self, text: str) -> QFont:
         avail = max(40, self.width() - self._pad_x * 2)
@@ -256,50 +257,57 @@ class PaySumPillBtn(QWidget):
 
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        vw = self._m.width
-        pill_h = float(self._btn_h)
-        bx = self._edge_pad
-        by = self._edge_pad
-        cx = self.width() / 2.0
-        cy = by + pill_h / 2.0
-        s = (self._breathe_scale() if self._bump_ms <= 0 else 1.0) * self._bump_scale
-        if abs(s - 1.0) > 0.001:
-            _paint_pill_scale(p, cx, cy, s)
+        try:
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+            vw = self._m.width
+            pill_h = float(self._btn_h)
+            bx = self._edge_pad
+            by = self._edge_pad
+            cx = self.width() / 2.0
+            cy = by + pill_h / 2.0
+            rect = QRectF(bx + 1.5, by + 1.5, self.width() - bx * 2 - 3, pill_h - 3)
+            r = rect.height() / 2.0
+            breathing = self._breathe_enabled and not self._pressed and self._bump_t0 <= 0
+            _draw_pill_shadows(p, rect, vw)
 
-        rect = QRectF(bx + 1.5, by + 1.5, self.width() - bx * 2 - 3, pill_h - 3)
-        r = rect.height() / 2.0
-        for y_off, alpha in (
-            (scale(10, vw), 18),
-            (scale(14, vw), 30),
-            (scale(18, vw), 22),
-        ):
-            sr = rect.translated(0, y_off)
+            scaled = apply_pill_scale(p, cx, cy, self._pill_scale())
+
+            pal = cta_palette()
+            bg = QColor(pal.bg_active if self._pressed else pal.bg)
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(20, 56, 33, alpha))
-            p.drawRoundedRect(sr, r, r)
+            p.setBrush(bg)
+            p.drawRoundedRect(rect, r, r)
 
-        pal = cta_palette()
-        bg = QColor(pal.bg_active if self._pressed else pal.bg)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(bg)
-        p.drawRoundedRect(rect, r, r)
-
-        font_l = self._fit_font(self._label_text)
-        font_s = self._fit_font(self._sum_text)
-        pad = self._pad_x
-        fm_l = QFontMetrics(font_l)
-        fm_s = QFontMetrics(font_s)
-        baseline_l = _vcenter_baseline(fm_l, by, pill_h)
-        baseline_s = _vcenter_baseline(fm_s, by, pill_h)
-        inner_l = bx + pad
-        inner_r = self.width() - bx - pad
-        p.setPen(QColor(pal.fg))
-        p.setFont(font_l)
-        p.drawText(int(inner_l), int(baseline_l), self._label_text)
-        p.setFont(font_s)
-        p.drawText(int(inner_r - fm_s.horizontalAdvance(self._sum_text)), int(baseline_s), self._sum_text)
-        p.end()
+            font_l = font_for_breathe(self._fit_font(self._label_text), breathing)
+            pad = self._pad_x
+            inner_l = bx + pad
+            inner_r = self.width() - bx - pad
+            text_rect = QRectF(inner_l, by, max(1.0, inner_r - inner_l), pill_h)
+            p.setPen(QColor(pal.fg))
+            if self._sum_text:
+                font_s = font_for_breathe(self._fit_font(self._sum_text), breathing)
+                draw_static_text(
+                    p, font_l, self._label_text, text_rect,
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                    self._st_cache,
+                )
+                draw_static_text(
+                    p, font_s, self._sum_text, text_rect,
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+                    self._st_cache,
+                )
+            else:
+                draw_static_text(
+                    p, font_l, self._label_text, text_rect,
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                    self._st_cache,
+                )
+            if scaled:
+                p.restore()
+        finally:
+            if p.isActive():
+                p.end()
 
     def refresh_cta(self) -> None:
         self.update()
@@ -358,7 +366,8 @@ class KolomnaCartFootBar(QFrame):
         self._ghost.clicked.connect(self.keep_shopping_clicked.emit)
         btns.addWidget(self._ghost, stretch=10)
 
-        self._primary = _FootPillBtn(metrics, ghost=False, breathe=True)
+        self._primary = PaySumPillBtn(metrics, "")
+        self._primary.set_breathe(True)
         self._primary.clicked.connect(self.checkout_clicked.emit)
         btns.addWidget(self._primary, stretch=14)
 
@@ -368,4 +377,5 @@ class KolomnaCartFootBar(QFrame):
         self._label.setText(total_label)
         self._sum.setText(f"{fmt_price(total_value)}\u00a0{S.CUR}")
         self._ghost.setText(ghost)
-        self._primary.setText(primary)
+        self._primary.set_label(primary)
+        self._primary.set_sum("")

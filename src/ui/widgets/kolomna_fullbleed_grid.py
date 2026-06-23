@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QRect, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPixmap, QPixmap
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPixmap
 from PyQt6.QtWidgets import (
-    QGraphicsDropShadowEffect,
     QGridLayout,
     QLabel,
     QSizePolicy,
@@ -51,6 +50,7 @@ class _PromoHead(QWidget):
         painter.drawText(0, y, self._line1)
         painter.setPen(QColor(YELLOW))
         painter.drawText(0, y + lh, self._line2)
+        painter.end()
 
     def set_lines(self, line1: str, line2: str) -> None:
         self._line1 = line1
@@ -73,19 +73,13 @@ class _FullbleedCard(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         self._pix_source: QPixmap | None = None
-        self._art = QLabel(self)
-        self._art.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self._art.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._art.setStyleSheet("background: transparent;")
+        self._scaled_pix: QPixmap | None = None
+        self._art_pos = QPoint()
+        self._pix_scale_key = (0, 0)
         if tile.image_path and not tile.is_service:
             pix = load_pixmap(tile.image_path)
             if not pix.isNull():
                 self._pix_source = pix
-                shadow = QGraphicsDropShadowEffect(self._art)
-                shadow.setBlurRadius(scale(46, metrics.width))
-                shadow.setOffset(0, scale(30, metrics.width))
-                shadow.setColor(QColor(0, 0, 0, 87))
-                self._art.setGraphicsEffect(shadow)
 
         self._text = QWidget(self)
         self._text.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
@@ -110,18 +104,13 @@ class _FullbleedCard(QWidget):
             "QLabel { color: #FFFFFF; background: transparent; line-height: 98%; "
             f"letter-spacing: {-0.03 * fs_name:.2f}px; }}"
         )
-        name_shadow = QGraphicsDropShadowEffect(self._name)
-        name_shadow.setBlurRadius(scale(24, metrics.width))
-        name_shadow.setOffset(0, scale(4, metrics.width))
-        name_shadow.setColor(QColor(0, 0, 0, 71))
-        self._name.setGraphicsEffect(name_shadow)
 
         text_lay.addWidget(self._num)
         text_lay.addWidget(self._name)
 
         self._promo: QWidget | None = None
-        self._ref_overlay: QLabel | None = None
         self._ref_source = QPixmap()
+        self._ref_scaled: QPixmap | None = None
         if tile.is_service:
             self._promo = QWidget(self)
             self._promo.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
@@ -140,8 +129,14 @@ class _FullbleedCard(QWidget):
             self._promo_sub = sub
 
     def paintEvent(self, event) -> None:  # noqa: N802
-        painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor(self._accent))
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        p.fillRect(self.rect(), QColor(self._accent))
+        if self._scaled_pix is not None and not self._scaled_pix.isNull():
+            p.drawPixmap(self._art_pos, self._scaled_pix)
+        if self._ref_scaled is not None and not self._ref_scaled.isNull():
+            p.drawPixmap(0, 0, self._ref_scaled)
+        p.end()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
@@ -165,13 +160,18 @@ class _FullbleedCard(QWidget):
         if self._pix_source and not self._pix_source.isNull():
             aw = int(w * 1.65)
             ah = int(h * 1.58)
-            scaled = scale_pixmap(self._pix_source, aw, ah)
-            self._art.setPixmap(scaled)
-            self._art.setGeometry((w - aw) // 2, (h - ah) // 2, aw, ah)
-            self._art.show()
-            self._art.lower()
+            key = (aw, ah)
+            if key != self._pix_scale_key:
+                self._scaled_pix = scale_pixmap(self._pix_source, aw, ah)
+                self._pix_scale_key = key
+            if self._scaled_pix is not None and not self._scaled_pix.isNull():
+                pw, ph = self._scaled_pix.width(), self._scaled_pix.height()
+                self._art_pos = QPoint((w - pw) // 2, (h - ph) // 2)
+            else:
+                self._scaled_pix = None
         else:
-            self._art.hide()
+            self._scaled_pix = None
+            self._pix_scale_key = (0, 0)
 
         fm_n = QFontMetrics(self._num.font())
         fm_t = QFontMetrics(self._name.font())
@@ -191,17 +191,13 @@ class _FullbleedCard(QWidget):
             self._promo.raise_()
 
         if not self._ref_source.isNull():
-            if self._ref_overlay is None:
-                self._ref_overlay = QLabel(self)
-                self._ref_overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-            self._ref_overlay.setPixmap(
-                self._ref_source.scaled(
-                    w, h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation
-                )
+            self._ref_scaled = self._ref_source.scaled(
+                w, h, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation
             )
-            self._ref_overlay.setGeometry(0, 0, w, h)
-            self._ref_overlay.show()
-            self._ref_overlay.raise_()
+        else:
+            self._ref_scaled = None
+
+        self.update()
 
     def set_ref_overlay(self, pix: QPixmap) -> None:
         if pix.isNull():

@@ -13,6 +13,15 @@ from src.ui.kolomna_i18n import hub_label_for_slot
 
 KOLOMNA_TOURS_ID = "__kolomna_tours__"
 
+
+def is_tour_product(product: Product) -> bool:
+    if product.category_id == KOLOMNA_TOURS_ID:
+        return True
+    if product.id in ("kolomna-tour-walk", "tour-walk"):
+        return True
+    unit = product.unit.strip().lower()
+    return unit in ("person", "чел", "человек") and "экскурс" in product.name.lower()
+
 KOLOMNA_CARD_ACCENTS: tuple[str, ...] = (
     "#D9143A",
     "#3F5E96",

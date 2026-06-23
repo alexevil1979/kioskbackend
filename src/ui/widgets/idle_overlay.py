@@ -47,16 +47,7 @@ class _IdlePillBtn(QWidget):
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
         r = rect.height() / 2.0
-        vw = self._m.width
         if self._primary:
-            for y_off, alpha in (
-                (scale(10, vw), 18),
-                (scale(14, vw), 30),
-                (scale(18, vw), 22),
-            ):
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(QColor(20, 56, 33, alpha))
-                p.drawRoundedRect(rect.translated(0, y_off), r, r)
             pal = cta_palette()
             bg = QColor(pal.bg_active if self._pressed else pal.bg)
             fg = QColor(pal.fg)
