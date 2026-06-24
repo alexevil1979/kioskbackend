@@ -277,6 +277,7 @@ class KolomnaProductOverlay(QWidget):
             mh,
             radius=self._media_r,
             bg=CREAM_DEEP,
+            fit="cover",
         )
         self._media_lay.addWidget(self._berry_art)
 

@@ -164,6 +164,7 @@ class KolomnaCartRow(QWidget):
                 radius=media_r,
                 bg="#FFFFFF",
                 ground_shadow=False,
+                fit="cover",
             )
             media_lay.addWidget(art)
         root.addWidget(media, alignment=Qt.AlignmentFlag.AlignVCenter)

@@ -304,6 +304,7 @@ class KolomnaProdRow(QWidget):
             radius=0,
             bg=CREAM_DEEP,
             ground_shadow=False,
+            fit="cover",
         )
         self._media = media
         root.addWidget(media, 0, Qt.AlignmentFlag.AlignTop)
@@ -492,6 +493,7 @@ class KolomnaProdTile(QWidget):
             img_scale=1.16,
             fluid_width=True,
             ground_shadow=False,
+            fit="cover",
         )
         self._media = media
         media_wrap = _TileMediaHost(media, self._media_h, border_css)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from PyQt6.QtCore import Qt, QRectF, QSize
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap, QRegion
@@ -8,8 +9,10 @@ from PyQt6.QtWidgets import QSizePolicy, QWidget
 
 from src.core.config import ROOT
 from src.models.product import Product
-from src.ui.image_utils import load_pixmap
+from src.ui.image_utils import load_pixmap, scale_pixmap_cover
 from src.ui.kolomna_tokens import scale
+
+BerryArtFit = Literal["contain", "cover"]
 
 
 class KolomnaBerryArt(QWidget):
@@ -26,6 +29,7 @@ class KolomnaBerryArt(QWidget):
         img_scale: float = 1.5,
         fluid_width: bool = False,
         ground_shadow: bool = False,
+        fit: BerryArtFit = "contain",
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -34,11 +38,12 @@ class KolomnaBerryArt(QWidget):
         self._img_scale = img_scale
         self._fluid = fluid_width
         self._ground_shadow = ground_shadow
+        self._fit = fit
         self._base_w = max(1, media_w)
         self._bg = bg
         self._product = product
         self._source = self._load_pixmap(product)
-        self._cache_key = -1
+        self._cache_key: tuple[int, int, str] | None = None
         self._cache_pm: QPixmap | None = None
 
         if fluid_width:
@@ -72,20 +77,26 @@ class KolomnaBerryArt(QWidget):
             return max(1, w if w > 0 else self._base_w)
         return self._base_w
 
-    def _scaled_pixmap(self, draw_w: int) -> QPixmap | None:
+    def _scaled_pixmap(self, draw_w: int, draw_h: int) -> QPixmap | None:
         if self._source is None or self._source.isNull():
             return None
-        if draw_w == self._cache_key and self._cache_pm is not None and not self._cache_pm.isNull():
+        key = (draw_w, draw_h, self._fit)
+        if key == self._cache_key and self._cache_pm is not None and not self._cache_pm.isNull():
             return self._cache_pm
-        aw = max(1, int(draw_w * self._img_scale))
-        ph = max(1, int(self._source.height() * aw / max(1, self._source.width())))
-        pm = self._source.scaled(
-            aw,
-            ph,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._cache_key = draw_w
+
+        if self._fit == "cover":
+            pm = scale_pixmap_cover(self._source, draw_w, draw_h)
+        else:
+            aw = max(1, int(draw_w * self._img_scale))
+            ph = max(1, int(self._source.height() * aw / max(1, self._source.width())))
+            pm = self._source.scaled(
+                aw,
+                ph,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+
+        self._cache_key = key
         self._cache_pm = pm
         return pm
 
@@ -95,14 +106,21 @@ class KolomnaBerryArt(QWidget):
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         p.fillRect(self.rect(), QColor(self._bg))
 
-        pm = self._scaled_pixmap(self._draw_w())
+        w, h = max(1, self.width()), max(1, self.height())
+        pm = self._scaled_pixmap(w, h)
         if pm is None or pm.isNull():
             p.end()
             return
 
+        if self._fit == "cover":
+            p.setClipRect(self.rect())
+            p.drawPixmap(0, 0, pm)
+            p.end()
+            return
+
         aw, ph = pm.width(), pm.height()
-        x = (self.width() - aw) / 2.0
-        y = (self.height() - ph) / 2.0
+        x = (w - aw) / 2.0
+        y = (h - ph) / 2.0
         if self._ground_shadow:
             vw = max(self._base_w, self.width())
             shadow = QRectF(x, y + ph - scale(8, vw), aw, scale(18, vw))
@@ -126,7 +144,7 @@ class KolomnaBerryArt(QWidget):
     def refresh_image(self) -> None:
         """Сброс кэша после смены ширины (overlay / каталог)."""
         self._source = self._load_pixmap(self._product)
-        self._cache_key = -1
+        self._cache_key = None
         self._cache_pm = None
         self.update()
 
