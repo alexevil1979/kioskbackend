@@ -25,7 +25,7 @@ class KolomnaBerryArt(QWidget):
         bg: str = "#FFFFFF",
         img_scale: float = 1.5,
         fluid_width: bool = False,
-        ground_shadow: bool = True,
+        ground_shadow: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
