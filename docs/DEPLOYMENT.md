@@ -39,6 +39,10 @@
 
 ## Обновление на объекте
 
+**С интернетом:** `C:\kiosk\update_kiosk.bat` — скачивает ZIP ветки `main` с GitHub и разворачивает в `C:\kiosk` (settings, `.env`, логи и фото товаров сохраняются).
+
+**Вручную / git pull:**
+
 ```powershell
 cd C:\kiosk
 git pull origin main

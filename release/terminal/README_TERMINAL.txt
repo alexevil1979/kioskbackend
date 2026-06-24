@@ -19,7 +19,16 @@ docs\INSTALL_TERMINAL_WIN10.md
 
 ОБНОВЛЕНИЕ
 ----------
-Распакуйте новый архив поверх C:\kiosk (не затирайте settings.yaml и .env),
+Вариант A — с интернетом (GitHub, ветка main):
+
+   update_kiosk.bat
+
+Скрипт скачает архив с GitHub и развернёт в C:\kiosk.
+Сохраняются config\settings.yaml, .env, logs\, media\products\.
+
+Вариант B — вручную:
+
+Распакуйте новый ZIP поверх C:\kiosk (не затирайте settings.yaml и .env),
 затем снова: .\install.ps1
 
 ПОДДЕРЖКА

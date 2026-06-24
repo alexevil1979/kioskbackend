@@ -57,10 +57,13 @@ foreach ($f in @(
     "install_autostart.ps1",
     "uninstall_autostart.ps1",
     "run_kiosk_silent.bat",
+    "update_kiosk.bat",
     "README_TERMINAL.txt"
 )) {
     Copy-Item (Join-Path $TerminalRelease $f) (Join-Path $OutDir $f) -Force
 }
+
+Copy-Item (Join-Path $ProjectRoot "scripts\update_kiosk_from_git.ps1") (Join-Path $OutDir "update_kiosk.ps1") -Force
 
 # Документация для монтажа
 New-Item -ItemType Directory -Path (Join-Path $OutDir "docs") -Force | Out-Null
