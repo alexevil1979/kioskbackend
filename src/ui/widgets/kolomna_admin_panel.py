@@ -566,6 +566,7 @@ class _ColorSwatch(QFrame):
 
 class KolomnaAdminPanel(QWidget):
     prefs_changed = pyqtSignal(KolomnaPrefs)
+    quit_requested = pyqtSignal()
 
     def __init__(self, metrics: KolomnaMetrics, prefs: KolomnaPrefs, parent=None) -> None:
         super().__init__(parent)
@@ -750,6 +751,27 @@ class KolomnaAdminPanel(QWidget):
         done.clicked.connect(self._save)
         bl.addWidget(done)
 
+        quit_h = scale(104, metrics.width)
+        quit_r = quit_h // 2
+        quit_border = max(2, scale(3, metrics.width))
+        self._quit_btn = QPushButton(S.ADMIN_QUIT_APP)
+        self._quit_btn.setObjectName("KolomnaAdminQuit")
+        self._quit_btn.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._quit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._quit_btn.setFixedHeight(quit_h)
+        self._quit_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._quit_btn.setFont(kolomna_font(metrics.fs_h3, QFont.Weight.ExtraBold))
+        self._quit_btn.setStyleSheet(
+            f"QPushButton#KolomnaAdminQuit {{ background: transparent; color: {GREEN}; "
+            f"border: {quit_border}px solid {GREEN}; border-radius: {quit_r}px; "
+            f"font-weight: 800; font-size: {metrics.fs_h3}px; "
+            f"padding: {scale(28, metrics.width)}px {scale(56, metrics.width)}px; "
+            f"min-height: {quit_h}px; max-height: {quit_h}px; }}"
+            f"QPushButton#KolomnaAdminQuit:pressed {{ background: {GREEN}; color: {CREAM}; }}"
+        )
+        self._quit_btn.clicked.connect(self.quit_requested.emit)
+        bl.addWidget(self._quit_btn)
+
         self._scroll.setWidget(inner)
 
         box_lay = QVBoxLayout(self._box)
@@ -793,6 +815,9 @@ class KolomnaAdminPanel(QWidget):
         self._prefs.menu_layout = mode
         for m, ch in self._layout_choices.items():
             ch.set_active(m == mode)
+
+    def retranslate(self) -> None:
+        self._quit_btn.setText(S.ADMIN_QUIT_APP)
 
     def _save(self) -> None:
         self._prefs.show_attract = self._start_toggle.is_on()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QApplication
 
 from PyQt6.QtWidgets import QSizePolicy
 
@@ -134,6 +135,7 @@ class CategoriesScreen(BaseScreen):
         self._admin_pin.pin_accepted.connect(self._admin_panel.show_modal)
 
         self._admin_panel.prefs_changed.connect(self._on_prefs_changed)
+        self._admin_panel.quit_requested.connect(self._quit_application)
 
 
 
@@ -182,7 +184,10 @@ class CategoriesScreen(BaseScreen):
 
         self._admin_pin.show_modal()
 
-
+    def _quit_application(self) -> None:
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def _on_prefs_changed(self, prefs: KolomnaPrefs) -> None:
 
