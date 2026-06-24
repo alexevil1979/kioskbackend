@@ -32,8 +32,8 @@ function Copy-Tree {
     }
 }
 
-# Код и ресурсы
-foreach ($dir in @("src", "assets", "config\presets")) {
+# Kod i resursy (pic/ — berry-*.webp dlya kartochek kataloga)
+foreach ($dir in @("src", "assets", "config\presets", "pic")) {
     Copy-Tree $dir
 }
 

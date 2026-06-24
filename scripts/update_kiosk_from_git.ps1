@@ -79,7 +79,7 @@ Write-Host "Archive folder: $($srcRoot.Name)"
 
 Write-Step "Copying to $Target ..."
 
-foreach ($dir in @("src", "assets", "config\presets")) {
+foreach ($dir in @("src", "assets", "config\presets", "pic")) {
     Copy-Tree (Join-Path $srcRoot.FullName $dir) (Join-Path $Target $dir)
 }
 

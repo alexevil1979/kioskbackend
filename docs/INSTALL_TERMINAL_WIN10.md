@@ -263,6 +263,7 @@ C:\kiosk\
     presets\
   src\
   assets\
+  pic\              ← фото ягод на главном экране (berry-*.webp)
   docs\
     INSTALL_TERMINAL_WIN10.md
   logs\
