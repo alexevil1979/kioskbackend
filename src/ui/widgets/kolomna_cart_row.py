@@ -240,6 +240,12 @@ class KolomnaCartRow(QWidget):
             guests.setStyleSheet(f"color: {GREEN}; background: transparent;")
             guests.setWordWrap(True)
             body.addWidget(guests)
+            if line.tour_date_label:
+                date_lbl = QLabel(S.CART_TOUR_DATE.format(date=line.tour_date_label))
+                date_lbl.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Medium))
+                date_lbl.setStyleSheet(f"color: {INK_60}; background: transparent;")
+                date_lbl.setWordWrap(True)
+                body.addWidget(date_lbl)
         else:
             sub = QHBoxLayout()
             sub.setSpacing(scale(16, metrics.width))

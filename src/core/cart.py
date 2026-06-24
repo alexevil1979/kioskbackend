@@ -12,6 +12,8 @@ class CartLine:
     product: Product
     quantity: int = 1
     tour_kids: int = 0
+    tour_date_id: str = ""
+    tour_date_label: str = ""
 
     @property
     def line_total(self) -> float:
@@ -31,7 +33,15 @@ class Cart(QObject):
         super().__init__()
         self._lines: dict[str, CartLine] = {}
 
-    def add(self, product: Product, qty: int = 1, *, tour_kids: int | None = None) -> None:
+    def add(
+        self,
+        product: Product,
+        qty: int = 1,
+        *,
+        tour_kids: int | None = None,
+        tour_date_id: str = "",
+        tour_date_label: str = "",
+    ) -> None:
         if not product.in_stock:
             return
         if tour_kids is not None:
@@ -40,6 +50,8 @@ class Cart(QObject):
                 product=product,
                 quantity=adults,
                 tour_kids=max(0, tour_kids),
+                tour_date_id=tour_date_id,
+                tour_date_label=tour_date_label,
             )
             self.changed.emit()
             return

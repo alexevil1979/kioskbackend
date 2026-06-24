@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 from src.core.cart import Cart
 from src.core.config import Settings
 from src.models.product import Product
+from src.models.tour_date import TourDate, format_tour_date, list_tour_dates_mock
 from src.services.catalog_sync import CatalogStore
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_catalog import resolve_tour_product
@@ -215,6 +216,78 @@ class _TourGiftIcon(QWidget):
         p.end()
 
 
+class _TourDateCard(QFrame):
+    """Карточка даты экскурсии — выбор одним нажатием."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, tour_date: TourDate, metrics: KolomnaMetrics, parent=None) -> None:
+        super().__init__(parent)
+        self.setObjectName("TourDateCard")
+        self._m = metrics
+        self.tour_date = tour_date
+        self._selected = False
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setStyleSheet("QFrame#TourDateCard { background: transparent; border: none; }")
+
+        w = metrics.width
+        card_r = scale(20, w)
+        self._inner = QFrame()
+        self._inner.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._inner.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        bl = QVBoxLayout(self)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.setSpacing(0)
+        bl.addWidget(self._inner)
+        inner_lay = QVBoxLayout(self._inner)
+        inner_lay.setContentsMargins(scale(8, w), scale(18, w), scale(8, w), scale(20, w))
+        inner_lay.setSpacing(scale(4, w))
+        mo = QLabel(S.MONTHS_NOM.get(tour_date.month, "").upper())
+        mo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        mo.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        mo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        mo.setFont(kolomna_font(scale(21, w), QFont.Weight.ExtraBold))
+        mo.setStyleSheet(
+            f"color: {STRAWBERRY}; background: transparent; border: none; "
+            f"letter-spacing: {max(1, scale(2, w))}px;"
+        )
+        d = QLabel(str(tour_date.day))
+        d.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        d.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        d.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        d.setFont(kolomna_font(scale(54, w), QFont.Weight.Black))
+        d.setStyleSheet(f"color: {GREEN}; background: transparent; border: none;")
+        inner_lay.addWidget(mo)
+        inner_lay.addWidget(d)
+        self._apply_style(card_r)
+
+    def set_selected(self, on: bool) -> None:
+        if self._selected == on:
+            return
+        self._selected = on
+        self._apply_style(scale(20, self._m.width))
+
+    def _apply_style(self, card_r: int) -> None:
+        w = self._m.width
+        border = max(2, scale(4, w)) if self._selected else 0
+        bg = "#FFFFFF" if self._selected else CREAM
+        border_css = f"border: {border}px solid {YELLOW};" if self._selected else "border: none;"
+        self._inner.setStyleSheet(
+            f"QFrame {{ background: {bg}; border-radius: {card_r}px; {border_css} }}"
+            f"QFrame QLabel {{ background: transparent; border: none; }}"
+        )
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and self.rect().contains(
+            event.position().toPoint()
+        ):
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
 class KolomnaToursScreen(BaseScreen):
     go_cart = pyqtSignal()
     back_to_categories = pyqtSignal()
@@ -231,6 +304,9 @@ class KolomnaToursScreen(BaseScreen):
         self._adults = KolomnaQtyControl(self._m)
         self._kids = KolomnaQtyControl(self._m, min_value=0)
         self._toast = KolomnaAddedToast(self._m, parent=self)
+        self._date_cards: list[_TourDateCard] = []
+        self._tour_dates: list[TourDate] = []
+        self._selected_date_id: str | None = None
 
         self.setStyleSheet(f"background: {CREAM};")
         self.setFixedSize(w, h)
@@ -338,9 +414,18 @@ class KolomnaToursScreen(BaseScreen):
         cal_lay = QHBoxLayout(cal_wrap)
         cal_lay.setContentsMargins(0, 0, 0, 0)
         cal_lay.setSpacing(scale(16, w))
-        for month, days in S.TOUR_DATES:
-            for day in days:
-                cal_lay.addWidget(self._cal_item(month, day), stretch=1)
+        self._date_cards = []
+        self._tour_dates = list_tour_dates_mock()
+        for td in self._tour_dates:
+            card = _TourDateCard(td, m)
+            card.clicked.connect(lambda sid=td.slot_id: self._select_tour_date(sid))
+            self._date_cards.append(card)
+            cal_lay.addWidget(card, stretch=1)
+        if self._tour_dates:
+            pick = self._selected_date_id
+            if pick not in {d.slot_id for d in self._tour_dates}:
+                pick = self._tour_dates[0].slot_id
+            self._select_tour_date(pick)
         head_lay.addWidget(cal_wrap)
         root.addWidget(head)
 
@@ -372,31 +457,15 @@ class KolomnaToursScreen(BaseScreen):
         coupon.set_junction(head, _CouponTear(w))
         return coupon
 
-    def _cal_item(self, month: int, day: int) -> QWidget:
-        w = self._m.width
-        card_r = scale(20, w)
-        box = QFrame()
-        box.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        box.setStyleSheet(f"QFrame {{ background: {CREAM}; border-radius: {card_r}px; }}")
-        bl = QVBoxLayout(box)
-        bl.setContentsMargins(scale(8, w), scale(18, w), scale(8, w), scale(20, w))
-        bl.setSpacing(0)
-        mo = QLabel(S.MONTHS_NOM.get(month, "").upper())
-        mo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        mo.setFont(kolomna_font(scale(21, w), QFont.Weight.ExtraBold))
-        mo.setStyleSheet(
-            f"color: {STRAWBERRY}; background: transparent; letter-spacing: {max(1, scale(2, w))}px;"
-        )
-        d = QLabel(str(day))
-        d.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        d.setFont(kolomna_font(scale(54, w), QFont.Weight.Black))
-        d.setStyleSheet(
-            f"color: {GREEN}; background: transparent; margin-top: {scale(4, w)}px;"
-        )
-        bl.addWidget(mo)
-        bl.addWidget(d)
-        return box
+    def _select_tour_date(self, slot_id: str) -> None:
+        self._selected_date_id = slot_id
+        for card in self._date_cards:
+            card.set_selected(card.tour_date.slot_id == slot_id)
+
+    def _selected_tour_date(self) -> TourDate | None:
+        if not self._selected_date_id:
+            return None
+        return TourDate.from_slot_id(self._selected_date_id)
 
     def _guest_box(
         self, title: str, priced: bool, qty: KolomnaQtyControl
@@ -504,7 +573,17 @@ class KolomnaToursScreen(BaseScreen):
     def _add_to_cart(self) -> None:
         if not self._product:
             return
-        self._cart.add(self._product, self._adults.value(), tour_kids=self._kids.value())
+        tour_date = self._selected_tour_date()
+        if tour_date is None:
+            self._flash_toast(S.TOUR_PICK_DATE)
+            return
+        self._cart.add(
+            self._product,
+            self._adults.value(),
+            tour_kids=self._kids.value(),
+            tour_date_id=tour_date.slot_id,
+            tour_date_label=format_tour_date(tour_date),
+        )
         self._flash_toast(S.ADDED_TOAST)
 
     def _flash_toast(self, text: str) -> None:
