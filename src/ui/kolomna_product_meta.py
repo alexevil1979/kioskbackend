@@ -53,6 +53,12 @@ def product_description(product: Product) -> str:
 
 
 def product_pack_label(product: Product) -> str:
+    from src.ui.kolomna_catalog import is_tour_product
+
+    if is_tour_product(product):
+        unit = product.unit.strip()
+        if unit:
+            return unit
     unit = product.unit.strip()
     if unit and unit.lower() not in ("шт", "pcs"):
         return unit
@@ -66,13 +72,23 @@ def product_pack_label(product: Product) -> str:
 
 
 def product_unit_word(product: Product) -> str:
-    if product.unit.lower() in ("person", "чел", "человек"):
+    from src.ui.kolomna_catalog import is_tour_product
+
+    unit = product.unit.strip().lower()
+    if is_tour_product(product):
+        if unit in ("билет", "ticket"):
+            return S.TICKETS_WORD
         return S.PEOPLE_WORD
     return S.PACKS_WORD
 
 
 def product_per_word(product: Product) -> str:
-    if product.unit.lower() in ("person", "чел", "человек"):
+    from src.ui.kolomna_catalog import is_tour_product
+
+    unit = product.unit.strip().lower()
+    if is_tour_product(product):
+        if unit in ("билет", "ticket"):
+            return S.PER_TICKET
         return S.PER_PERSON
     return S.PER_PACK
 

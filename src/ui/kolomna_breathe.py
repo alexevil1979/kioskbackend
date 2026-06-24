@@ -42,6 +42,12 @@ def font_for_breathe(font: QFont, breathing: bool) -> QFont:
     return out
 
 
+def button_text_breathes() -> bool:
+    from src.ui.kolomna_prefs import load_kolomna_prefs
+
+    return load_kolomna_prefs().breathe_button_text
+
+
 def apply_pill_scale(p: QPainter, cx: float, cy: float, s: float) -> bool:
     if abs(s - 1.0) < 1e-6:
         return False

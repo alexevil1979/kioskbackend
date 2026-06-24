@@ -3,17 +3,20 @@ from __future__ import annotations
 import json
 import logging
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import requests
 
+from src.core.config import ROOT
 from src.models.product import Product
 
 logger = logging.getLogger(__name__)
 
 _MANIFEST_NAME = ".image_manifest.json"
+TICKET_PLACEHOLDER_NAME = "kolomna_ticket_placeholder.jpg"
 
 
 def remote_image_basename(image_url: str) -> str:
@@ -177,3 +180,30 @@ class ProductImageCache:
 
         self._save_manifest()
         return stats
+
+    def ticket_placeholder_path(self) -> Path:
+        return self._media_dir / TICKET_PLACEHOLDER_NAME
+
+    def update_ticket_placeholder(self, source: str | Path) -> str:
+        """Копирует фото билета с API в стабильный файл-заглушку."""
+        src = Path(source)
+        if not src.is_file():
+            return ""
+        dest = self.ticket_placeholder_path()
+        try:
+            shutil.copy2(src, dest)
+            return str(dest)
+        except OSError as exc:
+            logger.warning("Не удалось сохранить заглушку билета %s: %s", dest, exc)
+            return ""
+
+    @staticmethod
+    def find_ticket_placeholder(media_dir: Path | None = None) -> Path | None:
+        candidates = []
+        if media_dir is not None:
+            candidates.append(media_dir / TICKET_PLACEHOLDER_NAME)
+        candidates.append(ROOT / "media" / "products" / TICKET_PLACEHOLDER_NAME)
+        for path in candidates:
+            if path.is_file():
+                return path
+        return None

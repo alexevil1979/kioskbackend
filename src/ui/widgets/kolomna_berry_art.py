@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Literal
 
 from PyQt6.QtCore import Qt, QRectF, QSize
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPixmap, QRegion
 from PyQt6.QtWidgets import QSizePolicy, QWidget
 
-from src.core.config import ROOT
 from src.models.product import Product
 from src.ui.image_utils import load_pixmap, scale_pixmap_cover
+from src.ui.product_image_display import product_display_image_path
 from src.ui.kolomna_tokens import scale
 
 BerryArtFit = Literal["contain", "cover"]
@@ -149,13 +148,7 @@ class KolomnaBerryArt(QWidget):
         self.update()
 
     def _load_pixmap(self, product: Product) -> QPixmap | None:
-        if product.image_local:
-            p = Path(product.image_local)
-            if p.is_file():
-                return load_pixmap(p)
-        demo = ROOT / "assets" / "demo_products"
-        for i in range(1, 13):
-            p = demo / f"{i}.jpg"
-            if p.is_file():
-                return load_pixmap(p)
+        path = product_display_image_path(product)
+        if path is not None:
+            return load_pixmap(path)
         return None

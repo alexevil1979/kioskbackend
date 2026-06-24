@@ -13,14 +13,75 @@ from src.ui.kolomna_i18n import hub_label_for_slot
 
 KOLOMNA_TOURS_ID = "__kolomna_tours__"
 
+_TICKETS_CATEGORY_NEEDLES: tuple[str, ...] = (
+    "билет",
+    "ticket",
+    "агротуризм",
+    "экскурс",
+    "tour",
+    "excursion",
+)
+
+
+def is_tickets_category(category: Category) -> bool:
+    """Раздел API с билетами / экскурсиями — не ягодный слот хаба."""
+    hay = f"{category.id} {category.name}".lower()
+    return any(needle in hay for needle in _TICKETS_CATEGORY_NEEDLES)
+
+
+def kolomna_berry_categories(categories: list[Category]) -> list[Category]:
+    """Разделы для слотов 01–03 хаба (без билетов), в порядке API."""
+    return [
+        c
+        for c in sorted(categories, key=_category_sort_key)
+        if not is_tickets_category(c)
+    ][:3]
+
+
+def kolomna_tickets_category(categories: list[Category]) -> Category | None:
+    for cat in sorted(categories, key=_category_sort_key):
+        if is_tickets_category(cat):
+            return cat
+    return None
+
+
+def kolomna_tickets_category_id(categories: list[Category]) -> str | None:
+    cat = kolomna_tickets_category(categories)
+    return cat.id if cat else None
+
 
 def is_tour_product(product: Product) -> bool:
     if product.category_id == KOLOMNA_TOURS_ID:
         return True
     if product.id in ("kolomna-tour-walk", "tour-walk"):
         return True
+    hay = f"{product.category_id} {product.category_name} {product.name} {product.unit}".lower()
+    if any(needle in hay for needle in _TICKETS_CATEGORY_NEEDLES):
+        return True
     unit = product.unit.strip().lower()
-    return unit in ("person", "чел", "человек") and "экскурс" in product.name.lower()
+    if unit in ("билет", "ticket"):
+        return True
+    if unit in ("person", "чел", "человек") and "экскурс" in product.name.lower():
+        return True
+    return False
+
+
+def kolomna_products_for_category(
+    categories: list[Category],
+    products: list[Product],
+    category_id: str,
+) -> list[Product]:
+    """Товары раздела для Kolomna: билеты не попадают в ягодные меню."""
+    if category_id == KOLOMNA_TOURS_ID:
+        tickets_cat = kolomna_tickets_category(categories)
+        if tickets_cat:
+            return [p for p in products if p.category_id == tickets_cat.id]
+        return [p for p in products if is_tour_product(p)]
+    return [
+        p
+        for p in products
+        if p.category_id == category_id and not is_tour_product(p)
+    ]
 
 KOLOMNA_CARD_ACCENTS: tuple[str, ...] = (
     "#D9143A",
@@ -75,10 +136,46 @@ def kolomna_card_accent(index: int) -> str:
     return KOLOMNA_CARD_ACCENTS[index % len(KOLOMNA_CARD_ACCENTS)]
 
 
+_BERRY_PLACEHOLDER_NEEDLES: tuple[tuple[str, str], ...] = (
+    ("клубник", "berry-strawberry.webp"),
+    ("strawber", "berry-strawberry.webp"),
+    ("голубик", "berry-blueberry.webp"),
+    ("blueber", "berry-blueberry.webp"),
+    ("малин", "berry-raspberry.webp"),
+    ("raspber", "berry-raspberry.webp"),
+)
+
+
+def kolomna_ticket_image_path() -> Path | None:
+    """Сохранённое фото билета с API (media/products/kolomna_ticket_placeholder.jpg)."""
+    from src.services.product_image_cache import ProductImageCache
+
+    return ProductImageCache.find_ticket_placeholder()
+
+
+def kolomna_product_placeholder_path(product: Product) -> Path | None:
+    """Заглушка товара: ягода раздела из pic/, билет — кэш с API, иначе demo_products."""
+    if is_tour_product(product):
+        ticket = kolomna_ticket_image_path()
+        if ticket is not None:
+            return ticket
+    haystack = f"{product.category_name} {product.name} {product.category_id}".lower()
+    for needle, pic_name in _BERRY_PLACEHOLDER_NEEDLES:
+        if needle in haystack:
+            path = _resolve_pic(pic_name)
+            if path is not None:
+                return path
+    demo = ROOT / "assets" / "demo_products"
+    for i in range(1, 13):
+        path = demo / f"{i}.jpg"
+        if path.is_file():
+            return path
+    return None
+
+
 def hub_slot_index_for_category(categories: list[Category], category_id: str) -> int:
     """Индекс 0–2 (клубника / голубика / малина) как в хабе."""
-    api_cats = sorted(categories, key=_category_sort_key)
-    for i, cat in enumerate(api_cats[:3]):
+    for i, cat in enumerate(kolomna_berry_categories(categories)):
         if cat.id == category_id:
             return i
     return 0
@@ -99,16 +196,18 @@ def hub_berry_pixmap(slot_index: int) -> QPixmap:
 
 
 def build_kolomna_hub_tiles(categories: list[Category]) -> list[KolomnaHubTile]:
-    """4 карточки референса; 01–03 → первые 3 раздела API."""
-    api_cats = sorted(categories, key=_category_sort_key)
+    """4 карточки референса; 01–03 → ягодные разделы API (без билетов), 04 → билеты."""
+    berry_cats = kolomna_berry_categories(categories)
+    tickets_cat = kolomna_tickets_category(categories)
     tiles: list[KolomnaHubTile] = []
     berry_idx = 0
     for i, (num, _label, accent, edge, img_name, is_service) in enumerate(_SLOT_DEFS):
         label = hub_label_for_slot(i)
         cat_id: str | None = None
-        if not is_service:
-            if berry_idx < len(api_cats):
-                cat_id = api_cats[berry_idx].id
+        if is_service:
+            cat_id = tickets_cat.id if tickets_cat else None
+        elif berry_idx < len(berry_cats):
+            cat_id = berry_cats[berry_idx].id
             berry_idx += 1
         img_path = _resolve_pic(img_name) if img_name else None
         tiles.append(
@@ -127,12 +226,17 @@ def build_kolomna_hub_tiles(categories: list[Category]) -> list[KolomnaHubTile]:
 
 
 def resolve_tour_product(categories: list[Category], products: list[Product]) -> Product:
-    """Товар экскурсии: 4-й раздел API или заглушка референса."""
-    if len(categories) >= 4:
-        cat = sorted(categories, key=_category_sort_key)[3]
-        cat_products = [p for p in products if p.category_id == cat.id and p.in_stock]
+    """Товар билета/экскурсии из раздела API с билетами."""
+    tickets_cat = kolomna_tickets_category(categories)
+    if tickets_cat:
+        cat_products = [
+            p for p in products if p.category_id == tickets_cat.id and p.in_stock
+        ]
         if cat_products:
             return cat_products[0]
+    tour_products = [p for p in products if is_tour_product(p) and p.in_stock]
+    if tour_products:
+        return tour_products[0]
     return Product(
         id="kolomna-tour-walk",
         category_id=KOLOMNA_TOURS_ID,

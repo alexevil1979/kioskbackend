@@ -120,7 +120,7 @@ class CatalogStore(QObject):
         self._categories = cats
         self._products = prods
         self._apply_purchase_test_mode(self._products)
-        img_stats = self._image_cache.attach_all(self._products)
+        img_stats = self._attach_product_images(self._products)
         self._set_offline(False)
         self._write_products_table_log(prods)
 
@@ -142,6 +142,34 @@ class CatalogStore(QObject):
                 img_stats.failed,
             )
         self.updated.emit()
+
+    def _attach_product_images(self, products: list[Product]):
+        from src.ui.kolomna_catalog import is_tour_product
+        from src.ui.product_image_display import use_api_product_images
+        from src.services.product_image_cache import ImageCacheStats
+
+        if use_api_product_images():
+            stats = self._image_cache.attach_all(products)
+        else:
+            for product in products:
+                product.image_local = ""
+            stats = ImageCacheStats()
+
+        self._attach_ticket_images(products)
+        return stats
+
+    def _attach_ticket_images(self, products: list[Product]) -> None:
+        """Фото билета с API кэшируем всегда — и как заглушку на будущее."""
+        from src.ui.kolomna_catalog import is_tour_product
+
+        for product in products:
+            if not is_tour_product(product) or not product.image_url:
+                continue
+            path = self._image_cache.resolve(product)
+            if path:
+                product.image_local = path
+                self._image_cache.update_ticket_placeholder(path)
+            break
 
     def _apply_purchase_test_mode(self, products: list[Product]) -> None:
         cfg = self._settings.catalog

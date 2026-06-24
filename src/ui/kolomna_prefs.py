@@ -19,6 +19,8 @@ class KolomnaPrefs:
     menu_layout: str = "list"
     cta_color: str = "#1F4D2A"
     skip_product: bool = False
+    load_api_images: bool = True
+    breathe_button_text: bool = True
     hours: str = "Ежедневно 10:00–19:00"
     lang: str = "ru"
 
@@ -41,6 +43,8 @@ def load_kolomna_prefs() -> KolomnaPrefs:
             menu_layout=layout,
             cta_color=normalize_cta_color(str(raw.get("cta_color", "#1F4D2A"))),
             skip_product=bool(raw.get("skip_product", False)),
+            load_api_images=bool(raw.get("load_api_images", True)),
+            breathe_button_text=bool(raw.get("breathe_button_text", True)),
             hours=str(raw.get("hours", "Ежедневно 10:00–19:00")),
             lang=lang,
         )

@@ -20,8 +20,10 @@ from src.ui import kolomna_strings as S
 from src.ui.kolomna_catalog import resolve_tour_product
 from src.ui.kolomna_i18n import hub_label_for_slot
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_product_meta import fmt_price
+from src.ui.kolomna_product_meta import fmt_price, product_per_word, product_title
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, RASPBERRY, STRAWBERRY, YELLOW, scale
+from src.ui.product_image_display import product_display_image_path
+from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.scroll_utils import enable_kinetic_scroll
 from src.ui.widgets.kolomna_footbar import KolomnaFootBar
@@ -225,6 +227,7 @@ class KolomnaToursScreen(BaseScreen):
         h = settings.app.content_height
         self._m = KolomnaMetrics.from_viewport(w, h)
         self._product: Product | None = None
+        self._ticket_art: KolomnaBerryArt | None = None
         self._adults = KolomnaQtyControl(self._m)
         self._kids = KolomnaQtyControl(self._m, min_value=0)
         self._toast = KolomnaAddedToast(self._m, parent=self)
@@ -252,6 +255,7 @@ class KolomnaToursScreen(BaseScreen):
         lay.setContentsMargins(scale(24, w), scale(24, w), scale(24, w), self._m.pad)
         lay.setSpacing(scale(30, w))
 
+        self._product = resolve_tour_product(self._catalog.categories, self._catalog.products)
         self._coupon_widget = self._build_coupon()
         self._steps_widget = self._build_steps()
         lay.addWidget(self._coupon_widget)
@@ -268,18 +272,49 @@ class KolomnaToursScreen(BaseScreen):
         catalog.updated.connect(self._reload_product)
         cart.changed.connect(self._refresh_cart)
         self._adults.value_changed.connect(lambda _: self._update_add_btn())
-        self._reload_product()
+        self._update_add_btn()
         self._refresh_cart()
 
     def _reload_product(self) -> None:
         self._product = resolve_tour_product(self._catalog.categories, self._catalog.products)
-        self._update_add_btn()
+        if hasattr(self, "_add_btn"):
+            self._update_add_btn()
+        if self._ticket_art is not None:
+            self._ticket_art.refresh_image()
 
     def _build_coupon(self) -> QWidget:
         m = self._m
         w = m.width
         coupon = _CouponCard(m.radius_lg)
         root = coupon.layout()
+        self._ticket_art = None
+
+        if self._product and product_display_image_path(self._product) is not None:
+            img_wrap = QFrame()
+            img_wrap.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            img_wrap.setStyleSheet(f"QFrame {{ background: {YELLOW}; border: none; }}")
+            img_lay = QVBoxLayout(img_wrap)
+            img_lay.setContentsMargins(0, 0, 0, 0)
+            img_h = scale(300, w)
+            self._ticket_art = KolomnaBerryArt(
+                self._product,
+                w,
+                img_h,
+                fluid_width=True,
+                bg=YELLOW,
+                ground_shadow=False,
+                fit="cover",
+            )
+            img_lay.addWidget(self._ticket_art)
+            title = QLabel(product_title(self._product))
+            title.setWordWrap(True)
+            title.setFont(kolomna_font(scale(36, w), QFont.Weight.Black))
+            title.setStyleSheet(
+                f"color: {GREEN}; background: {CREAM}; "
+                f"padding: {scale(20, w)}px {scale(40, w)}px;"
+            )
+            img_lay.addWidget(title)
+            root.addWidget(img_wrap)
 
         head = QFrame()
         head.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -463,7 +498,7 @@ class KolomnaToursScreen(BaseScreen):
         self._add_btn.set_sum(f"{fmt_price(total)}\u00a0{S.CUR}")
         if self._guest_price is not None:
             self._guest_price.setText(
-                f"{fmt_price(self._product.price_rub)}\u00a0{S.CUR} · {S.PER_PERSON}"
+                f"{fmt_price(self._product.price_rub)}\u00a0{S.CUR} · {product_per_word(self._product)}"
             )
 
     def _add_to_cart(self) -> None:

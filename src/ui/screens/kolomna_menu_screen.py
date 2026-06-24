@@ -8,8 +8,13 @@ from src.core.config import Settings
 from src.models.product import Product
 from src.services.catalog_sync import CatalogStore
 from src.ui import kolomna_strings as S
-from src.ui.katusha_hub_catalog import _category_sort_key
-from src.ui.kolomna_catalog import KOLOMNA_TOURS_ID, hub_slot_index_for_category, kolomna_card_accent
+from src.ui.kolomna_catalog import (
+    KOLOMNA_TOURS_ID,
+    hub_slot_index_for_category,
+    kolomna_card_accent,
+    kolomna_berry_categories,
+    kolomna_products_for_category,
+)
 from src.ui.kolomna_i18n import hub_label_for_slot
 from src.ui.kolomna_fly_berry import fly_berry_to_cart, fly_pixmap_for_product
 from src.ui.kolomna_prefs import KolomnaPrefs, load_kolomna_prefs
@@ -97,8 +102,8 @@ class KolomnaMenuScreen(BaseScreen):
             return ""
         if self._category_id == KOLOMNA_TOURS_ID:
             return hub_label_for_slot(3)
-        cats = sorted(self._catalog.categories, key=_category_sort_key)
-        for i, c in enumerate(cats):
+        berry_cats = kolomna_berry_categories(self._catalog.categories)
+        for i, c in enumerate(berry_cats):
             if c.id == self._category_id:
                 return hub_label_for_slot(i)
         for c in self._catalog.categories:
@@ -109,8 +114,8 @@ class KolomnaMenuScreen(BaseScreen):
     def _category_accent(self) -> str:
         if not self._category_id:
             return kolomna_card_accent(0)
-        cats = self._catalog.categories
-        for i, c in enumerate(cats):
+        berry_cats = kolomna_berry_categories(self._catalog.categories)
+        for i, c in enumerate(berry_cats):
             if c.id == self._category_id:
                 return kolomna_card_accent(i)
         return kolomna_card_accent(0)
@@ -118,7 +123,12 @@ class KolomnaMenuScreen(BaseScreen):
     def _products(self) -> list[Product]:
         if not self._category_id:
             return []
-        return [p for p in self._catalog.products_for_category(self._category_id) if p.in_stock]
+        prods = kolomna_products_for_category(
+            self._catalog.categories,
+            self._catalog.products,
+            self._category_id,
+        )
+        return [p for p in prods if p.in_stock]
 
     @staticmethod
     def _clear_layout(layout: QLayout | None) -> None:

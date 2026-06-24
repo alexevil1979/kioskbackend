@@ -10,6 +10,7 @@ from src.ui import kolomna_strings as S
 from src.ui.kolomna_breathe import (
     apply_pill_scale,
     breathe_scale_at,
+    button_text_breathes,
     draw_static_text,
     font_for_breathe,
     start_breathe_timer,
@@ -268,25 +269,36 @@ class PaySumPillBtn(QWidget):
             cy = by + pill_h / 2.0
             rect = QRectF(bx + 1.5, by + 1.5, self.width() - bx * 2 - 3, pill_h - 3)
             r = rect.height() / 2.0
-            breathing = self._breathe_enabled and not self._pressed and self._bump_t0 <= 0
+            pill_s = self._pill_scale()
+            text_breathes = (
+                self._breathe_enabled
+                and not self._pressed
+                and self._bump_t0 <= 0
+                and button_text_breathes()
+            )
             _draw_pill_shadows(p, rect, vw)
 
-            scaled = apply_pill_scale(p, cx, cy, self._pill_scale())
+            scaled = apply_pill_scale(p, cx, cy, pill_s)
 
             pal = cta_palette()
             bg = QColor(pal.bg_active if self._pressed else pal.bg)
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(bg)
             p.drawRoundedRect(rect, r, r)
+            if scaled:
+                p.restore()
 
-            font_l = font_for_breathe(self._fit_font(self._label_text), breathing)
+            if text_breathes:
+                scaled = apply_pill_scale(p, cx, cy, pill_s)
+
+            font_l = font_for_breathe(self._fit_font(self._label_text), text_breathes)
             pad = self._pad_x
             inner_l = bx + pad
             inner_r = self.width() - bx - pad
             text_rect = QRectF(inner_l, by, max(1.0, inner_r - inner_l), pill_h)
             p.setPen(QColor(pal.fg))
             if self._sum_text:
-                font_s = font_for_breathe(self._fit_font(self._sum_text), breathing)
+                font_s = font_for_breathe(self._fit_font(self._sum_text), text_breathes)
                 draw_static_text(
                     p, font_l, self._label_text, text_rect,
                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -303,7 +315,7 @@ class PaySumPillBtn(QWidget):
                     Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
                     self._st_cache,
                 )
-            if scaled:
+            if text_breathes and scaled:
                 p.restore()
         finally:
             if p.isActive():

@@ -10,6 +10,7 @@ from src.ui.kolomna_breathe import (
     apply_pill_scale,
     breathe_pad,
     breathe_scale_at,
+    button_text_breathes,
     draw_static_text,
     font_for_breathe,
     start_breathe_timer,
@@ -125,7 +126,9 @@ class _AttractCtaPaint(QWidget):
         draw_shadow_soft_pill(painter, rect, radius, self._vw)
 
         cx, cy = self.width() / 2, self.height() / 2
-        scaled = apply_pill_scale(painter, cx, cy, breathe_scale_at(self._breathe_t0))
+        pill_s = breathe_scale_at(self._breathe_t0)
+        text_breathes = button_text_breathes()
+        scaled = apply_pill_scale(painter, cx, cy, pill_s)
 
         path = QPainterPath()
         path.addRoundedRect(rect, radius, radius)
@@ -142,8 +145,13 @@ class _AttractCtaPaint(QWidget):
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
+        if scaled:
+            painter.restore()
 
-        font = font_for_breathe(self._font, True)
+        if text_breathes:
+            scaled = apply_pill_scale(painter, cx, cy, pill_s)
+
+        font = font_for_breathe(self._font, text_breathes)
         painter.setPen(QColor(CREAM))
         draw_static_text(
             painter,
@@ -153,9 +161,12 @@ class _AttractCtaPaint(QWidget):
             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
             self._st_cache,
         )
-        if scaled:
+        if text_breathes and scaled:
             painter.restore()
         painter.end()
+
+    def refresh_cta(self) -> None:
+        self.update()
 
 
 class _AttractHand(QWidget):
@@ -254,6 +265,9 @@ class AttractCtaBlock(QWidget):
 
     def set_text(self, text: str) -> None:
         self._cta.set_text(text)
+
+    def refresh_cta(self) -> None:
+        self._cta.refresh_cta()
 
 
 AttractCtaHost = AttractCtaBlock

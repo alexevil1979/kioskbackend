@@ -222,6 +222,10 @@ class _ToggleTitle(QWidget):
             )
         p.end()
 
+    def set_title(self, title: str) -> None:
+        self._title = title
+        self.update()
+
 
 class _AdminToggleRow(QFrame):
     def __init__(self, title: str, on: bool, metrics: KolomnaMetrics, parent=None) -> None:
@@ -256,6 +260,10 @@ class _AdminToggleRow(QFrame):
     def set_on(self, on: bool) -> None:
         self._on = on
         self._switch.set_on(on)
+
+    def set_title(self, title: str) -> None:
+        self._title = title
+        self._txt.set_title(title)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
@@ -577,6 +585,8 @@ class KolomnaAdminPanel(QWidget):
             menu_layout=prefs.menu_layout,
             cta_color=prefs.cta_color,
             skip_product=prefs.skip_product,
+            load_api_images=prefs.load_api_images,
+            breathe_button_text=prefs.breathe_button_text,
             hours=prefs.hours,
             lang=prefs.lang,
         )
@@ -659,6 +669,30 @@ class KolomnaAdminPanel(QWidget):
                 S.ADMIN_SKIP_SECTION,
                 S.ADMIN_SKIP_HINT,
                 _wrap_rounded_card(self._skip_toggle, metrics),
+            )
+        )
+
+        self._images_toggle = _AdminToggleRow(
+            S.ADMIN_IMAGES_TOGGLE, self._prefs.load_api_images, metrics
+        )
+        bl.addWidget(
+            self._admin_sec(
+                metrics,
+                S.ADMIN_IMAGES_SECTION,
+                S.ADMIN_IMAGES_HINT,
+                _wrap_rounded_card(self._images_toggle, metrics),
+            )
+        )
+
+        self._breathe_toggle = _AdminToggleRow(
+            S.ADMIN_BREATHE_TOGGLE, self._prefs.breathe_button_text, metrics
+        )
+        bl.addWidget(
+            self._admin_sec(
+                metrics,
+                S.ADMIN_BREATHE_SECTION,
+                S.ADMIN_BREATHE_HINT,
+                _wrap_rounded_card(self._breathe_toggle, metrics),
             )
         )
 
@@ -830,10 +864,14 @@ class KolomnaAdminPanel(QWidget):
 
     def retranslate(self) -> None:
         self._quit_btn.setText(S.ADMIN_QUIT_APP)
+        self._images_toggle.set_title(S.ADMIN_IMAGES_TOGGLE)
+        self._breathe_toggle.set_title(S.ADMIN_BREATHE_TOGGLE)
 
     def _save(self) -> None:
         self._prefs.show_attract = self._start_toggle.is_on()
         self._prefs.skip_product = self._skip_toggle.is_on()
+        self._prefs.load_api_images = self._images_toggle.is_on()
+        self._prefs.breathe_button_text = self._breathe_toggle.is_on()
         self._prefs.hours = self._hours_edit.text().strip() or self._prefs.hours
         save_kolomna_prefs(self._prefs)
         self.prefs_changed.emit(self._prefs)
@@ -846,6 +884,8 @@ class KolomnaAdminPanel(QWidget):
     def show_modal(self, scroll: str = "top") -> None:
         self._start_toggle.set_on(self._prefs.show_attract)
         self._skip_toggle.set_on(self._prefs.skip_product)
+        self._images_toggle.set_on(self._prefs.load_api_images)
+        self._breathe_toggle.set_on(self._prefs.breathe_button_text)
         self._hours_edit.setText(self._prefs.hours)
         chosen = normalize_cta_color(self._prefs.cta_color)
         for c, sw in self._color_swatches.items():

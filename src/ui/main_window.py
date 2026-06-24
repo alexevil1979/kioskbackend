@@ -696,11 +696,21 @@ class MainWindow(QMainWindow):
         from src.core.state_machine import AppScreen
 
         self._refresh_kolomna_cta()
+        if prefs.load_api_images:
+            self._catalog.refresh()
         menu = self._menu_screen
         if hasattr(menu, "apply_prefs"):
             menu.apply_prefs(prefs)
+        self._refresh_kolomna_product_images()
         if self._nav.current == AppScreen.START and not prefs.show_attract:
             self._nav.go(AppScreen.CATEGORIES, replace=True)
+
+    def _refresh_kolomna_product_images(self) -> None:
+        from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
+
+        for widget in self._screens.values():
+            for art in widget.findChildren(KolomnaBerryArt):
+                art.refresh_image()
 
     def _refresh_kolomna_cta(self) -> None:
         from PyQt6.QtWidgets import QWidget

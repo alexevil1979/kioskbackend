@@ -15,7 +15,7 @@ from src.ui.kolomna_product_meta import (
     product_title,
     tour_cart_guests_label,
 )
-from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, GREEN_DEEP, INK_60, KolomnaMetrics, RASPBERRY, scale
+from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, GREEN_DEEP, INK_60, KolomnaMetrics, RASPBERRY, YELLOW, scale
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 from src.ui.widgets.kolomna_logo import BerryDrop
 from src.ui.widgets.kolomna_prod_row import _PackChip, _clamp_wrapped_text, _paint_card_shadow, card_shadow_bleed
@@ -44,17 +44,40 @@ def _paint_service_stripes(p: QPainter, rect: QRectF, radius: float, vw: int) ->
 
 
 class _TourCartThumb(QWidget):
-    """cart-row: berry-art--service — полосы, logo-drop, «фото • экскурсия»."""
+    """cart-row: фото билета с API или полосатый fallback."""
 
-    def __init__(self, size: int, metrics: KolomnaMetrics, parent=None) -> None:
+    def __init__(self, product, size: int, metrics: KolomnaMetrics, parent=None) -> None:
         super().__init__(parent)
         self._m = metrics
+        self._product = product
         self._size = size
         self._radius = scale(18, metrics.width)
         self.setFixedSize(size, size)
 
-        w = metrics.width
+        from src.ui.product_image_display import product_display_image_path
+
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        if product_display_image_path(product) is not None:
+            art = KolomnaBerryArt(
+                product,
+                size,
+                size,
+                radius=self._radius,
+                bg=YELLOW,
+                ground_shadow=False,
+                fit="cover",
+            )
+            lay.addWidget(art)
+            self._art = art
+            self._drop = None
+            self._cap = None
+            return
+
+        self._art = None
+        w = metrics.width
         lay.setContentsMargins(scale(8, w), scale(10, w), scale(8, w), scale(8, w))
         lay.setSpacing(scale(6, w))
 
@@ -70,18 +93,25 @@ class _TourCartThumb(QWidget):
         lay.addWidget(self._drop, stretch=1, alignment=Qt.AlignmentFlag.AlignCenter)
 
         cap_fs = scale(15, w)
-        cap = QLabel(S.CART_TOUR_PHOTO.replace(" ", "\u00a0"))
-        cap.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cap.setFont(kolomna_font(cap_fs, QFont.Weight.Bold))
-        cap.setMaximumWidth(size - scale(16, w))
-        cap.setStyleSheet(
+        self._cap = QLabel(S.CART_TOUR_PHOTO.replace(" ", "\u00a0"))
+        self._cap.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._cap.setFont(kolomna_font(cap_fs, QFont.Weight.Bold))
+        self._cap.setMaximumWidth(size - scale(16, w))
+        self._cap.setStyleSheet(
             f"color: {GREEN}; background: {CREAM}; "
             f"border-radius: {scale(10, w)}px; "
             f"padding: {scale(5, w)}px {scale(10, w)}px;"
         )
-        lay.addWidget(cap, alignment=Qt.AlignmentFlag.AlignHCenter)
+        lay.addWidget(self._cap, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+    def refresh_image(self) -> None:
+        if self._art is not None:
+            self._art.refresh_image()
 
     def paintEvent(self, event) -> None:  # noqa: N802
+        if self._art is not None:
+            super().paintEvent(event)
+            return
         p = QPainter(self)
         try:
             p.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -146,7 +176,7 @@ class KolomnaCartRow(QWidget):
 
         media_r = scale(18, metrics.width)
         if line.is_tour:
-            media = _TourCartThumb(media_sz, metrics)
+            media = _TourCartThumb(line.product, media_sz, metrics)
         else:
             media = QFrame()
             media.setFixedSize(media_sz, media_sz)
