@@ -21,6 +21,7 @@ from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_cta import cta_swatch_check_color, normalize_cta_color
 from src.ui.kolomna_prefs import KolomnaPrefs, save_kolomna_prefs
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, KolomnaMetrics, scale
+from src.ui.scroll_utils import enable_kinetic_scroll
 
 
 def _card_shadow(widget: QWidget, metrics: KolomnaMetrics) -> None:
@@ -606,17 +607,18 @@ class KolomnaAdminPanel(QWidget):
         _card_shadow(self._box, metrics)
 
         self._scroll = QScrollArea()
-        self._scroll.setWidgetResizable(True)
+        self._scroll.setWidgetResizable(False)
         self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        enable_kinetic_scroll(self._scroll)
 
-        inner = QWidget()
-        inner.setStyleSheet("background: transparent;")
-        inner.setMinimumWidth(box_w)
-        inner.setMaximumWidth(box_w)
-        bl = QVBoxLayout(inner)
+        self._inner = QWidget()
+        self._inner.setStyleSheet("background: transparent;")
+        self._inner.setMinimumWidth(box_w)
+        self._inner.setMaximumWidth(box_w)
+        bl = QVBoxLayout(self._inner)
         bl.setContentsMargins(pad64, pad64, pad64, pad64 + scale(40, metrics.width))
         bl.setSpacing(sec_gap)
 
@@ -772,13 +774,23 @@ class KolomnaAdminPanel(QWidget):
         self._quit_btn.clicked.connect(self.quit_requested.emit)
         bl.addWidget(self._quit_btn)
 
-        self._scroll.setWidget(inner)
+        self._scroll.setWidget(self._inner)
+        self._finalize_inner_size()
 
         box_lay = QVBoxLayout(self._box)
         box_lay.setContentsMargins(0, 0, 0, 0)
         box_lay.addWidget(self._scroll)
 
         outer.addWidget(self._box, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def _finalize_inner_size(self) -> None:
+        lay = self._inner.layout()
+        if lay is None:
+            return
+        lay.activate()
+        w = self._inner.maximumWidth()
+        h = lay.sizeHint().height()
+        self._inner.setFixedSize(w, h)
 
     @staticmethod
     def _admin_sec(metrics: KolomnaMetrics, section: str, hint: str, body: QWidget) -> QWidget:
@@ -843,8 +855,9 @@ class KolomnaAdminPanel(QWidget):
         self.setGeometry(0, 0, self.parentWidget().width(), self.parentWidget().height())
         self.raise_()
         self.show()
+        self._finalize_inner_size()
         self.scroll_to(scroll)
-        QTimer.singleShot(80, lambda: self.scroll_to(scroll))
+        QTimer.singleShot(80, lambda: (self._finalize_inner_size(), self.scroll_to(scroll)))
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
