@@ -1,10 +1,10 @@
-# Удалить ярлык автозапуска киоска.
+# Remove kiosk autostart shortcut.
 $startup = [Environment]::GetFolderPath("Startup")
 foreach ($name in @("SadyKolomnyKiosk.lnk", "KioskFarm.lnk")) {
     $lnk = Join-Path $startup $name
     if (Test-Path $lnk) {
         Remove-Item $lnk -Force
-        Write-Host "Удалён: $lnk"
+        Write-Host "Removed: $lnk"
     }
 }
-Write-Host "Готово."
+Write-Host "Done."

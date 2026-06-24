@@ -1,10 +1,10 @@
-# Ярлык автозапуска киоска в shell:startup (без окна консоли).
+# Autostart shortcut in shell:startup (no console window).
 $Root = $PSScriptRoot
 $pythonw = Join-Path $Root ".venv\Scripts\pythonw.exe"
 $main = Join-Path $Root "main.py"
 
 if (-not (Test-Path $pythonw)) {
-    Write-Host "ОШИБКА: сначала выполните install.ps1" -ForegroundColor Red
+    Write-Host "ERROR: run install.ps1 first" -ForegroundColor Red
     exit 1
 }
 
@@ -16,6 +16,6 @@ $shortcut.TargetPath = $pythonw
 $shortcut.Arguments = "`"$main`""
 $shortcut.WorkingDirectory = $Root
 $shortcut.WindowStyle = 7
-$shortcut.Description = "Сады Коломны — киоск"
+$shortcut.Description = "Sady Kolomny Kiosk"
 $shortcut.Save()
-Write-Host "Автозапуск: $lnk" -ForegroundColor Green
+Write-Host "Autostart: $lnk" -ForegroundColor Green

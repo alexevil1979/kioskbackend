@@ -170,6 +170,9 @@ if (-not $SkipInstall) {
     if (Test-Path $install) {
         Write-Step "Running install.ps1 (pip)..."
         & powershell -NoProfile -ExecutionPolicy Bypass -File $install
+        if ($LASTEXITCODE -ne 0) {
+            throw "install.ps1 failed with exit code $LASTEXITCODE"
+        }
     } else {
         Write-Host "install.ps1 not found, skip pip." -ForegroundColor Yellow
     }

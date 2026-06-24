@@ -1,5 +1,4 @@
-# Установка киоска «Сады Коломны» на Windows 10 (терминал / NUC).
-# Запуск: PowerShell от имени пользователя киоска:
+# Kiosk install on Windows 10 (terminal / NUC).
 #   Set-ExecutionPolicy -Scope Process Bypass -Force
 #   .\install.ps1
 #   .\install.ps1 -Autostart
@@ -35,34 +34,33 @@ function Find-Python {
     return $null
 }
 
-Write-Host "=== Установка киоска ===" -ForegroundColor Cyan
-Write-Host "Папка: $Root"
+Write-Host "=== Kiosk install ===" -ForegroundColor Cyan
+Write-Host "Folder: $Root"
 
 $py = Find-Python
 if (-not $py) {
-    Write-Host "ОШИБКА: нужен Python 3.11+ (https://www.python.org/downloads/windows/)" -ForegroundColor Red
-    Write-Host "При установке отметьте «Add python.exe to PATH»."
+    Write-Host "ERROR: Python 3.11+ required (https://www.python.org/downloads/windows/)" -ForegroundColor Red
+    Write-Host "Enable Add python.exe to PATH during install."
     exit 1
 }
 Write-Host "Python: $($py.Exe) $($py.Args -join ' ')"
 
-# Конфиг (не перезаписываем существующие)
 $settingsExample = Join-Path $Root "config\settings.yaml.example"
 $settings = Join-Path $Root "config\settings.yaml"
 if (-not (Test-Path $settings)) {
     Copy-Item $settingsExample $settings
-    Write-Host "Создан config\settings.yaml из примера."
+    Write-Host "Created config\settings.yaml from example."
 } else {
-    Write-Host "config\settings.yaml уже есть — не трогаем."
+    Write-Host "config\settings.yaml exists - kept."
 }
 
 $envExample = Join-Path $Root ".env.example"
 $envFile = Join-Path $Root ".env"
 if (-not (Test-Path $envFile)) {
     Copy-Item $envExample $envFile
-    Write-Host "Создан .env из примера — заполните ключи API."
+    Write-Host "Created .env from example - fill API keys."
 } else {
-    Write-Host ".env уже есть — не трогаем."
+    Write-Host ".env exists - kept."
 }
 
 @("logs", "media\products") | ForEach-Object {
@@ -76,23 +74,22 @@ if ($Preset -ne "none") {
     $presetFile = Join-Path $Root "config\presets\mode_$Preset.yaml"
     if (Test-Path $presetFile) {
         Write-Host ""
-        Write-Host "Пресет mode_$Preset.yaml — вручную перенесите секции в config\settings.yaml" -ForegroundColor Yellow
-        Write-Host "  См. docs\INSTALL_TERMINAL_WIN10.md, раздел «Пресеты режима оплаты»."
+        Write-Host "Preset mode_$Preset.yaml - merge sections into config\settings.yaml manually" -ForegroundColor Yellow
+        Write-Host "  See docs\INSTALL_TERMINAL_WIN10.md"
     }
 }
 
-# venv
 $venv = Join-Path $Root ".venv"
 $venvPy = Join-Path $venv "Scripts\python.exe"
 if (-not (Test-Path $venvPy)) {
-    Write-Host "Создаём виртуальное окружение..."
+    Write-Host "Creating virtual environment..."
     & $py.Exe @($py.Args + @("-m", "venv", $venv))
 }
-Write-Host "Устанавливаем зависимости (pip)..."
+Write-Host "Installing dependencies (pip)..."
 & $venvPy -m pip install --upgrade pip --quiet
 & $venvPy -m pip install -r (Join-Path $Root "requirements.txt")
 
-Write-Host "Проверка импорта PyQt6..."
+Write-Host "Checking PyQt6..."
 & $venvPy -c "from PyQt6.QtWidgets import QApplication; print('PyQt6 OK')"
 
 if ($Autostart) {
@@ -100,10 +97,10 @@ if ($Autostart) {
 }
 
 Write-Host ""
-Write-Host "=== Готово ===" -ForegroundColor Green
-Write-Host "1. Отредактируйте config\settings.yaml и .env (ключи CRM, оплата)."
-Write-Host "2. Запуск: run_kiosk.bat  или  run_kiosk_silent.bat (без консоли)."
-Write-Host "3. Полная инструкция: docs\INSTALL_TERMINAL_WIN10.md"
+Write-Host "=== Done ===" -ForegroundColor Green
+Write-Host "1. Edit config\settings.yaml and .env (CRM, payment keys)."
+Write-Host "2. Run: run_kiosk.bat  or  run_kiosk_silent.bat (no console)."
+Write-Host "3. Full guide: docs\INSTALL_TERMINAL_WIN10.md"
 if (-not $Autostart) {
-    Write-Host "4. Автозапуск: .\install.ps1 -Autostart"
+    Write-Host "4. Autostart: .\install.ps1 -Autostart"
 }

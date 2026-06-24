@@ -29,7 +29,7 @@ set "ERR=%ERRORLEVEL%"
 
 if not "%ERR%"=="0" (
     echo.
-    echo Obnovlenie zavershilos s oshibkoy: %ERR%
+    echo Oshibka obnovleniya: %ERR%
     pause
     exit /b %ERR%
 )
