@@ -36,7 +36,8 @@ class KolomnaCatalogBar(QWidget):
 
         logo_w = scale(340, m.width)
         logo_h = scale(158, m.width)
-        self._logo = LogoDrop(logo_w, logo_h)
+        self._logo = LogoDrop(logo_w, logo_h, admin_taps=True)
+        self._logo.admin_requested.connect(self.admin_requested.emit)
         grid.addWidget(self._logo, 0, 1, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
         self._lang = KolomnaLangToggle(m.width)

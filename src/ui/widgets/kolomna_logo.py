@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QImage, QPainter, QPainterPath, QPixmap
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -158,8 +158,14 @@ def _fit_logo_pixmap(pix: QPixmap, max_w: int, max_h: int) -> QPixmap:
     return scale_pixmap(pix, tw, th)
 
 
+_ADMIN_TAP_COUNT = 4
+_ADMIN_TAP_WINDOW_MS = 2500
+
+
 class LogoDrop(QWidget):
     """logo-drop / BerryDrop: капля + логотип (catalog__bar, cart-empty)."""
+
+    admin_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -170,6 +176,7 @@ class LogoDrop(QWidget):
         edge: str | None = None,
         logo_tint: str | None = None,
         opacity: float = 1.0,
+        admin_taps: bool = False,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -178,6 +185,13 @@ class LogoDrop(QWidget):
         self._edge = edge or STRAWBERRY_EDGE
         self._logo_tint = logo_tint or CREAM
         self._opacity = max(0.0, min(1.0, opacity))
+        self._admin_taps_enabled = admin_taps
+        self._tap_count = 0
+        self._tap_reset = QTimer(self)
+        self._tap_reset.setSingleShot(True)
+        self._tap_reset.timeout.connect(self._reset_admin_taps)
+        if admin_taps:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
         h = height if height is not None else max(1, round(width * 158 / 340))
         self.setFixedSize(width, h)
 
@@ -199,6 +213,23 @@ class LogoDrop(QWidget):
                 )
         if self._logo.isNull():
             self._logo = _cream_logo_from_mask(max_w, max_h)
+
+    def _reset_admin_taps(self) -> None:
+        self._tap_count = 0
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if (
+            self._admin_taps_enabled
+            and event.button() == Qt.MouseButton.LeftButton
+            and self.rect().contains(event.position().toPoint())
+        ):
+            self._tap_count += 1
+            self._tap_reset.start(_ADMIN_TAP_WINDOW_MS)
+            if self._tap_count >= _ADMIN_TAP_COUNT:
+                self._reset_admin_taps()
+                self._tap_reset.stop()
+                self.admin_requested.emit()
+        super().mouseReleaseEvent(event)
 
     def set_ref_pixmap(self, pix: QPixmap) -> None:
         """Растр из ref-скриншота (pixel-compare / grab)."""
