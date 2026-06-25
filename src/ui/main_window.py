@@ -15,7 +15,7 @@ from src.core.display_target import resolve_kiosk_screen
 
 from src.core.cart import Cart
 from src.core.config import Settings
-from src.core.payment_error_message import build_payment_error_message
+from src.core.payment_error_message import build_payment_error_message, resolve_support_phone
 from src.core.idle_timer import IdleTimer
 from src.core.state_machine import AppScreen, NavigationController
 from src.services.catalog_sync import CatalogStore
@@ -33,6 +33,7 @@ from src.ui.screens.kolomna_card_screen import KolomnaCardScreen
 from src.ui.screens.kolomna_done_screen import KolomnaDoneScreen
 from src.ui.screens.kolomna_menu_screen import KolomnaMenuScreen
 from src.ui.screens.kolomna_tours_screen import KolomnaToursScreen
+from src.ui.screens.kolomna_payment_error_screen import KolomnaPaymentErrorScreen
 from src.ui.screens.kolomna_payment_screen import KolomnaPaymentScreen
 from src.ui.screens.kolomna_sbp_screen import KolomnaSbpScreen
 from src.ui.screens.menu_screen import MenuScreen
@@ -195,7 +196,10 @@ class MainWindow(QMainWindow):
 
         card_scr.cancel.connect(self._cancel_card)
         card_scr.completed.connect(self._on_card_completed)
-        err = PaymentErrorScreen()
+        if kolomna:
+            err = KolomnaPaymentErrorScreen(s)
+        else:
+            err = PaymentErrorScreen()
         err.retry.connect(lambda: self._nav.go(AppScreen.PAYMENT_METHOD))
         err.to_menu.connect(self._full_reset)
 
@@ -685,14 +689,33 @@ class MainWindow(QMainWindow):
 
         tick()
 
+    def _payment_error_order_id(self) -> str:
+        if self._katusha_order_id:
+            return str(self._katusha_order_id)
+        return self._order_id
+
     def _payment_failed(self, message: str | None = None) -> None:
         self._stop_kolomna_success_timer()
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
         if sbp_scr is not None and hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
-        full_message = build_payment_error_message(message, self._settings.kiosk)
+        kolomna = self._settings.app.ui_theme == "kolomna"
         err_scr = self._screens.get(AppScreen.PAYMENT_ERROR)
-        if isinstance(err_scr, PaymentErrorScreen):
+        if hasattr(err_scr, "set_content"):
+            phone = ""
+            if self._settings.kiosk.show_support_phone_on_payment_error:
+                phone = resolve_support_phone(self._settings.kiosk, kolomna=kolomna)
+            err_scr.set_content(
+                detail=message,
+                phone=phone,
+                order_id=self._payment_error_order_id(),
+            )
+        elif isinstance(err_scr, PaymentErrorScreen):
+            full_message = build_payment_error_message(
+                message,
+                self._settings.kiosk,
+                kolomna=kolomna,
+            )
             err_scr.set_message(full_message)
         self._nav.go(AppScreen.PAYMENT_ERROR)
 
