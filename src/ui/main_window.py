@@ -344,6 +344,10 @@ class MainWindow(QMainWindow):
             pm = self._screens[AppScreen.PAYMENT_METHOD]
             if hasattr(pm, "set_summary"):
                 pm.set_summary(self._cart.item_count, self._cart.total_rub)
+            if hasattr(pm, "apply_payment_prefs"):
+                from src.ui.kolomna_prefs import load_kolomna_prefs
+
+                pm.apply_payment_prefs(load_kolomna_prefs())
             elif hasattr(pm, "set_amount"):
                 pm.set_amount(self._cart.total_display())
         if screen == AppScreen.PAYMENT_CARD:
@@ -362,6 +366,11 @@ class MainWindow(QMainWindow):
         logger.info("Экран: %s", screen.name)
 
     def _on_kolomna_pay_requested(self, method: str) -> None:
+        from src.ui.kolomna_prefs import enabled_payment_methods, load_kolomna_prefs
+
+        allowed = enabled_payment_methods(load_kolomna_prefs())
+        if method not in allowed:
+            method = allowed[0]
         self._pay_started_at = time.monotonic()
         if method == "sbp":
             self._start_sbp()
@@ -391,6 +400,17 @@ class MainWindow(QMainWindow):
             return
         self._order_id = str(uuid.uuid4())[:8]
         mode = self._settings.hardware.integration_mode
+        if self._settings.app.ui_theme == "kolomna":
+            from src.ui.kolomna_prefs import enabled_payment_methods, load_kolomna_prefs
+
+            methods = enabled_payment_methods(load_kolomna_prefs())
+            if len(methods) == 1:
+                self._pay_started_at = time.monotonic()
+                if methods[0] == "sbp":
+                    self._start_sbp()
+                else:
+                    self._start_card()
+                return
         if mode == "tbank_aqsi":
             self._start_aqsi_payment()
         elif mode in ("tbank_pos_printer", "tbank_pos_sbp"):
@@ -701,6 +721,9 @@ class MainWindow(QMainWindow):
         menu = self._menu_screen
         if hasattr(menu, "apply_prefs"):
             menu.apply_prefs(prefs)
+        pm = self._screens.get(AppScreen.PAYMENT_METHOD)
+        if pm is not None and hasattr(pm, "apply_payment_prefs"):
+            pm.apply_payment_prefs(prefs)
         self._refresh_kolomna_product_images()
         if self._nav.current == AppScreen.START and not prefs.show_attract:
             self._nav.go(AppScreen.CATEGORIES, replace=True)

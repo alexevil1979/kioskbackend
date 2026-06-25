@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget, QLabel
 from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_prefs import KolomnaPrefs, enabled_payment_methods, load_kolomna_prefs
 from src.ui.kolomna_product_meta import fmt_price, n_items_label
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, STRAWBERRY, scale
 from src.ui.screens.base_screen import BaseScreen
@@ -112,7 +113,23 @@ class KolomnaPaymentScreen(BaseScreen):
         foot_lay.addWidget(self._pay_btn)
         self._layout.addWidget(foot)
 
-        self._set_method("sbp")
+        self.apply_payment_prefs(load_kolomna_prefs())
+
+    def apply_payment_prefs(self, prefs: KolomnaPrefs) -> None:
+        methods = enabled_payment_methods(prefs)
+        sbp_on = "sbp" in methods
+        card_on = "card" in methods
+        self._sbp.setVisible(sbp_on)
+        self._card.setVisible(card_on)
+        self._eyebrow.setVisible(sbp_on and card_on)
+        if self._method not in methods:
+            self._set_method(methods[0])
+        elif self._method == "sbp" and not sbp_on:
+            self._set_method("card")
+        elif self._method == "card" and not card_on:
+            self._set_method("sbp")
+        else:
+            self._set_method(self._method)
 
     def _set_method(self, method: str) -> None:
         self._method = method

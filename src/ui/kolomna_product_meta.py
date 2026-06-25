@@ -5,6 +5,18 @@ import re
 from src.models.product import Product
 from src.ui import kolomna_strings as S
 
+_catalog_from_live_api = False
+
+
+def set_catalog_from_live_api(from_api: bool) -> None:
+    """True после успешной загрузки каталога с CRM (не mock)."""
+    global _catalog_from_live_api
+    _catalog_from_live_api = from_api
+
+
+def catalog_from_live_api() -> bool:
+    return _catalog_from_live_api
+
 
 def _grade_key(name: str) -> str | None:
     n = name.lower()
@@ -40,8 +52,11 @@ def product_title(product: Product) -> str:
 
 
 def product_description(product: Product) -> str:
-    if product.description.strip():
-        return product.description.strip()
+    text = product.description.strip()
+    if text:
+        return text
+    if catalog_from_live_api():
+        return ""
     key = _grade_key(product.name)
     if key == "premium":
         return S.GRADE_DESC_PREMIUM

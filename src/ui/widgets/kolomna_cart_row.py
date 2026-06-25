@@ -11,7 +11,6 @@ from src.ui.kolomna_product_meta import (
     fmt_price,
     full_product_name,
     product_pack_label,
-    product_per_word,
     product_title,
     tour_cart_guests_label,
 )
@@ -251,12 +250,6 @@ class KolomnaCartRow(QWidget):
             sub.setSpacing(scale(16, metrics.width))
             pack_chip = _PackChip(product_pack_label(line.product), metrics)
             sub.addWidget(pack_chip, alignment=Qt.AlignmentFlag.AlignVCenter)
-            unit = QLabel(
-                f"{fmt_price(line.product.price_rub)}\u00a0{S.CUR} · {product_per_word(line.product)}"
-            )
-            unit.setFont(kolomna_font(metrics.fs_label, QFont.Weight.DemiBold))
-            unit.setStyleSheet(f"color: {INK_60}; background: transparent;")
-            sub.addWidget(unit)
             sub.addStretch(1)
             body.addLayout(sub)
 

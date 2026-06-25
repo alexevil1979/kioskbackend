@@ -21,8 +21,26 @@ class KolomnaPrefs:
     skip_product: bool = False
     load_api_images: bool = True
     breathe_button_text: bool = True
+    payment_sbp_enabled: bool = True
+    payment_card_enabled: bool = True
     hours: str = "Ежедневно 10:00–19:00"
     lang: str = "ru"
+
+
+def normalize_payment_methods(prefs: KolomnaPrefs) -> None:
+    """Хотя бы один способ оплаты должен быть включён."""
+    if not prefs.payment_sbp_enabled and not prefs.payment_card_enabled:
+        prefs.payment_sbp_enabled = True
+
+
+def enabled_payment_methods(prefs: KolomnaPrefs) -> list[str]:
+    normalize_payment_methods(prefs)
+    out: list[str] = []
+    if prefs.payment_sbp_enabled:
+        out.append("sbp")
+    if prefs.payment_card_enabled:
+        out.append("card")
+    return out
 
 
 def load_kolomna_prefs() -> KolomnaPrefs:
@@ -38,16 +56,20 @@ def load_kolomna_prefs() -> KolomnaPrefs:
         layout = str(raw.get("menu_layout", "list"))
         if layout not in ("list", "grid"):
             layout = "list"
-        return KolomnaPrefs(
+        prefs = KolomnaPrefs(
             show_attract=bool(raw.get("show_attract", True)),
             menu_layout=layout,
             cta_color=normalize_cta_color(str(raw.get("cta_color", "#1F4D2A"))),
             skip_product=bool(raw.get("skip_product", False)),
             load_api_images=bool(raw.get("load_api_images", True)),
             breathe_button_text=bool(raw.get("breathe_button_text", True)),
+            payment_sbp_enabled=bool(raw.get("payment_sbp_enabled", True)),
+            payment_card_enabled=bool(raw.get("payment_card_enabled", True)),
             hours=str(raw.get("hours", "Ежедневно 10:00–19:00")),
             lang=lang,
         )
+        normalize_payment_methods(prefs)
+        return prefs
     except (OSError, json.JSONDecodeError, TypeError) as exc:
         logger.warning("kolomna_local.json: %s", exc)
         return KolomnaPrefs()
@@ -59,6 +81,7 @@ def save_kolomna_prefs(prefs: KolomnaPrefs) -> None:
     prefs.cta_color = normalize_cta_color(prefs.cta_color)
     if prefs.menu_layout not in ("list", "grid"):
         prefs.menu_layout = "list"
+    normalize_payment_methods(prefs)
     PREFS_PATH.parent.mkdir(parents=True, exist_ok=True)
     PREFS_PATH.write_text(
         json.dumps(asdict(prefs), ensure_ascii=False, indent=2),

@@ -21,7 +21,7 @@ from src.ui import kolomna_strings as S
 from src.ui.kolomna_catalog import resolve_tour_product
 from src.ui.kolomna_i18n import hub_label_for_slot
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_product_meta import fmt_price, product_per_word, product_title
+from src.ui.kolomna_product_meta import fmt_price, product_title
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, RASPBERRY, STRAWBERRY, YELLOW, scale
 from src.ui.product_image_display import product_display_image_path
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
@@ -443,8 +443,8 @@ class KolomnaToursScreen(BaseScreen):
 
         guests = QHBoxLayout()
         guests.setSpacing(scale(20, w))
-        adult_box, self._guest_price = self._guest_box(S.TOUR_GUEST_ADULTS, True, self._adults)
-        kids_box, _ = self._guest_box(S.TOUR_GUEST_KIDS, False, self._kids)
+        adult_box = self._guest_box(S.TOUR_GUEST_ADULTS, True, self._adults)
+        kids_box = self._guest_box(S.TOUR_GUEST_KIDS, False, self._kids)
         guests.addWidget(adult_box, stretch=1)
         guests.addWidget(kids_box, stretch=1)
         body_lay.addLayout(guests)
@@ -467,9 +467,7 @@ class KolomnaToursScreen(BaseScreen):
             return None
         return TourDate.from_slot_id(self._selected_date_id)
 
-    def _guest_box(
-        self, title: str, priced: bool, qty: KolomnaQtyControl
-    ) -> tuple[QWidget, QLabel | None]:
+    def _guest_box(self, title: str, priced: bool, qty: KolomnaQtyControl) -> QWidget:
         w = self._m.width
         box = QFrame()
         box.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -484,19 +482,13 @@ class KolomnaToursScreen(BaseScreen):
         t.setFont(kolomna_font(scale(34, w), QFont.Weight.ExtraBold))
         t.setStyleSheet(f"color: {GREEN}; background: transparent;")
         lay.addWidget(t)
-        price_lbl: QLabel | None = None
-        if priced:
-            price_lbl = QLabel()
-            price_lbl.setFont(kolomna_font(scale(24, w), QFont.Weight.Bold))
-            price_lbl.setStyleSheet(f"color: {INK_60}; background: transparent;")
-            lay.addWidget(price_lbl)
-        else:
+        if not priced:
             free = QLabel(S.TOUR_GUEST_FREE)
             free.setFont(kolomna_font(scale(24, w), QFont.Weight.Bold))
             free.setStyleSheet(f"color: {GREEN}; background: transparent;")
             lay.addWidget(free)
         lay.addWidget(qty, alignment=Qt.AlignmentFlag.AlignLeft)
-        return box, price_lbl
+        return box
 
     def _build_steps(self) -> QWidget:
         w = self._m.width
@@ -565,10 +557,6 @@ class KolomnaToursScreen(BaseScreen):
             return
         total = self._product.price_rub * self._adults.value()
         self._add_btn.set_sum(f"{fmt_price(total)}\u00a0{S.CUR}")
-        if self._guest_price is not None:
-            self._guest_price.setText(
-                f"{fmt_price(self._product.price_rub)}\u00a0{S.CUR} · {product_per_word(self._product)}"
-            )
 
     def _add_to_cart(self) -> None:
         if not self._product:

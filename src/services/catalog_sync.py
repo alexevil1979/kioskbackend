@@ -119,6 +119,11 @@ class CatalogStore(QObject):
 
         self._categories = cats
         self._products = prods
+        from src.ui.kolomna_product_meta import set_catalog_from_live_api
+
+        set_catalog_from_live_api(
+            not self._settings.crm.use_mock and bool(self._settings.crm.api_key.strip())
+        )
         self._apply_purchase_test_mode(self._products)
         img_stats = self._attach_product_images(self._products)
         self._set_offline(False)

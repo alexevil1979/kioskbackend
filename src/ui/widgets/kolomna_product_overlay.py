@@ -11,7 +11,6 @@ from src.ui.kolomna_product_meta import (
     fmt_price,
     product_description,
     product_pack_label,
-    product_per_word,
     product_title,
     product_unit_word,
 )
@@ -291,15 +290,7 @@ class KolomnaProductOverlay(QWidget):
             if item.widget():
                 item.widget().deleteLater()
         chip = _PackChip(product_pack_label(product), self._m, large=True)
-        per_prefix = QLabel(f"{product_per_word(product)} · ")
-        per_prefix.setFont(kolomna_font(self._m.fs_lead, QFont.Weight.Bold))
-        per_prefix.setStyleSheet(f"color: {INK_60}; background: transparent;")
-        per_price = QLabel(f"{fmt_price(product.price_rub)}\u00a0{S.CUR}")
-        per_price.setFont(kolomna_font(self._m.fs_h3, QFont.Weight.Black))
-        per_price.setStyleSheet(f"color: {GREEN}; background: transparent;")
         self._meta_lay.addWidget(chip, alignment=Qt.AlignmentFlag.AlignVCenter)
-        self._meta_lay.addWidget(per_prefix, alignment=Qt.AlignmentFlag.AlignVCenter)
-        self._meta_lay.addWidget(per_price, alignment=Qt.AlignmentFlag.AlignVCenter)
         self._meta_lay.addStretch(1)
 
         self._qty_word.setText(product_unit_word(product))

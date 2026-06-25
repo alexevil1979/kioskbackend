@@ -48,6 +48,11 @@ def _foot_canvas(metrics: KolomnaMetrics) -> tuple[int, int, int, int]:
     return edge_pad, shadow_bleed, pill_h, pill_h + edge_pad * 2 + shadow_bleed
 
 
+def _foot_pill_pad_x(metrics: KolomnaMetrics) -> int:
+    """Горизонтальный отступ текста внутри pill — одинаковый у ghost и primary."""
+    return scale(56, metrics.width)
+
+
 def _draw_pill_shadows(p: QPainter, rect: QRectF, vw: int) -> None:
     r = rect.height() / 2.0
     for y_off, alpha in (
@@ -83,7 +88,7 @@ class _FootPillBtn(QWidget):
         self._edge_pad, self._shadow_bleed, self._btn_h, canvas_h = _foot_canvas(metrics)
         self._base_fs = scale(40, w)
         self._min_fs = scale(26, w)
-        self._pad_x = scale(28, w)
+        self._pad_x = _foot_pill_pad_x(metrics)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(canvas_h)
@@ -147,11 +152,13 @@ class _FootPillBtn(QWidget):
 
         font = self._fit_font()
         p.setPen(text_color)
+        inner_l = bx + self._pad_x
+        inner_r = self.width() - bx - self._pad_x
         draw_static_text(
             p,
             font,
             self._text,
-            QRectF(bx, by, self.width() - bx * 2, pill_h),
+            QRectF(inner_l, by, max(1.0, inner_r - inner_l), pill_h),
             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
             self._st_cache,
         )
@@ -196,7 +203,7 @@ class PaySumPillBtn(QWidget):
         start_breathe_timer(self._anim_timer)
         w = metrics.width
         self._edge_pad, self._shadow_bleed, self._btn_h, canvas_h = _foot_canvas(metrics)
-        self._pad_x = scale(56, w)
+        self._pad_x = _foot_pill_pad_x(metrics)
         self._fs = scale(50, w)
         self._min_fs = scale(30, w)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -376,12 +383,12 @@ class KolomnaCartFootBar(QFrame):
 
         self._ghost = _FootPillBtn(metrics, ghost=True)
         self._ghost.clicked.connect(self.keep_shopping_clicked.emit)
-        btns.addWidget(self._ghost, stretch=10)
+        btns.addWidget(self._ghost, stretch=1)
 
         self._primary = PaySumPillBtn(metrics, "")
         self._primary.set_breathe(True)
         self._primary.clicked.connect(self.checkout_clicked.emit)
-        btns.addWidget(self._primary, stretch=14)
+        btns.addWidget(self._primary, stretch=1)
 
         lay.addLayout(btns)
 

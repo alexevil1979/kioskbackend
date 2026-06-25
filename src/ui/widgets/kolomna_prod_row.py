@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QRadialGradient, QRegion
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QRegion
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -18,7 +18,6 @@ from src.ui.kolomna_product_meta import (
     fmt_price,
     product_description,
     product_pack_label,
-    product_per_word,
     product_title,
 )
 from src.ui.kolomna_tokens import CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, YELLOW, scale
@@ -26,23 +25,13 @@ from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 
 
 def card_shadow_bleed(metrics: KolomnaMetrics) -> int:
-    return scale(22, metrics.width)
+    return 0
 
 
-def _paint_card_shadow(p: QPainter, card_rect: QRectF, radius: float, metrics: KolomnaMetrics) -> None:
-    """Мягкая одинарная тень под карточкой (радиальный градиент, не полоса)."""
-    w = metrics.width
-    cx = card_rect.center().x()
-    cy = card_rect.bottom() + scale(5, w)
-    rx = max(scale(40, w), card_rect.width() / 2.0 - scale(18, w))
-    ry = scale(14, w)
-    grad = QRadialGradient(cx, cy, max(rx, ry))
-    grad.setColorAt(0.0, QColor(20, 56, 33, 26))
-    grad.setColorAt(0.55, QColor(20, 56, 33, 10))
-    grad.setColorAt(1.0, QColor(20, 56, 33, 0))
-    p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(grad)
-    p.drawEllipse(QRectF(cx - rx, cy - ry * 0.55, rx * 2.0, ry * 1.1))
+def _paint_card_shadow(
+    p: QPainter, card_rect: QRectF, radius: float, metrics: KolomnaMetrics
+) -> None:
+    return
 
 
 def _clamp_wrapped_text(
@@ -350,11 +339,7 @@ class KolomnaProdRow(QWidget):
         meta = QHBoxLayout()
         meta.setSpacing(scale(18, metrics.width))
         chip = _PackChip(product_pack_label(product), metrics)
-        per = QLabel(product_per_word(product))
-        per.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Bold))
-        per.setStyleSheet(f"color: {INK_60}; background: transparent;")
         meta.addWidget(chip, alignment=Qt.AlignmentFlag.AlignVCenter)
-        meta.addWidget(per, alignment=Qt.AlignmentFlag.AlignVCenter)
         meta.addStretch(1)
         body.addLayout(meta)
 
@@ -543,10 +528,6 @@ class KolomnaProdTile(QWidget):
         meta = QHBoxLayout()
         meta.setSpacing(scale(16, metrics.width))
         meta.addWidget(_PackChip(product_pack_label(product), metrics))
-        per = QLabel(product_per_word(product))
-        per.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Bold))
-        per.setStyleSheet(f"color: {INK_60}; background: transparent;")
-        meta.addWidget(per, alignment=Qt.AlignmentFlag.AlignVCenter)
         meta.addStretch(1)
         body_lay.addLayout(meta)
 

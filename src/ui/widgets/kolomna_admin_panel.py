@@ -587,6 +587,8 @@ class KolomnaAdminPanel(QWidget):
             skip_product=prefs.skip_product,
             load_api_images=prefs.load_api_images,
             breathe_button_text=prefs.breathe_button_text,
+            payment_sbp_enabled=prefs.payment_sbp_enabled,
+            payment_card_enabled=prefs.payment_card_enabled,
             hours=prefs.hours,
             lang=prefs.lang,
         )
@@ -693,6 +695,28 @@ class KolomnaAdminPanel(QWidget):
                 S.ADMIN_BREATHE_SECTION,
                 S.ADMIN_BREATHE_HINT,
                 _wrap_rounded_card(self._breathe_toggle, metrics),
+            )
+        )
+
+        pay_wrap = QWidget()
+        pay_wrap.setStyleSheet("background: transparent;")
+        pay_lay = QVBoxLayout(pay_wrap)
+        pay_lay.setContentsMargins(0, 0, 0, 0)
+        pay_lay.setSpacing(scale(20, metrics.width))
+        self._pay_sbp_toggle = _AdminToggleRow(
+            S.ADMIN_PAY_SBP_TOGGLE, self._prefs.payment_sbp_enabled, metrics
+        )
+        self._pay_card_toggle = _AdminToggleRow(
+            S.ADMIN_PAY_CARD_TOGGLE, self._prefs.payment_card_enabled, metrics
+        )
+        pay_lay.addWidget(self._pay_sbp_toggle)
+        pay_lay.addWidget(self._pay_card_toggle)
+        bl.addWidget(
+            self._admin_sec(
+                metrics,
+                S.ADMIN_PAY_SECTION,
+                S.ADMIN_PAY_HINT,
+                _wrap_rounded_card(pay_wrap, metrics),
             )
         )
 
@@ -866,12 +890,19 @@ class KolomnaAdminPanel(QWidget):
         self._quit_btn.setText(S.ADMIN_QUIT_APP)
         self._images_toggle.set_title(S.ADMIN_IMAGES_TOGGLE)
         self._breathe_toggle.set_title(S.ADMIN_BREATHE_TOGGLE)
+        self._pay_sbp_toggle.set_title(S.ADMIN_PAY_SBP_TOGGLE)
+        self._pay_card_toggle.set_title(S.ADMIN_PAY_CARD_TOGGLE)
 
     def _save(self) -> None:
         self._prefs.show_attract = self._start_toggle.is_on()
         self._prefs.skip_product = self._skip_toggle.is_on()
         self._prefs.load_api_images = self._images_toggle.is_on()
         self._prefs.breathe_button_text = self._breathe_toggle.is_on()
+        self._prefs.payment_sbp_enabled = self._pay_sbp_toggle.is_on()
+        self._prefs.payment_card_enabled = self._pay_card_toggle.is_on()
+        from src.ui.kolomna_prefs import normalize_payment_methods
+
+        normalize_payment_methods(self._prefs)
         self._prefs.hours = self._hours_edit.text().strip() or self._prefs.hours
         save_kolomna_prefs(self._prefs)
         self.prefs_changed.emit(self._prefs)
@@ -886,6 +917,8 @@ class KolomnaAdminPanel(QWidget):
         self._skip_toggle.set_on(self._prefs.skip_product)
         self._images_toggle.set_on(self._prefs.load_api_images)
         self._breathe_toggle.set_on(self._prefs.breathe_button_text)
+        self._pay_sbp_toggle.set_on(self._prefs.payment_sbp_enabled)
+        self._pay_card_toggle.set_on(self._prefs.payment_card_enabled)
         self._hours_edit.setText(self._prefs.hours)
         chosen = normalize_cta_color(self._prefs.cta_color)
         for c, sw in self._color_swatches.items():
