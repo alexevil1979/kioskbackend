@@ -584,6 +584,14 @@ class MainWindow(QMainWindow):
             return
         self._do_finish_payment_success()
 
+    def _success_order_display_id(self) -> str:
+        """Номер на экране «Готово»: order_id из API Katusha, иначе локальный kiosk_order_id."""
+        if self._katusha_order_id > 0:
+            return str(self._katusha_order_id)
+        if self._aqsi_order_id:
+            return self._aqsi_order_id
+        return self._order_id
+
     def _do_finish_payment_success(self) -> None:
         self._kolomna_success_timer.stop()
         self._pay_started_at = None
@@ -641,10 +649,9 @@ class MainWindow(QMainWindow):
         )
         success_scr = self._screens[AppScreen.SUCCESS]
         if hasattr(success_scr, "set_order_no"):
-            if kolomna:
-                success_scr.set_order_no(str(random.randint(20, 99)).zfill(3))
-            else:
-                success_scr.set_order_no(self._order_id)
+            order_no = self._success_order_display_id()
+            success_scr.set_order_no(order_no)
+            logger.info("Экран успеха: номер заказа %s", order_no)
 
         def tick(left: int = sec) -> None:
             if left <= 0:

@@ -9,7 +9,6 @@ from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_product_meta import (
     fmt_price,
-    full_product_name,
     product_pack_label,
     product_title,
     tour_cart_guests_label,
@@ -219,7 +218,7 @@ class KolomnaCartRow(QWidget):
             - sum_w,
         )
         name_text, name_h = _clamp_wrapped_text(
-            product_title(line.product) if line.is_tour else full_product_name(line.product),
+            product_title(line.product),
             name_font,
             body_w,
             max_lines=2,

@@ -283,7 +283,7 @@ class KolomnaMenuScreen(BaseScreen):
             self._footbar.hide()
             self._product_overlay.open_product(
                 product,
-                category_title=self._category_title(),
+                category_title="",
                 accent=self._category_accent(),
             )
 
