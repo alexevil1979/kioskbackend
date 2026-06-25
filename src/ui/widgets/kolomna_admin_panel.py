@@ -602,6 +602,7 @@ class KolomnaAdminPanel(QWidget):
             hours=prefs.hours,
             lang=prefs.lang,
             api_mode=prefs.api_mode,
+            show_product_description=prefs.show_product_description,
         )
         self.setVisible(False)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -716,6 +717,18 @@ class KolomnaAdminPanel(QWidget):
                 S.ADMIN_SKIP_SECTION,
                 S.ADMIN_SKIP_HINT,
                 _wrap_rounded_card(self._skip_toggle, metrics),
+            )
+        )
+
+        self._desc_toggle = _AdminToggleRow(
+            S.ADMIN_DESC_TOGGLE, self._prefs.show_product_description, metrics
+        )
+        bl.addWidget(
+            self._admin_sec(
+                metrics,
+                S.ADMIN_DESC_SECTION,
+                S.ADMIN_DESC_HINT,
+                _wrap_rounded_card(self._desc_toggle, metrics),
             )
         )
 
@@ -934,6 +947,7 @@ class KolomnaAdminPanel(QWidget):
     def retranslate(self) -> None:
         self._quit_btn.setText(S.ADMIN_QUIT_APP)
         self._images_toggle.set_title(S.ADMIN_IMAGES_TOGGLE)
+        self._desc_toggle.set_title(S.ADMIN_DESC_TOGGLE)
         self._breathe_toggle.set_title(S.ADMIN_BREATHE_TOGGLE)
         self._pay_sbp_toggle.set_title(S.ADMIN_PAY_SBP_TOGGLE)
         self._pay_card_toggle.set_title(S.ADMIN_PAY_CARD_TOGGLE)
@@ -948,6 +962,7 @@ class KolomnaAdminPanel(QWidget):
     def _save(self) -> None:
         self._prefs.show_attract = self._start_toggle.is_on()
         self._prefs.skip_product = self._skip_toggle.is_on()
+        self._prefs.show_product_description = self._desc_toggle.is_on()
         self._prefs.load_api_images = self._images_toggle.is_on()
         self._prefs.breathe_button_text = self._breathe_toggle.is_on()
         self._prefs.payment_sbp_enabled = self._pay_sbp_toggle.is_on()
@@ -976,6 +991,7 @@ class KolomnaAdminPanel(QWidget):
             )
         self._start_toggle.set_on(self._prefs.show_attract)
         self._skip_toggle.set_on(self._prefs.skip_product)
+        self._desc_toggle.set_on(self._prefs.show_product_description)
         self._images_toggle.set_on(self._prefs.load_api_images)
         self._breathe_toggle.set_on(self._prefs.breathe_button_text)
         self._pay_sbp_toggle.set_on(self._prefs.payment_sbp_enabled)

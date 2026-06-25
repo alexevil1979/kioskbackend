@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 from src.models.product import Product
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
+from src.ui.kolomna_prefs import load_kolomna_prefs
 from src.ui.kolomna_product_meta import (
     fmt_price,
     product_description,
@@ -418,7 +419,7 @@ class KolomnaProdRow(QWidget):
             title_weight=QFont.Weight.Black,
         )
 
-        desc_raw = product_description(product)
+        desc_raw = product_description(product) if load_kolomna_prefs().show_product_description else ""
         if desc_raw:
             desc_font = kolomna_font(metrics.fs_lead, QFont.Weight.Medium)
             desc_text, desc_h = _clamp_wrapped_text(desc_raw, desc_font, body_w, max_lines=2)
@@ -601,7 +602,7 @@ class KolomnaProdTile(QWidget):
             title_weight=QFont.Weight.Black,
         )
 
-        desc_raw = product_description(product)
+        desc_raw = product_description(product) if load_kolomna_prefs().show_product_description else ""
         if desc_raw:
             desc_font = kolomna_font(metrics.fs_lead, QFont.Weight.Medium)
             desc_text, desc_h = _clamp_wrapped_text(
@@ -658,7 +659,11 @@ class KolomnaProdTile(QWidget):
             title_weight=QFont.Weight.Black,
         )
 
-        desc_raw = product_description(self._product)
+        desc_raw = (
+            product_description(self._product)
+            if load_kolomna_prefs().show_product_description
+            else ""
+        )
         if desc_raw:
             total += gap
             desc_font = kolomna_font(m.fs_lead, QFont.Weight.Medium)

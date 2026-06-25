@@ -27,6 +27,7 @@ class KolomnaPrefs:
     lang: str = "ru"
     # False — тестовый каталог/оплата; True — API Катюша (переключается в настройках).
     api_mode: bool = False
+    show_product_description: bool = True
 
 
 def normalize_payment_methods(prefs: KolomnaPrefs) -> None:
@@ -76,6 +77,7 @@ def load_kolomna_prefs(settings: Settings | None = None) -> KolomnaPrefs:
             hours=str(raw.get("hours", "Ежедневно 10:00–19:00")),
             lang=lang,
             api_mode=api_mode,
+            show_product_description=bool(raw.get("show_product_description", True)),
         )
         normalize_payment_methods(prefs)
         return prefs
