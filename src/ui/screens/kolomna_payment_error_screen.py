@@ -2,19 +2,20 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from src.core.config import Settings
 from src.core.payment_error_message import CONTACT_LINE
 from src.ui import kolomna_strings as S
-from src.ui.kolomna_cta import cta_palette
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_tokens import CREAM, GREEN, INK_60, KolomnaMetrics, STRAWBERRY, scale
 from src.ui.screens.base_screen import BaseScreen
+from src.ui.widgets.kolomna_cart_footbar import PaySumPillBtn, _FootPillBtn
 
 
 class KolomnaPaymentErrorScreen(BaseScreen):
     retry = pyqtSignal()
+    go_payment = pyqtSignal()
     to_menu = pyqtSignal()
 
     def __init__(self, settings: Settings) -> None:
@@ -91,18 +92,29 @@ class KolomnaPaymentErrorScreen(BaseScreen):
         order_lay.addWidget(self._order_no)
         self._order_box = order_box
 
-        self._retry_btn = QPushButton(S.PAY_ERROR_RETRY)
-        self._retry_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._retry_btn.setMinimumHeight(self._m.footbar_btn_h)
-        self._retry_btn.setFont(kolomna_font(self._m.fs_body, QFont.Weight.Black))
+        btn_w = scale(760, w)
+        btns = QWidget()
+        btns.setStyleSheet("background: transparent;")
+        btns_lay = QVBoxLayout(btns)
+        btns_lay.setContentsMargins(0, 0, 0, 0)
+        btns_lay.setSpacing(scale(8, w))
+
+        self._pay_btn = PaySumPillBtn(self._m, S.CHECKOUT)
+        self._pay_btn.setMinimumWidth(btn_w)
+        self._pay_btn.clicked.connect(self.go_payment.emit)
+
+        self._retry_btn = PaySumPillBtn(self._m, S.PAY_ERROR_RETRY)
+        self._retry_btn.setMinimumWidth(btn_w)
         self._retry_btn.clicked.connect(self.retry.emit)
 
-        self._menu_btn = QPushButton(S.PAY_ERROR_MENU)
-        self._menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._menu_btn.setMinimumHeight(self._m.footbar_btn_h)
-        self._menu_btn.setFont(kolomna_font(self._m.fs_body, QFont.Weight.ExtraBold))
+        self._menu_btn = _FootPillBtn(self._m, ghost=True)
+        self._menu_btn.setMinimumWidth(btn_w)
+        self._menu_btn.setText(S.PAY_ERROR_MENU)
         self._menu_btn.clicked.connect(self.to_menu.emit)
-        self.refresh_cta()
+
+        btns_lay.addWidget(self._pay_btn)
+        btns_lay.addWidget(self._retry_btn)
+        btns_lay.addWidget(self._menu_btn)
 
         lay.addWidget(self._icon, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self._title, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -110,9 +122,8 @@ class KolomnaPaymentErrorScreen(BaseScreen):
         lay.addWidget(self._contact, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self._phone_lbl, alignment=Qt.AlignmentFlag.AlignHCenter)
         lay.addWidget(self._order_box, alignment=Qt.AlignmentFlag.AlignHCenter)
-        lay.addSpacing(scale(12, w))
-        lay.addWidget(self._retry_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
-        lay.addWidget(self._menu_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
+        lay.addSpacing(scale(4, w))
+        lay.addWidget(btns, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         self._layout.addWidget(inner)
 
@@ -143,22 +154,15 @@ class KolomnaPaymentErrorScreen(BaseScreen):
             self._order_box.hide()
 
     def refresh_cta(self) -> None:
-        pal = cta_palette()
-        w = self._m.width
-        self._retry_btn.setStyleSheet(
-            f"QPushButton {{ background: {pal.bg}; color: {pal.fg}; border: none; "
-            f"border-radius: 999px; padding: 0 {scale(48, w)}px; min-width: {scale(520, w)}px; }}"
-        )
-        self._menu_btn.setStyleSheet(
-            f"QPushButton {{ background: {CREAM}; color: {GREEN}; border: {max(2, scale(3, w))}px solid {GREEN}; "
-            f"border-radius: 999px; padding: 0 {scale(48, w)}px; min-width: {scale(520, w)}px; }}"
-            f"QPushButton:pressed {{ background: rgba(31,77,42,0.08); }}"
-        )
+        self._pay_btn.refresh_cta()
+        self._retry_btn.refresh_cta()
+        self._menu_btn.refresh_cta()
 
     def retranslate(self) -> None:
         self._title.setText(S.PAY_ERROR_TITLE)
         self._contact.setText(S.PAY_ERROR_CONTACT)
         self._order_caption.setText(S.ORDER_NO)
-        self._retry_btn.setText(S.PAY_ERROR_RETRY)
+        self._pay_btn.set_label(S.CHECKOUT)
+        self._retry_btn.set_label(S.PAY_ERROR_RETRY)
         self._menu_btn.setText(S.PAY_ERROR_MENU)
         self._apply_content()

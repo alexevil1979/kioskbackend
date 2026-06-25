@@ -198,10 +198,13 @@ class MainWindow(QMainWindow):
         card_scr.completed.connect(self._on_card_completed)
         if kolomna:
             err = KolomnaPaymentErrorScreen(s)
+            err.retry.connect(lambda: self._nav.go(AppScreen.PAYMENT_METHOD))
+            err.go_payment.connect(self._go_payment)
+            err.to_menu.connect(self._full_reset)
         else:
             err = PaymentErrorScreen()
-        err.retry.connect(lambda: self._nav.go(AppScreen.PAYMENT_METHOD))
-        err.to_menu.connect(self._full_reset)
+            err.retry.connect(lambda: self._nav.go(AppScreen.PAYMENT_METHOD))
+            err.to_menu.connect(self._full_reset)
 
         offline = OfflineScreen()
         offline.retry.connect(self._catalog.refresh)
