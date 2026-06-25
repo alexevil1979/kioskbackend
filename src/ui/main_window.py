@@ -238,7 +238,7 @@ class MainWindow(QMainWindow):
         from src.ui.kolomna_i18n import set_lang
         from src.ui.kolomna_prefs import load_kolomna_prefs
 
-        prefs = load_kolomna_prefs()
+        prefs = load_kolomna_prefs(self._settings)
         set_lang(prefs.lang)
         self._retranslate_kolomna()
 
@@ -773,6 +773,7 @@ class MainWindow(QMainWindow):
     def _on_kolomna_prefs_changed(self, prefs) -> None:
         from src.core.state_machine import AppScreen
 
+        self._apply_kolomna_api_mode(prefs)
         self._refresh_kolomna_cta()
         if prefs.load_api_images:
             self._catalog.refresh()
@@ -785,6 +786,21 @@ class MainWindow(QMainWindow):
         self._refresh_kolomna_product_images()
         if self._nav.current == AppScreen.START and not prefs.show_attract:
             self._nav.go(AppScreen.CATEGORIES, replace=True)
+
+    def _apply_kolomna_api_mode(self, prefs) -> None:
+        from src.ui.kolomna_runtime_mode import apply_prefs_api_mode
+
+        if not apply_prefs_api_mode(self._settings, prefs.api_mode):
+            return
+        self._catalog.reconnect_crm()
+        self._sbp = SbpPaymentService(self._settings, self._catalog.crm)
+        logger.info(
+            "Режим работы: %s (CRM mock=%s, СБП mock=%s)",
+            "API" if prefs.api_mode else "тест",
+            self._settings.crm.use_mock,
+            self._settings.payment.sbp.use_mock,
+        )
+        self._catalog.refresh()
 
     def _refresh_kolomna_product_images(self) -> None:
         from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt

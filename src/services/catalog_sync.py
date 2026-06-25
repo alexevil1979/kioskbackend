@@ -50,6 +50,9 @@ class CatalogStore(QObject):
     def crm(self) -> CRMClient:
         return self._crm
 
+    def reconnect_crm(self) -> None:
+        self._crm = create_crm_client(self._settings)
+
     def product_by_id(self, product_id: str) -> Product | None:
         for p in self._products:
             if p.id == product_id:

@@ -63,6 +63,13 @@ def _install_excepthook() -> None:
 
 def run() -> int:
     settings = load_settings()
+    if settings.app.ui_theme == "kolomna":
+        from src.ui.kolomna_prefs import load_kolomna_prefs
+        from src.ui.kolomna_runtime_mode import apply_prefs_api_mode
+
+        prefs = load_kolomna_prefs(settings)
+        apply_prefs_api_mode(settings, prefs.api_mode)
+
     setup_logging(settings)
     _install_excepthook()
 

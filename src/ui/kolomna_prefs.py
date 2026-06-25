@@ -6,7 +6,7 @@ import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from src.core.config import ROOT
+from src.core.config import ROOT, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,8 @@ class KolomnaPrefs:
     payment_card_enabled: bool = True
     hours: str = "Ежедневно 10:00–19:00"
     lang: str = "ru"
+    # False — тестовый каталог/оплата; True — API Катюша (переключается в настройках).
+    api_mode: bool = False
 
 
 def normalize_payment_methods(prefs: KolomnaPrefs) -> None:
@@ -43,7 +45,7 @@ def enabled_payment_methods(prefs: KolomnaPrefs) -> list[str]:
     return out
 
 
-def load_kolomna_prefs() -> KolomnaPrefs:
+def load_kolomna_prefs(settings: Settings | None = None) -> KolomnaPrefs:
     from src.ui.kolomna_cta import normalize_cta_color
 
     if not PREFS_PATH.is_file():
@@ -56,6 +58,12 @@ def load_kolomna_prefs() -> KolomnaPrefs:
         layout = str(raw.get("menu_layout", "list"))
         if layout not in ("list", "grid"):
             layout = "list"
+        if "api_mode" in raw:
+            api_mode = bool(raw["api_mode"])
+        elif settings is not None:
+            api_mode = not settings.crm.use_mock
+        else:
+            api_mode = False
         prefs = KolomnaPrefs(
             show_attract=bool(raw.get("show_attract", True)),
             menu_layout=layout,
@@ -67,6 +75,7 @@ def load_kolomna_prefs() -> KolomnaPrefs:
             payment_card_enabled=bool(raw.get("payment_card_enabled", True)),
             hours=str(raw.get("hours", "Ежедневно 10:00–19:00")),
             lang=lang,
+            api_mode=api_mode,
         )
         normalize_payment_methods(prefs)
         return prefs
