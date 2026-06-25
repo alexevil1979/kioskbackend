@@ -103,9 +103,12 @@ class KolomnaMenuScreen(BaseScreen):
         if self._category_id == KOLOMNA_TOURS_ID:
             return hub_label_for_slot(3)
         berry_cats = kolomna_berry_categories(self._catalog.categories)
-        for i, c in enumerate(berry_cats):
+        for c in berry_cats:
             if c.id == self._category_id:
-                return hub_label_for_slot(i)
+                slot = hub_slot_index_for_category(
+                    self._catalog.categories, self._category_id
+                )
+                return hub_label_for_slot(slot)
         for c in self._catalog.categories:
             if c.id == self._category_id:
                 return c.name.strip()
@@ -115,9 +118,12 @@ class KolomnaMenuScreen(BaseScreen):
         if not self._category_id:
             return kolomna_card_accent(0)
         berry_cats = kolomna_berry_categories(self._catalog.categories)
-        for i, c in enumerate(berry_cats):
+        for c in berry_cats:
             if c.id == self._category_id:
-                return kolomna_card_accent(i)
+                slot = hub_slot_index_for_category(
+                    self._catalog.categories, self._category_id
+                )
+                return kolomna_card_accent(slot)
         return kolomna_card_accent(0)
 
     def _products(self) -> list[Product]:
