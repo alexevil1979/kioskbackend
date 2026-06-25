@@ -1,22 +1,73 @@
 from __future__ import annotations
 
 import logging
+import math
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QRectF
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from src.core.config import ROOT, Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_product_meta import fmt_price
-from src.ui.kolomna_tokens import CREAM, GREEN, INK_60, KolomnaMetrics, scale
+from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, scale
 from src.ui.qr_render import render_qr_pixmap
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.kolomna_pay_due import KolomnaPayDueRow
 from src.ui.widgets.kolomna_topbar import KolomnaTopBar
 
 logger = logging.getLogger(__name__)
+
+
+class _QrGenRingSpinner(QWidget):
+    """Кольцо загрузки QR: бегущая дуга по контуру."""
+
+    def __init__(self, size: int, stroke: int, parent=None) -> None:
+        super().__init__(parent)
+        self._stroke = max(2, stroke)
+        self._angle = 0.0
+        self._phase = 0.0
+        self.setFixedSize(size, size)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
+        self._timer = QTimer(self)
+        self._timer.setInterval(32)
+        self._timer.timeout.connect(self._tick)
+
+    def start(self) -> None:
+        if not self._timer.isActive():
+            self._timer.start()
+
+    def stop(self) -> None:
+        self._timer.stop()
+
+    def _tick(self) -> None:
+        self._angle = (self._angle + 5.5) % 360.0
+        self._phase = (self._phase + 4.0) % 360.0
+        self.update()
+
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        inset = self._stroke / 2.0 + 1.0
+        rect = QRectF(inset, inset, self.width() - inset * 2, self.height() - inset * 2)
+
+        track = QPen(QColor(CREAM_DEEP))
+        track.setWidth(self._stroke)
+        track.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(track)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(rect)
+
+        span = 55.0 + 95.0 * (0.5 + 0.5 * math.sin(math.radians(self._phase)))
+        arc = QPen(QColor(GREEN))
+        arc.setWidth(self._stroke)
+        arc.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(arc)
+        start_qt = int((90.0 - self._angle) * 16.0)
+        span_qt = int(-span * 16.0)
+        p.drawArc(rect, start_qt, span_qt)
+        p.end()
 
 
 class KolomnaSbpScreen(BaseScreen):
@@ -60,12 +111,7 @@ class KolomnaSbpScreen(BaseScreen):
         self._instr.setFont(kolomna_font(self._m.fs_h3, QFont.Weight.ExtraBold))
         self._instr.setStyleSheet(f"color: {GREEN}; background: transparent;")
 
-        self._spinner = QLabel()
-        self._spinner.setFixedSize(scale(140, w), scale(140, w))
-        self._spinner.setStyleSheet(
-            f"QLabel {{ background: transparent; border: {scale(16, w)}px solid #ECE0BC; "
-            f"border-top-color: {GREEN}; border-radius: {scale(70, w)}px; }}"
-        )
+        self._spinner = _QrGenRingSpinner(scale(140, w), scale(16, w))
 
         self._gen_title = QLabel(S.PAY_SBP_GEN)
         self._gen_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -119,6 +165,7 @@ class KolomnaSbpScreen(BaseScreen):
         self._instr.hide()
         self._qr_host.hide()
         self._spinner.show()
+        self._spinner.start()
         self._gen_title.show()
         self._gen_sub.show()
 
@@ -134,6 +181,7 @@ class KolomnaSbpScreen(BaseScreen):
             self._due_row.hide()
 
     def _show_qr(self) -> None:
+        self._spinner.stop()
         self._spinner.hide()
         self._gen_title.hide()
         self._gen_sub.hide()
@@ -193,6 +241,7 @@ class KolomnaSbpScreen(BaseScreen):
     def stop(self) -> None:
         self._countdown.stop()
         self._spin_timer.stop()
+        self._spinner.stop()
 
     def _tick(self) -> None:
         self._remaining -= 1
