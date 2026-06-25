@@ -307,7 +307,6 @@ class KolomnaToursScreen(BaseScreen):
         self._date_cards: list[_TourDateCard] = []
         self._tour_dates: list[TourDate] = []
         self._selected_date_id: str | None = None
-        self._adult_price_label: QLabel | None = None
 
         self.setStyleSheet(f"background: {CREAM};")
         self.setFixedSize(w, h)
@@ -356,15 +355,8 @@ class KolomnaToursScreen(BaseScreen):
         self._product = resolve_tour_product(self._catalog.categories, self._catalog.products)
         if hasattr(self, "_add_btn"):
             self._update_add_btn()
-        if self._adult_price_label is not None:
-            self._adult_price_label.setText(self._tour_unit_price_text())
         if self._ticket_art is not None:
             self._ticket_art.refresh_image()
-
-    def _tour_unit_price_text(self) -> str:
-        if not self._product:
-            return ""
-        return f"{fmt_price(self._product.price_rub)}\u00a0{S.CUR} • {S.PER_PERSON}"
 
     def _build_coupon(self) -> QWidget:
         m = self._m
@@ -490,13 +482,7 @@ class KolomnaToursScreen(BaseScreen):
         t.setFont(kolomna_font(scale(34, w), QFont.Weight.ExtraBold))
         t.setStyleSheet(f"color: {GREEN}; background: transparent;")
         lay.addWidget(t)
-        if priced:
-            price = QLabel(self._tour_unit_price_text())
-            price.setFont(kolomna_font(scale(24, w), QFont.Weight.Bold))
-            price.setStyleSheet(f"color: {INK_60}; background: transparent;")
-            lay.addWidget(price)
-            self._adult_price_label = price
-        elif not priced:
+        if not priced:
             free = QLabel(S.TOUR_GUEST_FREE)
             free.setFont(kolomna_font(scale(24, w), QFont.Weight.Bold))
             free.setStyleSheet(f"color: {GREEN}; background: transparent;")

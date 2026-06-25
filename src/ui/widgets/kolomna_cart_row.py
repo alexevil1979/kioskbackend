@@ -10,13 +10,17 @@ from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_product_meta import (
     fmt_price,
     product_pack_label,
-    product_title,
     tour_cart_guests_label,
 )
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, GREEN_DEEP, INK_60, KolomnaMetrics, RASPBERRY, YELLOW, scale
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 from src.ui.widgets.kolomna_logo import BerryDrop
-from src.ui.widgets.kolomna_prod_row import _PackChip, _clamp_wrapped_text, _paint_card_shadow, card_shadow_bleed
+from src.ui.widgets.kolomna_prod_row import (
+    _PackChip,
+    _paint_card_shadow,
+    append_kolomna_product_titles,
+    card_shadow_bleed,
+)
 from src.ui.widgets.kolomna_qty_control import KolomnaQtyControl
 
 _STRIPE_ALT = "#e6d8b2"
@@ -207,7 +211,6 @@ class KolomnaCartRow(QWidget):
         body.setSpacing(scale(12, metrics.width))
 
         sum_w = scale(190, metrics.width)
-        name_font = kolomna_font(metrics.fs_h3, QFont.Weight.ExtraBold)
         body_w = max(
             40,
             metrics.width
@@ -217,20 +220,14 @@ class KolomnaCartRow(QWidget):
             - 2 * scale(28, metrics.width)
             - sum_w,
         )
-        name_text, name_h = _clamp_wrapped_text(
-            product_title(line.product),
-            name_font,
-            body_w,
-            max_lines=2,
+        append_kolomna_product_titles(
+            body,
+            line.product,
+            metrics=metrics,
+            title_px=metrics.fs_h3,
+            body_w=body_w,
+            title_weight=QFont.Weight.ExtraBold,
         )
-        name = QLabel(name_text)
-        name.setWordWrap(True)
-        name.setMinimumWidth(0)
-        name.setFixedHeight(name_h)
-        name.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        name.setFont(name_font)
-        name.setStyleSheet(f"color: {GREEN}; background: transparent;")
-        body.addWidget(name)
 
         if line.is_tour:
             guests = QLabel(tour_cart_guests_label(line.quantity, line.tour_kids))

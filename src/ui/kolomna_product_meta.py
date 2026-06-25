@@ -40,18 +40,6 @@ def _strip_pack_from_title(name: str) -> str:
     return stripped or name.strip()
 
 
-def _strip_redundant_category(title: str, category: str) -> str:
-    """Убираем «Клубника» из «Клубника на ферме…», если раздел уже известен."""
-    cat = category.strip()
-    if not cat:
-        return title
-    t = title.strip()
-    if t.lower().startswith(cat.lower()):
-        rest = t[len(cat) :].lstrip(" ·•—-–/")
-        return rest or t
-    return t
-
-
 def product_title(product: Product) -> str:
     key = _grade_key(product.name)
     if key == "premium":
@@ -60,10 +48,18 @@ def product_title(product: Product) -> str:
         return S.GRADE_STANDARD
     if key == "jam":
         return S.GRADE_JAM
-    title = _strip_pack_from_title(product.name)
-    if catalog_from_live_api():
-        title = _strip_redundant_category(title, product.category_name)
-    return title
+    return _strip_pack_from_title(product.name)
+
+
+def product_variant_label(product: Product) -> str:
+    variant = product.variant_name.strip()
+    if not variant:
+        return ""
+    base = product.name.strip()
+    if base and variant.lower().startswith(base.lower()):
+        rest = variant[len(base) :].lstrip(" ·•—-–/")
+        return rest or variant
+    return variant
 
 
 def product_description(product: Product) -> str:
@@ -134,7 +130,7 @@ def tour_cart_guests_label(adults: int, kids: int) -> str:
 
 
 def full_product_name(product: Product) -> str:
-    return product_title(product)
+    return product.display_name
 
 
 def n_items_label(count: int) -> str:

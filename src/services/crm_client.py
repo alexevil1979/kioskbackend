@@ -223,13 +223,12 @@ def _parse_product(row: dict[str, Any]) -> Product | None:
 
 def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
     pid = str(row.get("id", "")).strip()
-    name = str(row.get("name") or "").strip()
-    variant = str(row.get("variant_name") or "").strip()
-    if not name:
-        name = variant
-    elif variant:
-        name = f"{name} {variant}".strip()
-    if not pid or not name:
+    base_name = str(row.get("name") or "").strip()
+    variant_name = str(row.get("variant_name") or "").strip()
+    if not base_name:
+        base_name = variant_name
+        variant_name = ""
+    if not pid or not base_name:
         return None
 
     api_product_id = int(row.get("product_id") or 0)
@@ -290,7 +289,7 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
     return Product(
         pid,
         category_id,
-        name,
+        base_name,
         price,
         image_url=image_url,
         stock=stock,
@@ -301,6 +300,7 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
         producer_name=producer_name,
         api_product_id=api_product_id,
         variant_id=variant_id,
+        variant_name=variant_name,
         is_weight_variable=bool(row.get("is_weight_variable")),
     )
 

@@ -19,6 +19,7 @@ from src.ui.kolomna_product_meta import (
     product_description,
     product_pack_label,
     product_title,
+    product_variant_label,
 )
 from src.ui.kolomna_tokens import CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, YELLOW, scale
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
@@ -72,6 +73,97 @@ def _clamp_wrapped_text(
             last = last[:-1].rstrip()
         lines[-1] = f"{last}{ell}" if last else ell
     return "\n".join(lines), line_h * max(len(lines), 1)
+
+
+def kolomna_product_titles_height(
+    product: Product,
+    *,
+    metrics: KolomnaMetrics,
+    title_px: int,
+    body_w: int,
+    title_weight: QFont.Weight = QFont.Weight.Black,
+    max_title_lines: int = 2,
+    max_variant_lines: int = 2,
+) -> int:
+    title_font = kolomna_font(title_px, title_weight)
+    _, title_h = _clamp_wrapped_text(
+        product_title(product),
+        title_font,
+        body_w,
+        max_lines=max_title_lines,
+        line_height=1.2,
+    )
+    total = title_h
+    variant_raw = product_variant_label(product)
+    if variant_raw:
+        v_px = variant_px if variant_px is not None else metrics.fs_lead
+        variant_font = kolomna_font(v_px, QFont.Weight.Medium)
+        _, variant_h = _clamp_wrapped_text(
+            variant_raw,
+            variant_font,
+            body_w,
+            max_lines=max_variant_lines,
+            line_height=1.35,
+        )
+        total += variant_h
+    return total
+
+
+def append_kolomna_product_titles(
+    lay: QVBoxLayout,
+    product: Product,
+    *,
+    metrics: KolomnaMetrics,
+    title_px: int,
+    body_w: int,
+    title_weight: QFont.Weight = QFont.Weight.Black,
+    variant_px: int | None = None,
+    max_title_lines: int = 2,
+    max_variant_lines: int = 2,
+) -> int:
+    """Заголовок карточки: name и отдельно variant_name с API."""
+    title_font = kolomna_font(title_px, title_weight)
+    title_text, title_h = _clamp_wrapped_text(
+        product_title(product),
+        title_font,
+        body_w,
+        max_lines=max_title_lines,
+        line_height=1.2,
+    )
+    title = QLabel(title_text)
+    title.setWordWrap(True)
+    title.setMinimumWidth(0)
+    title.setMaximumWidth(body_w)
+    title.setFixedHeight(title_h)
+    title.setFont(title_font)
+    title.setStyleSheet(f"color: {GREEN}; background: transparent;")
+    lay.addWidget(title)
+    total_h = title_h
+
+    variant_raw = product_variant_label(product)
+    if variant_raw:
+        v_px = variant_px if variant_px is not None else metrics.fs_lead
+        variant_font = kolomna_font(v_px, QFont.Weight.Medium)
+        variant_text, variant_h = _clamp_wrapped_text(
+            variant_raw,
+            variant_font,
+            body_w,
+            max_lines=max_variant_lines,
+            line_height=1.35,
+        )
+        variant = QLabel(variant_text)
+        variant.setWordWrap(True)
+        variant.setMinimumWidth(0)
+        variant.setMaximumWidth(body_w)
+        variant.setFixedHeight(variant_h)
+        variant.setFont(variant_font)
+        variant.setStyleSheet(
+            f"color: {INK_60}; background: transparent; line-height: 135%;"
+        )
+        lay.addWidget(variant)
+        total_h += variant_h
+
+    return total_h
 
 
 class _PackChip(QWidget):
@@ -313,19 +405,22 @@ class KolomnaProdRow(QWidget):
         )
         body.setSpacing(scale(14, metrics.width))
 
-        title = QLabel(product_title(product))
-        title.setWordWrap(True)
-        title.setFont(kolomna_font(metrics.fs_h2, QFont.Weight.Black))
-        title.setStyleSheet(f"color: {GREEN}; background: transparent;")
-        body.addWidget(title)
+        body_w = max(
+            40,
+            metrics.width - 2 * metrics.gap - media_w - scale(28, metrics.width) - scale(36, metrics.width),
+        )
+        append_kolomna_product_titles(
+            body,
+            product,
+            metrics=metrics,
+            title_px=metrics.fs_h2,
+            body_w=body_w,
+            title_weight=QFont.Weight.Black,
+        )
 
         desc_raw = product_description(product)
         if desc_raw:
             desc_font = kolomna_font(metrics.fs_lead, QFont.Weight.Medium)
-            body_w = max(
-                40,
-                metrics.width - 2 * metrics.gap - media_w - scale(28, metrics.width) - scale(36, metrics.width),
-            )
             desc_text, desc_h = _clamp_wrapped_text(desc_raw, desc_font, body_w, max_lines=2)
             d = QLabel(desc_text)
             d.setWordWrap(True)
@@ -497,18 +592,14 @@ class KolomnaProdTile(QWidget):
         )
         body_lay.setSpacing(scale(14, metrics.width))
 
-        title_font = kolomna_font(metrics.fs_h3, QFont.Weight.Black)
-        title_text, title_h = _clamp_wrapped_text(
-            product_title(product), title_font, self._body_w, max_lines=2, line_height=1.2
+        append_kolomna_product_titles(
+            body_lay,
+            product,
+            metrics=metrics,
+            title_px=metrics.fs_h3,
+            body_w=self._body_w,
+            title_weight=QFont.Weight.Black,
         )
-        title = QLabel(title_text)
-        title.setWordWrap(True)
-        title.setMinimumWidth(0)
-        title.setMaximumWidth(self._body_w)
-        title.setFixedHeight(title_h)
-        title.setFont(title_font)
-        title.setStyleSheet(f"color: {GREEN}; background: transparent;")
-        body_lay.addWidget(title)
 
         desc_raw = product_description(product)
         if desc_raw:
@@ -559,15 +650,13 @@ class KolomnaProdTile(QWidget):
         gap = scale(14, m.width)
         total = pad_t + pad_b
 
-        title_font = kolomna_font(m.fs_h3, QFont.Weight.Black)
-        _, title_h = _clamp_wrapped_text(
-            product_title(self._product),
-            title_font,
-            bw,
-            max_lines=2,
-            line_height=1.2,
+        total += kolomna_product_titles_height(
+            self._product,
+            metrics=m,
+            title_px=m.fs_h3,
+            body_w=bw,
+            title_weight=QFont.Weight.Black,
         )
-        total += title_h
 
         desc_raw = product_description(self._product)
         if desc_raw:

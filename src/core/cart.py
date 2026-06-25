@@ -91,6 +91,13 @@ class Cart(QObject):
         self._lines.clear()
         self.changed.emit()
 
+    def sync_products_from_catalog(self, catalog) -> None:
+        """Подтянуть актуальные name/variant_name с каталога перед показом корзины."""
+        for line in self._lines.values():
+            fresh = catalog.product_by_id(line.product.id)
+            if fresh is not None:
+                line.product = fresh
+
     @property
     def lines(self) -> list[CartLine]:
         return list(self._lines.values())

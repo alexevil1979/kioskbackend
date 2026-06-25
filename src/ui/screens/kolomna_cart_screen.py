@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.cart import Cart
 from src.core.config import Settings
+from src.services.catalog_sync import CatalogStore
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_cta import cta_palette
 from src.ui.kolomna_fonts import kolomna_font
@@ -83,9 +84,10 @@ class KolomnaCartScreen(BaseScreen):
     continue_shopping = pyqtSignal()
     pay = pyqtSignal()
 
-    def __init__(self, cart: Cart, settings: Settings) -> None:
+    def __init__(self, cart: Cart, catalog: CatalogStore, settings: Settings) -> None:
         super().__init__()
         self._cart = cart
+        self._catalog = catalog
         w = settings.app.content_width
         h = settings.app.content_height
         self._m = KolomnaMetrics.from_viewport(w, h)
@@ -127,6 +129,7 @@ class KolomnaCartScreen(BaseScreen):
         self._layout.addWidget(self._footbar)
 
         cart.changed.connect(self._rebuild)
+        catalog.updated.connect(self._rebuild)
         self._rebuild()
 
     def _viewport_main_height(self) -> int:
@@ -176,6 +179,7 @@ class KolomnaCartScreen(BaseScreen):
         return panel
 
     def _rebuild(self) -> None:
+        self._cart.sync_products_from_catalog(self._catalog)
         while self._list.count():
             item = self._list.takeAt(0)
             if item.widget():

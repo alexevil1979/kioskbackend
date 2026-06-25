@@ -26,7 +26,17 @@ class Product:
     producer_name: str = ""
     api_product_id: int = 0
     variant_id: int = 0
+    variant_name: str = ""
     is_weight_variable: bool = False
+
+    @property
+    def display_name(self) -> str:
+        """name + variant_name для чеков и API-логов."""
+        base = self.name.strip()
+        variant = self.variant_name.strip()
+        if base and variant:
+            return f"{base} {variant}"
+        return base or variant
 
     @property
     def in_stock(self) -> bool:

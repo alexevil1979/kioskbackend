@@ -13,6 +13,7 @@ from src.ui.kolomna_product_meta import (
     product_pack_label,
     product_title,
     product_unit_word,
+    product_variant_label,
 )
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, YELLOW, scale
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
@@ -154,6 +155,15 @@ class KolomnaProductOverlay(QWidget):
         self._title.setStyleSheet(f"color: {GREEN}; background: transparent;")
         info_lay.addWidget(self._title)
 
+        self._variant = QLabel()
+        self._variant.setWordWrap(True)
+        self._variant.setFont(kolomna_font(metrics.fs_lead, QFont.Weight.Medium))
+        self._variant.setStyleSheet(
+            f"color: {INK_60}; background: transparent; line-height: 135%;"
+        )
+        self._variant.hide()
+        info_lay.addWidget(self._variant)
+
         self._desc = QLabel()
         self._desc.setWordWrap(True)
         self._desc.setFont(kolomna_font(metrics.fs_lead, QFont.Weight.Medium))
@@ -281,6 +291,13 @@ class KolomnaProductOverlay(QWidget):
         self._media_lay.addWidget(self._berry_art)
 
         self._title.setText(product_title(product))
+        variant = product_variant_label(product)
+        if variant:
+            self._variant.setText(variant)
+            self._variant.show()
+        else:
+            self._variant.clear()
+            self._variant.hide()
         desc = product_description(product)
         self._desc.setText(desc)
         self._desc.setVisible(bool(desc))
