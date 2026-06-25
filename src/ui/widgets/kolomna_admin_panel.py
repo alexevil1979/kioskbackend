@@ -16,12 +16,53 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_cta import cta_swatch_check_color, normalize_cta_color
 from src.ui.kolomna_prefs import KolomnaPrefs, save_kolomna_prefs
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, KolomnaMetrics, scale
+from src.ui.kolomna_runtime_mode import runtime_mode_rows
 from src.ui.scroll_utils import enable_kinetic_scroll
+
+
+class _AdminRuntimeRows(QWidget):
+    """Строки «Каталог / Оплата / Интеграция» — только просмотр."""
+
+    def __init__(self, settings: Settings, metrics: KolomnaMetrics, parent=None) -> None:
+        super().__init__(parent)
+        self._settings = settings
+        self._m = metrics
+        self._pairs: list[tuple[QLabel, QLabel]] = []
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(scale(20, metrics.width))
+        pad_h = scale(32, metrics.width)
+        pad_v = scale(24, metrics.width)
+        for title, value in runtime_mode_rows(settings):
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            row_lay = QHBoxLayout(row)
+            row_lay.setContentsMargins(pad_h, pad_v, pad_h, pad_v)
+            row_lay.setSpacing(scale(16, metrics.width))
+            name = QLabel(title)
+            name.setFont(kolomna_font(metrics.fs_body, QFont.Weight.Medium))
+            name.setStyleSheet(f"color: {INK_60}; background: transparent;")
+            val = QLabel(value)
+            val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            val.setFont(kolomna_font(metrics.fs_body, QFont.Weight.ExtraBold))
+            val.setStyleSheet(f"color: {GREEN}; background: transparent;")
+            row_lay.addWidget(name, stretch=1)
+            row_lay.addWidget(val, stretch=1)
+            lay.addWidget(row)
+            self._pairs.append((name, val))
+
+    def refresh(self) -> None:
+        for (name_lbl, val_lbl), (title, value) in zip(
+            self._pairs, runtime_mode_rows(self._settings), strict=True
+        ):
+            name_lbl.setText(title)
+            val_lbl.setText(value)
 
 
 def _card_shadow(widget: QWidget, metrics: KolomnaMetrics) -> None:
@@ -577,9 +618,17 @@ class KolomnaAdminPanel(QWidget):
     prefs_changed = pyqtSignal(KolomnaPrefs)
     quit_requested = pyqtSignal()
 
-    def __init__(self, metrics: KolomnaMetrics, prefs: KolomnaPrefs, parent=None) -> None:
+    def __init__(
+        self,
+        metrics: KolomnaMetrics,
+        prefs: KolomnaPrefs,
+        *,
+        settings: Settings | None = None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self._m = metrics
+        self._settings = settings
         self._prefs = KolomnaPrefs(
             show_attract=prefs.show_attract,
             menu_layout=prefs.menu_layout,
@@ -653,6 +702,24 @@ class KolomnaAdminPanel(QWidget):
         head_lay.addWidget(eyebrow)
         head_lay.addWidget(title)
         bl.addWidget(head)
+
+        if settings is not None:
+            self._runtime_rows = _AdminRuntimeRows(settings, metrics)
+            bl.addWidget(
+                self._admin_sec(
+                    metrics,
+                    S.ADMIN_RUNTIME_SECTION,
+                    S.ADMIN_RUNTIME_HINT,
+                    _wrap_rounded_card(
+                        self._runtime_rows,
+                        metrics,
+                        border=scale(4, metrics.width),
+                        border_color=CREAM_DEEP,
+                    ),
+                )
+            )
+        else:
+            self._runtime_rows = None
 
         self._start_toggle = _AdminToggleRow(S.ADMIN_START_TOGGLE, self._prefs.show_attract, metrics)
         bl.addWidget(
@@ -892,6 +959,8 @@ class KolomnaAdminPanel(QWidget):
         self._breathe_toggle.set_title(S.ADMIN_BREATHE_TOGGLE)
         self._pay_sbp_toggle.set_title(S.ADMIN_PAY_SBP_TOGGLE)
         self._pay_card_toggle.set_title(S.ADMIN_PAY_CARD_TOGGLE)
+        if self._runtime_rows is not None:
+            self._runtime_rows.refresh()
 
     def _save(self) -> None:
         self._prefs.show_attract = self._start_toggle.is_on()
@@ -913,6 +982,8 @@ class KolomnaAdminPanel(QWidget):
         bar.setValue(bar.maximum() if where == "bottom" else 0)
 
     def show_modal(self, scroll: str = "top") -> None:
+        if self._runtime_rows is not None:
+            self._runtime_rows.refresh()
         self._start_toggle.set_on(self._prefs.show_attract)
         self._skip_toggle.set_on(self._prefs.skip_product)
         self._images_toggle.set_on(self._prefs.load_api_images)

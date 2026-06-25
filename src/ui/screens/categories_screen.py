@@ -130,7 +130,7 @@ class CategoriesScreen(BaseScreen):
 
         self._admin_pin = KolomnaAdminPinModal(self._m, pin, parent=self)
 
-        self._admin_panel = KolomnaAdminPanel(self._m, self._prefs, parent=self)
+        self._admin_panel = KolomnaAdminPanel(self._m, self._prefs, settings=settings, parent=self)
 
         self._admin_pin.pin_accepted.connect(self._admin_panel.show_modal)
 
