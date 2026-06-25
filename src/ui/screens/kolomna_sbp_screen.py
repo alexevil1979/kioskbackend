@@ -149,15 +149,17 @@ class KolomnaSbpScreen(BaseScreen):
         def reveal() -> None:
             from src.ui.kolomna_qr_render import load_cached_qr_pixmap, scale_qr_for_display
 
-            pix = load_cached_qr_pixmap("pay", px=self._qr_pix_sz)
-            if pix.isNull():
+            pix = None
+            if (qr_payload or "").strip() or (qr_image_b64 or "").strip():
                 pix = render_qr_pixmap(
                     payload=qr_payload,
                     image_b64=qr_image_b64,
                     size=self._qr_pix_sz,
                 )
-            elif pix.width() != self._qr_pix_sz:
-                pix = scale_qr_for_display(pix, self._qr_pix_sz)
+            else:
+                pix = load_cached_qr_pixmap("pay", px=self._qr_pix_sz)
+                if not pix.isNull() and pix.width() != self._qr_pix_sz:
+                    pix = scale_qr_for_display(pix, self._qr_pix_sz)
             if pix is not None and not pix.isNull():
                 self._qr.setPixmap(pix)
             else:

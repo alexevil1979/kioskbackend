@@ -13,6 +13,42 @@ from src.ui.kolomna_i18n import hub_label_for_slot
 
 KOLOMNA_TOURS_ID = "__kolomna_tours__"
 
+
+@dataclass(frozen=True)
+class KolomnaApiProductSection:
+    """Подраздел Katusha API: product_id → слот хаба Kolomna."""
+
+    category_id: str
+    display_name: str
+    hub_slot: int | None
+    is_tickets: bool
+
+
+# product_id с API — линейка товара (клубника / малина / экскурсии), не variant_id для заказа.
+KOLOMNA_API_SECTIONS: dict[int, KolomnaApiProductSection] = {
+    6: KolomnaApiProductSection("6", "Клубника", 0, False),
+    7: KolomnaApiProductSection("7", "Малина", 2, False),
+    84: KolomnaApiProductSection("84", "Агротуризм", 3, True),
+}
+
+
+def kolomna_section_for_api_product_id(api_product_id: int) -> KolomnaApiProductSection | None:
+    if api_product_id <= 0:
+        return None
+    return KOLOMNA_API_SECTIONS.get(api_product_id)
+
+
+def is_kolomna_tickets_api_product_id(api_product_id: int) -> bool:
+    section = kolomna_section_for_api_product_id(api_product_id)
+    return bool(section and section.is_tickets)
+
+
+def kolomna_section_for_category_id(category_id: str) -> KolomnaApiProductSection | None:
+    for section in KOLOMNA_API_SECTIONS.values():
+        if section.category_id == category_id:
+            return section
+    return None
+
 _TICKETS_CATEGORY_NEEDLES: tuple[str, ...] = (
     "билет",
     "ticket",
@@ -25,17 +61,24 @@ _TICKETS_CATEGORY_NEEDLES: tuple[str, ...] = (
 
 def is_tickets_category(category: Category) -> bool:
     """Раздел API с билетами / экскурсиями — не ягодный слот хаба."""
+    section = kolomna_section_for_category_id(category.id)
+    if section is not None:
+        return section.is_tickets
     hay = f"{category.id} {category.name}".lower()
     return any(needle in hay for needle in _TICKETS_CATEGORY_NEEDLES)
 
 
 def kolomna_berry_categories(categories: list[Category]) -> list[Category]:
-    """Разделы для слотов 01–03 хаба (без билетов), в порядке API."""
-    return [
-        c
-        for c in sorted(categories, key=_category_sort_key)
-        if not is_tickets_category(c)
-    ][:3]
+    """Разделы для слотов 01–03 хаба (без билетов), по hub_slot из product_id."""
+    berries = [c for c in categories if not is_tickets_category(c)]
+
+    def _berry_sort_key(category: Category) -> tuple[int, int | str, str]:
+        section = kolomna_section_for_category_id(category.id)
+        if section is not None and section.hub_slot is not None and section.hub_slot < 3:
+            return (0, section.hub_slot, category.name)
+        return (1, *_category_sort_key(category)[1:])
+
+    return sorted(berries, key=_berry_sort_key)[:3]
 
 
 def kolomna_tickets_category(categories: list[Category]) -> Category | None:
@@ -51,6 +94,11 @@ def kolomna_tickets_category_id(categories: list[Category]) -> str | None:
 
 
 def is_tour_product(product: Product) -> bool:
+    if is_kolomna_tickets_api_product_id(product.api_product_id):
+        return True
+    section = kolomna_section_for_category_id(product.category_id)
+    if section is not None and section.is_tickets:
+        return True
     if product.category_id == KOLOMNA_TOURS_ID:
         return True
     if product.id in ("kolomna-tour-walk", "tour-walk"):
@@ -175,6 +223,9 @@ def kolomna_product_placeholder_path(product: Product) -> Path | None:
 
 def hub_slot_index_for_category(categories: list[Category], category_id: str) -> int:
     """Индекс 0–2 (клубника / голубика / малина) как в хабе."""
+    section = kolomna_section_for_category_id(category_id)
+    if section is not None and section.hub_slot is not None and section.hub_slot < 3:
+        return section.hub_slot
     for i, cat in enumerate(kolomna_berry_categories(categories)):
         if cat.id == category_id:
             return i
@@ -195,20 +246,34 @@ def hub_berry_pixmap(slot_index: int) -> QPixmap:
     return pix if not pix.isNull() else QPixmap()
 
 
+def _berry_category_for_hub_slot(
+    categories: list[Category], hub_slot: int
+) -> Category | None:
+    berries = kolomna_berry_categories(categories)
+    mapped = [c for c in berries if kolomna_section_for_category_id(c.id) is not None]
+    if mapped:
+        for cat in mapped:
+            section = kolomna_section_for_category_id(cat.id)
+            if section is not None and section.hub_slot == hub_slot:
+                return cat
+        return None
+    if hub_slot < len(berries):
+        return berries[hub_slot]
+    return None
+
+
 def build_kolomna_hub_tiles(categories: list[Category]) -> list[KolomnaHubTile]:
     """4 карточки референса; 01–03 → ягодные разделы API (без билетов), 04 → билеты."""
-    berry_cats = kolomna_berry_categories(categories)
     tickets_cat = kolomna_tickets_category(categories)
     tiles: list[KolomnaHubTile] = []
-    berry_idx = 0
     for i, (num, _label, accent, edge, img_name, is_service) in enumerate(_SLOT_DEFS):
         label = hub_label_for_slot(i)
         cat_id: str | None = None
         if is_service:
             cat_id = tickets_cat.id if tickets_cat else None
-        elif berry_idx < len(berry_cats):
-            cat_id = berry_cats[berry_idx].id
-            berry_idx += 1
+        else:
+            berry_cat = _berry_category_for_hub_slot(categories, i)
+            cat_id = berry_cat.id if berry_cat else None
         img_path = _resolve_pic(img_name) if img_name else None
         tiles.append(
             KolomnaHubTile(

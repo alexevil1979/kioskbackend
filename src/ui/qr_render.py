@@ -57,13 +57,33 @@ def _render_svg(svg_text: str, size: int) -> QPixmap | None:
     return pix
 
 
-def _render_payload(payload: str, size: int) -> QPixmap | None:
-    from src.ui.kolomna_qr_render import load_cached_qr_pixmap, render_kolomna_qr_pixmap, scale_qr_for_display
+def _qr_image_to_pixmap(image_data: str, size: int) -> QPixmap | None:
+    raw = image_data.strip()
+    if not raw:
+        return None
+    if is_svg_markup(raw):
+        return _render_svg(raw, size)
+    try:
+        blob = _decode_image_b64(raw)
+        text = blob.decode("utf-8", errors="ignore")
+        if is_svg_markup(text):
+            return _render_svg(text, size)
+        qimg = QImage.fromData(blob)
+        if not qimg.isNull():
+            return _scale(QPixmap.fromImage(qimg), size)
+    except Exception as exc:
+        logger.warning("Не удалось декодировать qr_code_image: %s", exc)
+    return None
 
-    for px in (size, 264, 560):
-        pix = load_cached_qr_pixmap("pay", px=px)
-        if not pix.isNull():
-            return pix if pix.width() == size else scale_qr_for_display(pix, size)
+
+def _is_nspk_payment_url(text: str) -> bool:
+    low = text.lower()
+    return "qr.nspk.ru" in low
+
+
+def _render_payload(payload: str, size: int) -> QPixmap | None:
+    from src.ui.kolomna_qr_render import render_kolomna_qr_pixmap, scale_qr_for_display
+
     pix = render_kolomna_qr_pixmap(payload, px=560, color="#000000", logo="")
     if pix.isNull():
         return None
@@ -78,20 +98,22 @@ def render_qr_pixmap(
 ) -> QPixmap | None:
     """
     QR для экрана СБП:
-    - qr_code_image (base64/png) от API;
-    - qr_code_payload как SVG (Katusha);
-    - короткий payload (URL / ST00012) — локальная генерация.
+    - payment_url (qr.nspk.ru) — локальная генерация, как на странице НСПК;
+    - qr_code_image (PNG / SVG) от API;
+    - qr_code_payload (ST00012 и др.) — локальная генерация.
     """
-    if image_b64:
-        try:
-            blob = _decode_image_b64(image_b64)
-            qimg = QImage.fromData(blob)
-            if not qimg.isNull():
-                return _scale(QPixmap.fromImage(qimg), size)
-        except Exception as exc:
-            logger.warning("Не удалось декодировать qr_code_image: %s", exc)
-
     text = (payload or "").strip()
+
+    if text and _is_nspk_payment_url(text):
+        pix = _render_payload(text, size)
+        if pix is not None and not pix.isNull():
+            return pix
+
+    if image_b64:
+        pix = _qr_image_to_pixmap(image_b64, size)
+        if pix is not None and not pix.isNull():
+            return pix
+
     if not text:
         return None
 

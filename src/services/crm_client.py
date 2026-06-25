@@ -77,14 +77,18 @@ def _is_katusha_kiosk_api(base_url: str) -> bool:
 
 
 def _extract_qr_fields(data: dict[str, Any]) -> tuple[str, str]:
-    """qr_code_payload / qr_code_image (+ camelCase и payment_url как fallback)."""
+    """qr_code_payload / payment_url для генерации QR; qr_code_image — SVG/PNG от API."""
     payload = str(
         data.get("qr_code_payload")
         or data.get("qrCodePayload")
-        or data.get("payment_url")
-        or data.get("paymentUrl")
         or ""
     ).strip()
+    if not payload:
+        payload = str(
+            data.get("payment_url")
+            or data.get("paymentUrl")
+            or ""
+        ).strip()
     image = str(data.get("qr_code_image") or data.get("qrCodeImage") or "").strip()
     return payload, image
 
@@ -228,14 +232,29 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
     if not pid or not name:
         return None
 
-    cat_id = row.get("main_category_id")
-    cat_name = str(row.get("main_category_name") or "").strip()
-    if cat_id is not None:
-        category_id = str(cat_id)
-    elif cat_name:
-        category_id = f"n:{cat_name}"
+    api_product_id = int(row.get("product_id") or 0)
+    variant_id = int(row.get("variant_id") or 0)
+    if not api_product_id or not variant_id:
+        parts = pid.split("_", 1)
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            api_product_id = api_product_id or int(parts[0])
+            variant_id = variant_id or int(parts[1])
+
+    from src.ui.kolomna_catalog import kolomna_section_for_api_product_id
+
+    section = kolomna_section_for_api_product_id(api_product_id)
+    if section is not None:
+        category_id = section.category_id
+        cat_name = section.display_name
     else:
-        category_id = "misc"
+        cat_id = row.get("main_category_id")
+        cat_name = str(row.get("main_category_name") or "").strip()
+        if cat_id is not None:
+            category_id = str(cat_id)
+        elif cat_name:
+            category_id = f"n:{cat_name}"
+        else:
+            category_id = "misc"
 
     if row.get("is_weight_variable"):
         try:
@@ -268,14 +287,6 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
     if isinstance(producer, dict):
         producer_name = str(producer.get("name") or "").strip()
 
-    api_product_id = int(row.get("product_id") or 0)
-    variant_id = int(row.get("variant_id") or 0)
-    if not api_product_id or not variant_id:
-        parts = pid.split("_", 1)
-        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
-            api_product_id = api_product_id or int(parts[0])
-            variant_id = variant_id or int(parts[1])
-
     return Product(
         pid,
         category_id,
@@ -295,10 +306,25 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
 
 
 def _katusha_categories_from_rows(rows: list[dict[str, Any]]) -> list[Category]:
+    from src.ui.kolomna_catalog import kolomna_section_for_api_product_id
+
     seen: dict[str, Category] = {}
     order = 0
     for row in rows:
         if not isinstance(row, dict):
+            continue
+        api_product_id = int(row.get("product_id") or 0)
+        section = kolomna_section_for_api_product_id(api_product_id)
+        if section is not None:
+            if section.category_id in seen:
+                continue
+            sort_order = section.hub_slot if section.hub_slot is not None else order
+            seen[section.category_id] = Category(
+                section.category_id,
+                section.display_name,
+                sort_order,
+            )
+            order += 1
             continue
         cid = row.get("main_category_id")
         cname = row.get("main_category_name")

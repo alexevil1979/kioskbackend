@@ -60,10 +60,11 @@ class SbpPaymentService:
             raise RuntimeError("API не вернул QR для оплаты СБП")
 
         logger.info(
-            "СБП API: заказ %s, сумма %.2f ₽, истекает через %s с",
+            "СБП API: заказ %s, сумма %.2f ₽, истекает через %s с, qr=%s",
             order.order_id,
             order.total_amount,
             order.expires_in_seconds,
+            payload[:80] + "…" if len(payload) > 80 else payload or "(image)",
         )
         return SbpPaymentSession(
             payment_id=order.payment_id or str(order.order_id),
