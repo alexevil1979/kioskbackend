@@ -50,12 +50,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Экраны без таймера «Вы ещё здесь?» (заставка, хаб разделов, оплата).
+# Экраны без таймера «Вы ещё здесь?» (заставка, хаб разделов, ожидание карты на терминале).
 _IDLE_PAUSED_SCREENS = frozenset(
     {
         AppScreen.START,
         AppScreen.CATEGORIES,
-        AppScreen.PAYMENT_SBP,
         AppScreen.PAYMENT_CARD,
     }
 )
