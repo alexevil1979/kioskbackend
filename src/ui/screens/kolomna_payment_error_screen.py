@@ -15,7 +15,6 @@ from src.ui.widgets.kolomna_cart_footbar import PaySumPillBtn, _FootPillBtn
 
 class KolomnaPaymentErrorScreen(BaseScreen):
     retry = pyqtSignal()
-    go_payment = pyqtSignal()
     to_menu = pyqtSignal()
 
     def __init__(self, settings: Settings) -> None:
@@ -99,10 +98,6 @@ class KolomnaPaymentErrorScreen(BaseScreen):
         btns_lay.setContentsMargins(0, 0, 0, 0)
         btns_lay.setSpacing(scale(8, w))
 
-        self._pay_btn = PaySumPillBtn(self._m, S.CHECKOUT)
-        self._pay_btn.setMinimumWidth(btn_w)
-        self._pay_btn.clicked.connect(self.go_payment.emit)
-
         self._retry_btn = PaySumPillBtn(self._m, S.PAY_ERROR_RETRY)
         self._retry_btn.setMinimumWidth(btn_w)
         self._retry_btn.clicked.connect(self.retry.emit)
@@ -112,7 +107,6 @@ class KolomnaPaymentErrorScreen(BaseScreen):
         self._menu_btn.setText(S.PAY_ERROR_MENU)
         self._menu_btn.clicked.connect(self.to_menu.emit)
 
-        btns_lay.addWidget(self._pay_btn)
         btns_lay.addWidget(self._retry_btn)
         btns_lay.addWidget(self._menu_btn)
 
@@ -154,7 +148,6 @@ class KolomnaPaymentErrorScreen(BaseScreen):
             self._order_box.hide()
 
     def refresh_cta(self) -> None:
-        self._pay_btn.refresh_cta()
         self._retry_btn.refresh_cta()
         self._menu_btn.refresh_cta()
 
@@ -162,7 +155,6 @@ class KolomnaPaymentErrorScreen(BaseScreen):
         self._title.setText(S.PAY_ERROR_TITLE)
         self._contact.setText(S.PAY_ERROR_CONTACT)
         self._order_caption.setText(S.ORDER_NO)
-        self._pay_btn.set_label(S.CHECKOUT)
         self._retry_btn.set_label(S.PAY_ERROR_RETRY)
         self._menu_btn.setText(S.PAY_ERROR_MENU)
         self._apply_content()

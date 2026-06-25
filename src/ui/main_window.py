@@ -199,7 +199,6 @@ class MainWindow(QMainWindow):
         if kolomna:
             err = KolomnaPaymentErrorScreen(s)
             err.retry.connect(lambda: self._nav.go(AppScreen.PAYMENT_METHOD))
-            err.go_payment.connect(self._go_payment)
             err.to_menu.connect(self._full_reset)
         else:
             err = PaymentErrorScreen()
