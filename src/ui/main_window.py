@@ -4,6 +4,7 @@ import logging
 import random
 import time
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QEvent, Qt, QTimer
@@ -89,6 +90,8 @@ class MainWindow(QMainWindow):
         self._sbp_polls = 0
         self._pay_started_at: float | None = None
         self._mock_sbp_pending = False
+        self._sbp_create_seq = 0
+        self._io_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="kiosk-io")
         self._kolomna_success_timer = QTimer(self)
         self._kolomna_success_timer.setSingleShot(True)
         self._kolomna_success_timer.timeout.connect(self._do_finish_payment_success)
@@ -477,16 +480,38 @@ class MainWindow(QMainWindow):
         self._last_payment = "sbp"
         self._katusha_order_id = 0
         self._sbp_polls = 0
+        self._sbp_create_seq += 1
+        seq = self._sbp_create_seq
+
+        sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
+        self._nav.go(AppScreen.PAYMENT_SBP)
+        if hasattr(sbp_scr, "begin_payment"):
+            sbp_scr.begin_payment(self._cart.total_rub)
+
+        if self._settings.app.ui_theme == "kolomna":
+            self._pay_started_at = time.monotonic()
+
+        cart = self._cart
+        order_id = self._order_id
+        future = self._io_executor.submit(self._sbp.create_payment, cart, order_id)
+        QTimer.singleShot(0, lambda: self._on_sbp_create_done(future, seq))
+
+    def _on_sbp_create_done(self, future: Future, seq: int) -> None:
+        if seq != self._sbp_create_seq:
+            return
+        if not future.done():
+            QTimer.singleShot(50, lambda: self._on_sbp_create_done(future, seq))
+            return
+        if self._nav.current != AppScreen.PAYMENT_SBP:
+            return
         try:
-            session = self._sbp.create_payment(self._cart, self._order_id)
+            session = future.result()
         except Exception as exc:
             logger.exception("СБП: не удалось создать заказ: %s", exc)
             self._payment_failed(str(exc))
             return
 
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
-        self._nav.go(AppScreen.PAYMENT_SBP)
-
         timeout = min(
             session.expires_in_seconds or self._settings.payment.sbp_timeout_sec,
             self._settings.payment.sbp_timeout_sec,
@@ -498,9 +523,6 @@ class MainWindow(QMainWindow):
             timeout_sec=timeout,
             total_rub=self._cart.total_rub,
         )
-
-        if self._settings.app.ui_theme == "kolomna":
-            self._pay_started_at = time.monotonic()
 
         if session.use_api_polling:
             self._katusha_order_id = session.order_id
@@ -544,6 +566,7 @@ class MainWindow(QMainWindow):
 
     def _cancel_sbp(self) -> None:
         self._mock_sbp_pending = False
+        self._sbp_create_seq += 1
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
         if hasattr(sbp_scr, "stop"):
             sbp_scr.stop()

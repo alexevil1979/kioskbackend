@@ -118,10 +118,20 @@ class KolomnaSbpScreen(BaseScreen):
     def _show_generating(self) -> None:
         self._instr.hide()
         self._qr_host.hide()
-        self._due_row.hide()
         self._spinner.show()
         self._gen_title.show()
         self._gen_sub.show()
+
+    def begin_payment(self, total_rub: float = 0) -> None:
+        """Сразу показать экран ожидания QR (до ответа API)."""
+        self.stop()
+        self._payment_id = ""
+        self._show_generating()
+        if total_rub > 0:
+            self._due_row.set_amount(f"{fmt_price(total_rub)}\u00a0{S.CUR}")
+            self._due_row.show()
+        else:
+            self._due_row.hide()
 
     def _show_qr(self) -> None:
         self._spinner.hide()
@@ -144,7 +154,9 @@ class KolomnaSbpScreen(BaseScreen):
         self._due_row.set_amount(f"{fmt_price(total_rub)}\u00a0{S.CUR}")
         limit = timeout_sec if timeout_sec is not None else self._default_timeout_sec
         self._remaining = max(30, int(limit))
-        self._show_generating()
+        already_loading = self._spinner.isVisible() and not self._qr_host.isVisible()
+        if not already_loading:
+            self._show_generating()
 
         def reveal() -> None:
             from src.ui.kolomna_qr_render import load_cached_qr_pixmap, scale_qr_for_display
@@ -174,7 +186,7 @@ class KolomnaSbpScreen(BaseScreen):
         except TypeError:
             pass
         self._spin_timer.timeout.connect(reveal)
-        self._spin_timer.start(800)
+        self._spin_timer.start(0 if already_loading else 800)
         self._update_timer_label()
         self._countdown.start(1000)
 

@@ -81,6 +81,13 @@ class PaymentSbpScreen(BaseScreen):
         self._countdown = QTimer(self)
         self._countdown.timeout.connect(self._tick)
 
+    def begin_payment(self, total_rub: float = 0) -> None:
+        self.stop()
+        self._qr_label.clear()
+        self._qr_label.setText("Формируем QR-код…")
+        self._qr_label.setStyleSheet(QR_PLACEHOLDER_STYLE)
+        self._timer_label.setText("Подождите…")
+
     def start_payment(
         self,
         qr_payload: str,
