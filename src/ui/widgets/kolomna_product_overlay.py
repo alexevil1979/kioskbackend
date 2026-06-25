@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QSizePolic
 from src.models.product import Product
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_prefs import load_kolomna_prefs
 from src.ui.kolomna_product_meta import (
     fmt_price,
     product_description,
@@ -299,7 +298,7 @@ class KolomnaProductOverlay(QWidget):
         else:
             self._variant.clear()
             self._variant.hide()
-        desc = product_description(product) if load_kolomna_prefs().show_product_description else ""
+        desc = product_description(product)
         self._desc.setText(desc)
         self._desc.setVisible(bool(desc))
 
