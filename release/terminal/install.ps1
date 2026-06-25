@@ -13,25 +13,67 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 
+function Invoke-PythonVersionCheck {
+    param(
+        [string]$Exe,
+        [string[]]$PrefixArgs = @()
+    )
+    $code = "import sys; print('{}.{}'.format(sys.version_info.major, sys.version_info.minor))"
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    $lines = @()
+    try {
+        $lines = @(& $Exe @($PrefixArgs + @("-c", $code)) 2>$null)
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+        return $null
+    }
+    $ver = ($lines | Where-Object { $_ -match '^\d+\.\d+$' } | Select-Object -Last 1)
+    if (-not $ver) {
+        return $null
+    }
+    try {
+        if ([version]$ver.Trim() -ge [version]"3.11") {
+            return @{ Exe = $Exe; Args = $PrefixArgs }
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
 function Find-Python {
-    $candidates = @(
-        (Get-Command py -ErrorAction SilentlyContinue),
-        (Get-Command python -ErrorAction SilentlyContinue)
-    ) | Where-Object { $_ }
-    foreach ($cmd in $candidates) {
-        if ($cmd.Name -eq "py") {
-            $ver = & py -3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-            if ($ver -and ([version]$ver -ge [version]"3.11")) {
-                return @{ Exe = "py"; Args = @("-3") }
-            }
-        } else {
-            $ver = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-            if ($ver -and ([version]$ver -ge [version]"3.11")) {
-                return @{ Exe = "python"; Args = @() }
-            }
+    foreach ($spec in @(
+            @{ Exe = "py"; Args = @("-3") },
+            @{ Exe = "python"; Args = @() }
+        )) {
+        $found = Invoke-PythonVersionCheck -Exe $spec.Exe -PrefixArgs $spec.Args
+        if ($found) {
+            return $found
         }
     }
     return $null
+}
+
+function Invoke-PythonCommand {
+    param(
+        [hashtable]$Py,
+        [string[]]$CommandArgs
+    )
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    try {
+        & $Py.Exe @($Py.Args + $CommandArgs)
+        if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+            throw "Command failed (exit $LASTEXITCODE): $($Py.Exe) $($Py.Args -join ' ') $($CommandArgs -join ' ')"
+        }
+    } finally {
+        $ErrorActionPreference = $prev
+    }
 }
 
 Write-Host "=== Kiosk install ===" -ForegroundColor Cyan
@@ -83,14 +125,26 @@ $venv = Join-Path $Root ".venv"
 $venvPy = Join-Path $venv "Scripts\python.exe"
 if (-not (Test-Path $venvPy)) {
     Write-Host "Creating virtual environment..."
-    & $py.Exe @($py.Args + @("-m", "venv", $venv))
+    Invoke-PythonCommand -Py $py -CommandArgs @("-m", "venv", $venv)
 }
 Write-Host "Installing dependencies (pip)..."
-& $venvPy -m pip install --upgrade pip --quiet
+& $venvPy -m pip install --upgrade pip --quiet 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "pip upgrade failed (exit $LASTEXITCODE)"
+}
 & $venvPy -m pip install -r (Join-Path $Root "requirements.txt")
+if ($LASTEXITCODE -ne 0) {
+    throw "pip install failed (exit $LASTEXITCODE)"
+}
 
 Write-Host "Checking PyQt6..."
-& $venvPy -c "from PyQt6.QtWidgets import QApplication; print('PyQt6 OK')"
+$prev = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+& $venvPy -c "from PyQt6.QtWidgets import QApplication; print('PyQt6 OK')" 2>$null
+$ErrorActionPreference = $prev
+if ($LASTEXITCODE -ne 0) {
+    throw "PyQt6 check failed (exit $LASTEXITCODE)"
+}
 
 if ($Autostart) {
     & (Join-Path $Root "install_autostart.ps1")
