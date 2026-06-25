@@ -117,8 +117,8 @@ class KolomnaDoneScreen(BaseScreen):
         self._layout.addWidget(inner)
 
     def set_order_no(self, order_no: str) -> None:
-        display = order_no[-3:] if len(order_no) > 3 else order_no
-        self._order_no.setText(f"№\u00a0{display}")
+        text = (order_no or "").strip() or "—"
+        self._order_no.setText(f"№\u00a0{text}")
 
     def set_countdown_text(self, text: str) -> None:
         self._auto.setText(text)

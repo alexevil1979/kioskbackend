@@ -669,10 +669,7 @@ class MainWindow(QMainWindow):
         )
         success_scr = self._screens[AppScreen.SUCCESS]
         if hasattr(success_scr, "set_order_no"):
-            if kolomna:
-                success_scr.set_order_no(str(random.randint(20, 99)).zfill(3))
-            else:
-                success_scr.set_order_no(self._order_id)
+            success_scr.set_order_no(self._success_order_display_id())
 
         def tick(left: int = sec) -> None:
             if left <= 0:
@@ -695,6 +692,9 @@ class MainWindow(QMainWindow):
         if self._katusha_order_id:
             return str(self._katusha_order_id)
         return self._order_id
+
+    def _success_order_display_id(self) -> str:
+        return self._payment_error_order_id()
 
     def _payment_failed(self, message: str | None = None) -> None:
         self._stop_kolomna_success_timer()
