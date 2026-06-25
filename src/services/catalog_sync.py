@@ -103,6 +103,9 @@ class CatalogStore(QObject):
             return
 
         try:
+            clear = getattr(self._crm, "clear_catalog_cache", None)
+            if callable(clear):
+                clear()
             cats = self._crm.fetch_categories()
             prods = self._crm.fetch_products()
         except Exception as exc:
@@ -200,6 +203,7 @@ class CatalogStore(QObject):
             ("category_id", 12),
             ("category_name", 24),
             ("name", 38),
+            ("description", 32),
             ("price", 8),
             ("stock", 7),
             ("unit", 8),
@@ -226,6 +230,7 @@ class CatalogStore(QObject):
                 p.category_id,
                 p.category_name,
                 p.name,
+                p.description,
                 f"{p.price_rub:.2f}",
                 p.stock,
                 p.unit,

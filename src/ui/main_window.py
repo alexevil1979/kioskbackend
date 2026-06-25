@@ -49,6 +49,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Экраны без таймера «Вы ещё здесь?» (заставка, хаб разделов, оплата).
+_IDLE_PAUSED_SCREENS = frozenset(
+    {
+        AppScreen.START,
+        AppScreen.CATEGORIES,
+        AppScreen.PAYMENT_SBP,
+        AppScreen.PAYMENT_CARD,
+    }
+)
+
 # Kolomna: экран «Спасибо» (mock СБП — через 15 с после показа QR).
 KOLOMNA_PAY_SUCCESS_DELAY_MS = 15_000
 KOLOMNA_MOCK_SBP_SUCCESS_MS = 15_000
@@ -329,6 +339,9 @@ class MainWindow(QMainWindow):
             self.show()
 
     def _show_idle_warning(self) -> None:
+        if self._nav.current in _IDLE_PAUSED_SCREENS:
+            self._idle.pause()
+            return
         remaining = max(
             1,
             self._settings.idle.reset_seconds - self._settings.idle.warning_seconds,
@@ -339,7 +352,11 @@ class MainWindow(QMainWindow):
         widget = self._screens.get(screen)
         if widget:
             self._stack.setCurrentWidget(widget)
-        self._idle.bump()
+        if screen in _IDLE_PAUSED_SCREENS:
+            self._idle.pause()
+            self._idle_overlay.hide()
+        else:
+            self._idle.resume()
         if screen == AppScreen.PAYMENT_METHOD:
             pm = self._screens[AppScreen.PAYMENT_METHOD]
             if hasattr(pm, "set_summary"):
@@ -354,10 +371,6 @@ class MainWindow(QMainWindow):
             card_scr = self._screens.get(AppScreen.PAYMENT_CARD)
             if hasattr(card_scr, "set_amount"):
                 card_scr.set_amount(self._cart.total_rub)
-        if screen in (AppScreen.PAYMENT_SBP, AppScreen.PAYMENT_CARD):
-            self._idle.pause()
-        else:
-            self._idle.resume()
         if self._idle_overlay.isVisible():
             parent = self._idle_overlay.parentWidget()
             if parent is not None:

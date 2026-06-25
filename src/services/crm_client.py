@@ -352,6 +352,10 @@ class HttpCRMClient(CRMClient):
                 self._session.headers["X-Kiosk-Id"] = config.kiosk_id
             logger.info("CRM: legacy Bearer (kiosk_id=%s)", config.kiosk_id)
 
+    def clear_catalog_cache(self) -> None:
+        """Сброс кэша /catalog перед очередным poll."""
+        self._catalog_cache = None
+
     def _url(self, path: str) -> str:
         base = self._config.base_url.rstrip("/")
         if not path.startswith("/"):
@@ -573,7 +577,7 @@ class HttpCRMClient(CRMClient):
             return self._catalog_cache
 
         data = self._get_json("/catalog")
-        self._write_raw_catalog_log(data)
+        self._write_raw_catalog_log(data, source="GET /catalog")
         rows = data.get("products") or []
         if not isinstance(rows, list):
             logger.error("CRM /catalog: поле products не массив")
@@ -608,13 +612,14 @@ class HttpCRMClient(CRMClient):
         self._catalog_cache = (categories, products)
         return self._catalog_cache
 
-    def _write_raw_catalog_log(self, payload: dict[str, Any]) -> None:
-        """Пишет сырой JSON /catalog без преобразований в отдельный лог."""
+    def _write_raw_catalog_log(self, payload: dict[str, Any], *, source: str) -> None:
+        """Сырой JSON каталога: последний снимок + история в catalog_api.log."""
+        stamp = datetime.now().isoformat(timespec="seconds")
         out = ROOT / "logs" / "catalog_api_raw.json"
         out.parent.mkdir(parents=True, exist_ok=True)
         envelope = {
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "source": "GET /catalog",
+            "timestamp": stamp,
+            "source": source,
             "base_url": self._config.base_url,
             "payload": payload,
         }
@@ -622,7 +627,15 @@ class HttpCRMClient(CRMClient):
             json.dumps(envelope, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        logger.info("CRM: сырой /catalog записан в %s", out)
+        hist = ROOT / "logs" / "catalog_api.log"
+        block = (
+            f"\n{'=' * 80}\n"
+            f"{stamp} {source} {self._config.base_url}\n"
+            f"{json.dumps(payload, ensure_ascii=False, indent=2)}\n"
+        )
+        with open(hist, "a", encoding="utf-8") as fh:
+            fh.write(block)
+        logger.info("CRM: каталог API записан в %s и %s", out, hist)
 
     def fetch_categories(self) -> list[Category]:
         if self._katusha:
@@ -634,14 +647,17 @@ class HttpCRMClient(CRMClient):
         else:
             try:
                 data = self._get_json("/categories")
+                source = "GET /categories"
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 404:
                     data = self._get_json("/kiosk/catalog")
+                    source = "GET /kiosk/catalog"
                     rows = data.get("categories") or []
                 else:
                     raise
             else:
                 rows = data.get("categories") or []
+            self._write_raw_catalog_log(data, source=source)
 
         cats = [_parse_category(r) for r in rows if isinstance(r, dict)]
         return [c for c in cats if c]
@@ -652,15 +668,19 @@ class HttpCRMClient(CRMClient):
 
         if self._config.catalog_mode == "combined":
             data = self._get_json("/kiosk/catalog")
+            source = "GET /kiosk/catalog"
         else:
             try:
                 data = self._get_json("/products")
+                source = "GET /products"
             except requests.HTTPError as exc:
                 if exc.response is not None and exc.response.status_code == 404:
                     data = self._get_json("/kiosk/catalog")
+                    source = "GET /kiosk/catalog"
                 else:
                     raise
 
+        self._write_raw_catalog_log(data, source=source)
         rows = data.get("products") or []
         prods = [_parse_product(r) for r in rows if isinstance(r, dict)]
         return [p for p in prods if p]
