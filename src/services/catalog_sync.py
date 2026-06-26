@@ -19,6 +19,7 @@ class CatalogStore(QObject):
 
     updated = pyqtSignal()
     offline_changed = pyqtSignal(bool)
+    api_online_changed = pyqtSignal(bool)
 
     def __init__(self, settings: Settings, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -45,6 +46,10 @@ class CatalogStore(QObject):
     @property
     def is_offline(self) -> bool:
         return self._offline
+
+    @property
+    def is_api_online(self) -> bool:
+        return self._api_online
 
     @property
     def crm(self) -> CRMClient:
@@ -97,6 +102,8 @@ class CatalogStore(QObject):
         except Exception as exc:
             logger.error("Каталог: проверка /health не удалась: %s", exc, exc_info=True)
             online = False
+
+        self._set_api_online(online)
 
         if not online:
             if not self._products:
@@ -256,3 +263,8 @@ class CatalogStore(QObject):
         if offline != self._offline:
             self._offline = offline
             self.offline_changed.emit(self._offline)
+
+    def _set_api_online(self, online: bool) -> None:
+        if online != self._api_online:
+            self._api_online = online
+            self.api_online_changed.emit(online)

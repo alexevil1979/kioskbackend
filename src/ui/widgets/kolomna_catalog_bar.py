@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QGridLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QWidget
 
 from src.ui.kolomna_chrome import chrome_top_pad
 from src.ui.kolomna_tokens import CREAM, KolomnaMetrics, scale
+from src.ui.widgets.kolomna_api_status_dot import KolomnaApiStatusDot
 from src.ui.widgets.kolomna_info_btn import KolomnaInfoButton
 from src.ui.widgets.kolomna_lang_toggle import KolomnaLangToggle
 from src.ui.widgets.kolomna_logo import LogoDrop
@@ -42,10 +43,21 @@ class KolomnaCatalogBar(QWidget):
 
         self._lang = KolomnaLangToggle(m.width)
         self._lang.lang_changed.connect(self.lang_changed.emit)
-        grid.addWidget(self._lang, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+
+        right = QWidget()
+        right_lay = QHBoxLayout(right)
+        right_lay.setContentsMargins(0, 0, 0, 0)
+        right_lay.setSpacing(scale(12, m.width))
+        self._api_dot = KolomnaApiStatusDot(m.width)
+        right_lay.addWidget(self._api_dot, alignment=Qt.AlignmentFlag.AlignVCenter)
+        right_lay.addWidget(self._lang, alignment=Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(right, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
     def set_lang(self, lang: str) -> None:
         self._lang.set_lang(lang)
+
+    def set_api_online(self, online: bool) -> None:
+        self._api_dot.set_online(online)
 
     def retranslate(self) -> None:
         self._info.retranslate()

@@ -137,6 +137,7 @@ class MainWindow(QMainWindow):
         self._idle_overlay.leave.connect(self._full_reset)
 
         catalog.offline_changed.connect(self._on_offline)
+        catalog.api_online_changed.connect(self._on_api_online_changed)
 
         app = QApplication.instance()
         if app:
@@ -279,6 +280,21 @@ class MainWindow(QMainWindow):
             top = getattr(widget, "_top", None)
             if top is not None:
                 top.set_lang(lang)
+
+    def _sync_kolomna_api_status(self, online: bool) -> None:
+        start = self._screens.get(AppScreen.START)
+        if start is not None and hasattr(start, "set_api_online"):
+            start.set_api_online(online)
+        cat = self._screens.get(AppScreen.CATEGORIES)
+        if cat is not None and hasattr(cat, "_bar"):
+            cat._bar.set_api_online(online)
+        for widget in self._screens.values():
+            top = getattr(widget, "_top", None)
+            if top is not None and hasattr(top, "set_api_online"):
+                top.set_api_online(online)
+
+    def _on_api_online_changed(self, online: bool) -> None:
+        self._sync_kolomna_api_status(online)
 
     def _retranslate_kolomna(self) -> None:
         for widget in self._screens.values():

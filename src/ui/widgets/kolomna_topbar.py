@@ -9,6 +9,7 @@ from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_chrome import chrome_pill_height, chrome_row_height, chrome_top_pad
 from src.ui.kolomna_shadow import draw_shadow_soft_pill, shadow_soft_bleed
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, YELLOW, scale
+from src.ui.widgets.kolomna_api_status_dot import KolomnaApiStatusDot
 from src.ui.widgets.kolomna_lang_toggle import KolomnaLangToggle
 
 # Смещение ‹ относительно baseline «Назад» (px при ширине 1080; + вниз, − вверх).
@@ -261,6 +262,9 @@ class KolomnaTopBar(QWidget):
 
         row.addStretch(1)
 
+        self._api_dot = KolomnaApiStatusDot(metrics.width)
+        row.addWidget(self._api_dot, alignment=Qt.AlignmentFlag.AlignVCenter)
+
         self._lang: KolomnaLangToggle | None = None
         if show_lang:
             self._lang = KolomnaLangToggle(metrics.width)
@@ -320,6 +324,9 @@ class KolomnaTopBar(QWidget):
     def set_lang(self, lang: str) -> None:
         if self._lang is not None:
             self._lang.set_lang(lang)
+
+    def set_api_online(self, online: bool) -> None:
+        self._api_dot.set_online(online)
 
     def retranslate(self) -> None:
         self._back.retranslate()
