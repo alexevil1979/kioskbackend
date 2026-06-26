@@ -3,7 +3,6 @@ from __future__ import annotations
 from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (
-    QFrame,
     QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
