@@ -7,12 +7,11 @@ from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_chrome import chrome_api_status_gap, chrome_top_pad
+from src.ui.kolomna_chrome import chrome_top_pad
 from src.ui.kolomna_tokens import CREAM, INK_60, KolomnaMetrics, scale
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.attract_cta import AttractCtaBlock
 from src.ui.widgets.attract_tagline import AttractTagline
-from src.ui.widgets.kolomna_api_status_dot import KolomnaApiStatusDot
 from src.ui.widgets.kolomna_lang_toggle import KolomnaLangToggle
 from src.ui.widgets.kolomna_logo import AttractLogo
 
@@ -40,10 +39,9 @@ class StartScreen(BaseScreen):
 
         self._lang = KolomnaLangToggle(w, parent=self)
         self._lang.setCursor(Qt.CursorShape.ArrowCursor)
-
-        self._api_dot = KolomnaApiStatusDot(w, parent=self)
-        self._api_dot.setCursor(Qt.CursorShape.ArrowCursor)
-        self._place_top_chrome()
+        top = chrome_top_pad(KolomnaMetrics.from_viewport(w, h))
+        self._lang.move(w - top - self._lang.width(), top)
+        self._lang.raise_()
 
         # attract__inner — вертикальный центр как flex center в референсе
         inner = QWidget()
@@ -87,27 +85,14 @@ class StartScreen(BaseScreen):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         if hasattr(self, "_lang"):
-            self._place_top_chrome()
-
-    def _place_top_chrome(self) -> None:
-        m = KolomnaMetrics.from_viewport(self.width(), self.height())
-        top = chrome_top_pad(m)
-        gap = chrome_api_status_gap(m)
-        dot_x = self.width() - top - self._api_dot.width()
-        self._api_dot.move(dot_x, top)
-        lang_x = self.width() - top - self._lang.width()
-        lang_y = top + self._api_dot.height() + gap
-        self._lang.move(lang_x, lang_y)
-        self._lang.raise_()
-        self._api_dot.raise_()
-
-    def set_api_online(self, online: bool) -> None:
-        self._api_dot.set_online(online)
+            m = KolomnaMetrics.from_viewport(self.width(), self.height())
+            top = chrome_top_pad(m)
+            self._lang.move(self.width() - top - self._lang.width(), top)
 
     def _hits_lang_toggle(self, pos) -> bool:
         if not hasattr(self, "_lang"):
             return False
-        return self._lang.geometry().contains(pos) or self._api_dot.geometry().contains(pos)
+        return self._lang.geometry().contains(pos)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton and not self._hits_lang_toggle(
