@@ -83,6 +83,7 @@ def kolomna_product_titles_height(
     title_px: int,
     body_w: int,
     title_weight: QFont.Weight = QFont.Weight.Black,
+    variant_px: int | None = None,
     max_title_lines: int = 2,
     max_variant_lines: int = 2,
 ) -> int:
