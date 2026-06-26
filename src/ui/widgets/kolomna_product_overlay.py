@@ -12,6 +12,7 @@ from src.ui.kolomna_product_meta import (
     product_description,
     product_pack_label,
     product_title,
+    product_unavailable_label,
     product_unit_word,
     product_variant_label,
 )
@@ -222,6 +223,13 @@ class KolomnaProductOverlay(QWidget):
         self._qty.value_changed.connect(lambda _: self._update_add_btn())
         buy_lay.addWidget(self._add_btn)
 
+        self._unavail_lbl = QLabel()
+        self._unavail_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._unavail_lbl.setFont(kolomna_font(metrics.fs_h2, QFont.Weight.ExtraBold))
+        self._unavail_lbl.setStyleSheet(f"color: {INK_60}; background: transparent;")
+        self._unavail_lbl.hide()
+        buy_lay.addWidget(self._unavail_lbl)
+
         root.addWidget(self._footer, stretch=0)
 
     def _apply_media_clip(self) -> None:
@@ -312,6 +320,16 @@ class KolomnaProductOverlay(QWidget):
 
         self._qty_word.setText(product_unit_word(product))
 
+        purchasable = product.is_purchasable
+        status = product_unavailable_label(product)
+        for w in (self._qty_lbl, self._qty, self._qty_word, self._add_btn):
+            w.setVisible(purchasable)
+        if not purchasable and status:
+            self._unavail_lbl.setText(status)
+            self._unavail_lbl.show()
+        else:
+            self._unavail_lbl.hide()
+
         self._scroll.verticalScrollBar().setValue(0)
         self._update_add_btn()
         self.raise_()
@@ -336,7 +354,7 @@ class KolomnaProductOverlay(QWidget):
         return self._media_host if self._berry_art is not None else None
 
     def _confirm(self) -> None:
-        if self._product:
+        if self._product and self._product.is_purchasable:
             self.confirmed.emit(self._product.id, self._qty.value())
 
     def hide(self) -> None:  # noqa: A003

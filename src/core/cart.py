@@ -42,7 +42,7 @@ class Cart(QObject):
         tour_date_id: str = "",
         tour_date_label: str = "",
     ) -> None:
-        if not product.in_stock:
+        if not product.is_purchasable:
             return
         if tour_kids is not None:
             adults = max(1, qty)

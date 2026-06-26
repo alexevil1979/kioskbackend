@@ -134,7 +134,7 @@ class KolomnaMenuScreen(BaseScreen):
             self._catalog.products,
             self._category_id,
         )
-        return [p for p in prods if p.in_stock]
+        return [p for p in prods if p.show_in_catalog]
 
     @staticmethod
     def _clear_layout(layout: QLayout | None) -> None:
@@ -265,6 +265,8 @@ class KolomnaMenuScreen(BaseScreen):
 
     def _quick_add(self, product_id: str) -> None:
         product = self._product_by_id(product_id)
+        if not product or not product.is_purchasable:
+            return
         row = self._row_for_product(product_id)
         if product:
             self._cart.add(product, 1)

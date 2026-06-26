@@ -51,6 +51,10 @@ def product_title(product: Product) -> str:
     return _strip_pack_from_title(product.name)
 
 
+def product_unavailable_label(product: Product) -> str:
+    return product.unavailable_label
+
+
 def product_variant_label(product: Product) -> str:
     variant = product.variant_name.strip()
     if not variant:

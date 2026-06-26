@@ -23,6 +23,9 @@ class Product:
     description: str = ""
     category_name: str = ""
     is_available: bool = True
+    unavailable_reason: str = ""
+    sale_unavailable_label: str = ""
+    hide_price_when_unavailable: bool = False
     producer_name: str = ""
     api_product_id: int = 0
     variant_id: int = 0
@@ -41,6 +44,28 @@ class Product:
     @property
     def in_stock(self) -> bool:
         return self.stock > 0
+
+    @property
+    def unavailable_label(self) -> str:
+        return (self.unavailable_reason or self.sale_unavailable_label).strip()
+
+    @property
+    def is_purchasable(self) -> bool:
+        if self.unavailable_label:
+            return False
+        return self.is_available and self.stock > 0
+
+    @property
+    def show_in_catalog(self) -> bool:
+        if self.unavailable_label:
+            return True
+        return self.is_available and self.stock > 0
+
+    @property
+    def show_price(self) -> bool:
+        if self.unavailable_label and self.hide_price_when_unavailable:
+            return False
+        return True
 
     @property
     def price_display(self) -> str:

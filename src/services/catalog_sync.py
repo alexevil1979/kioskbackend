@@ -73,12 +73,12 @@ class CatalogStore(QObject):
 
     def products_for_category(self, category_id: str | None) -> list[Product]:
         if not category_id:
-            return [p for p in self._products if p.in_stock]
+            return [p for p in self._products if p.show_in_catalog]
         key = str(category_id)
         return [
             p
             for p in self._products
-            if str(p.category_id) == key and p.in_stock
+            if str(p.category_id) == key and p.show_in_catalog
         ]
 
     def category_summaries(self) -> list[CategorySummary]:
@@ -98,7 +98,7 @@ class CatalogStore(QObject):
             return [
                 p
                 for p in self._products
-                if p.category_id == MISC_HUB_ID and p.in_stock
+                if p.category_id == MISC_HUB_ID and p.show_in_catalog
             ]
         return self.products_for_category(hub_id)
 

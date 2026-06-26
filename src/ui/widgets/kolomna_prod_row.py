@@ -20,6 +20,7 @@ from src.ui.kolomna_product_meta import (
     product_description,
     product_pack_label,
     product_title,
+    product_unavailable_label,
     product_variant_label,
 )
 from src.ui.kolomna_tokens import CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, YELLOW, scale
@@ -166,6 +167,55 @@ def append_kolomna_product_titles(
         total_h += variant_h
 
     return total_h
+
+
+def _append_product_foot_row(
+    foot: QHBoxLayout,
+    product: Product,
+    metrics: KolomnaMetrics,
+    *,
+    price_px: int,
+    add_factory,
+) -> QWidget | None:
+    """Цена + «+» или подпись unavailable_reason без кнопки покупки."""
+    if not product.is_purchasable:
+        status = product_unavailable_label(product) or "—"
+        lbl = QLabel(status)
+        lbl.setFont(kolomna_font(price_px, QFont.Weight.ExtraBold))
+        lbl.setStyleSheet(f"color: {INK_60}; background: transparent;")
+        foot.addWidget(lbl, alignment=Qt.AlignmentFlag.AlignVCenter)
+        foot.addStretch(1)
+        return None
+
+    if product.show_price:
+        price = QLabel(f"{fmt_price(product.price_rub)}\u00a0{S.CUR}")
+        price.setFont(kolomna_font(price_px, QFont.Weight.Black))
+        price.setStyleSheet(f"color: {GREEN}; background: transparent;")
+        foot.addWidget(price, alignment=Qt.AlignmentFlag.AlignVCenter)
+
+    foot.addStretch(1)
+
+    add = add_factory()
+    foot.addWidget(add, alignment=Qt.AlignmentFlag.AlignVCenter)
+    return add
+
+
+def _product_foot_block_height(
+    metrics: KolomnaMetrics,
+    product: Product,
+    *,
+    price_px: int,
+    min_btn_h_px: int,
+) -> int:
+    m = metrics
+    top_pad = scale(14, m.width)
+    if not product.is_purchasable:
+        fm = QFontMetrics(kolomna_font(price_px, QFont.Weight.ExtraBold))
+        return top_pad + fm.height()
+    h = top_pad
+    if product.show_price:
+        h += QFontMetrics(kolomna_font(price_px, QFont.Weight.Black)).height()
+    return max(h, scale(min_btn_h_px, m.width))
 
 
 class _PackChip(QWidget):
@@ -444,17 +494,15 @@ class KolomnaProdRow(QWidget):
 
         foot = QHBoxLayout()
         foot.setSpacing(scale(20, metrics.width))
-        price = QLabel(f"{fmt_price(product.price_rub)}\u00a0{S.CUR}")
-        price.setFont(kolomna_font(metrics.fs_h2, QFont.Weight.Black))
-        price.setStyleSheet(f"color: {GREEN}; background: transparent;")
-        foot.addWidget(price, alignment=Qt.AlignmentFlag.AlignVCenter)
-
-        foot.addStretch(1)
-
-        add = _ProdAddBtn(metrics)
-        add.clicked.connect(self._on_add)
-        self._add_btn = add
-        foot.addWidget(add, alignment=Qt.AlignmentFlag.AlignVCenter)
+        self._add_btn = _append_product_foot_row(
+            foot,
+            product,
+            metrics,
+            price_px=metrics.fs_h2,
+            add_factory=lambda: _ProdAddBtn(metrics),
+        )
+        if self._add_btn is not None:
+            self._add_btn.clicked.connect(self._on_add)
 
         foot_wrap = QWidget()
         foot_wrap.setStyleSheet("background: transparent;")
@@ -523,10 +571,11 @@ class KolomnaProdRow(QWidget):
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
             pos = event.position().toPoint()
-            add_pos = self._add_btn.mapFrom(self, pos)
-            if self._add_btn.rect().contains(add_pos):
-                super().mouseReleaseEvent(event)
-                return
+            if self._add_btn is not None:
+                add_pos = self._add_btn.mapFrom(self, pos)
+                if self._add_btn.rect().contains(add_pos):
+                    super().mouseReleaseEvent(event)
+                    return
             self.clicked.emit(self._product.id)
         super().mouseReleaseEvent(event)
 
@@ -629,15 +678,15 @@ class KolomnaProdTile(QWidget):
         foot = QHBoxLayout()
         foot.setSpacing(scale(16, metrics.width))
         foot.setContentsMargins(0, scale(14, metrics.width), 0, 0)
-        price = QLabel(f"{fmt_price(product.price_rub)}\u00a0{S.CUR}")
-        price.setFont(kolomna_font(metrics.fs_h3, QFont.Weight.Black))
-        price.setStyleSheet(f"color: {GREEN}; background: transparent;")
-        price.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        foot.addWidget(price, alignment=Qt.AlignmentFlag.AlignVCenter)
-        add = _TileAddBtn(metrics)
-        add.clicked.connect(self._on_add)
-        self._add_btn = add
-        foot.addWidget(add, alignment=Qt.AlignmentFlag.AlignVCenter)
+        self._add_btn = _append_product_foot_row(
+            foot,
+            product,
+            metrics,
+            price_px=metrics.fs_h3,
+            add_factory=lambda: _TileAddBtn(metrics),
+        )
+        if self._add_btn is not None:
+            self._add_btn.clicked.connect(self._on_add)
         body_lay.addLayout(foot)
         root.addWidget(body)
         self._body = body
@@ -680,7 +729,12 @@ class KolomnaProdTile(QWidget):
         total += chip_fm.height() + chip_pad_v * 2
 
         total += gap
-        total += scale(14, m.width) + scale(TILE_ADD_BTN_MIN_HEIGHT_PX, m.width)
+        total += _product_foot_block_height(
+            m,
+            self._product,
+            price_px=m.fs_h3,
+            min_btn_h_px=TILE_ADD_BTN_MIN_HEIGHT_PX,
+        )
         return total
 
     def _shadow_bleed(self) -> int:
@@ -745,9 +799,10 @@ class KolomnaProdTile(QWidget):
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
             pos = event.position().toPoint()
-            add_pos = self._add_btn.mapFrom(self, pos)
-            if self._add_btn.rect().contains(add_pos):
-                super().mouseReleaseEvent(event)
-                return
+            if self._add_btn is not None:
+                add_pos = self._add_btn.mapFrom(self, pos)
+                if self._add_btn.rect().contains(add_pos):
+                    super().mouseReleaseEvent(event)
+                    return
             self.clicked.emit(self._product.id)
         super().mouseReleaseEvent(event)
