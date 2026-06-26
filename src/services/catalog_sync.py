@@ -13,6 +13,8 @@ from src.services.product_image_cache import ProductImageCache
 
 logger = logging.getLogger(__name__)
 
+_API_STATUS_POLL_SEC = 30
+
 
 class CatalogStore(QObject):
     """Хранилище каталога с периодическим обновлением."""
@@ -33,8 +35,12 @@ class CatalogStore(QObject):
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.refresh)
-        interval = max(15, settings.catalog.poll_interval_sec) * 1000
+        interval = max(30, settings.catalog.poll_interval_sec) * 1000
         self._timer.start(interval)
+
+        self._api_timer = QTimer(self)
+        self._api_timer.timeout.connect(self._poll_api_status)
+        self._api_timer.start(_API_STATUS_POLL_SEC * 1000)
 
     @property
     def categories(self) -> list[Category]:
@@ -98,13 +104,7 @@ class CatalogStore(QObject):
 
     def refresh(self) -> None:
         logger.debug("Каталог: обновление…")
-        try:
-            online = self._crm.is_online()
-        except Exception as exc:
-            logger.error("Каталог: проверка /health не удалась: %s", exc, exc_info=True)
-            online = False
-
-        self._set_api_online(online)
+        online = self._poll_api_status()
 
         if not online:
             if not self._products:
@@ -161,6 +161,16 @@ class CatalogStore(QObject):
                 img_stats.failed,
             )
         self.updated.emit()
+
+    def _poll_api_status(self) -> bool:
+        """Лёгкий опрос GET /health для индикатора API (каждые 30 с)."""
+        try:
+            online = self._crm.is_online()
+        except Exception as exc:
+            logger.error("Каталог: опрос /health: %s", exc, exc_info=True)
+            online = False
+        self._set_api_online(online)
+        return online
 
     def _attach_product_images(self, products: list[Product]):
         from src.ui.kolomna_catalog import is_tour_product
