@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -24,6 +25,7 @@ from src.ui.kolomna_prefs import KolomnaPrefs, save_kolomna_prefs
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, KolomnaMetrics, scale
 from src.ui.kolomna_runtime_mode import integration_label
 from src.ui.scroll_utils import enable_kinetic_scroll
+from src.services.printer_hs_k33 import PrinterHsK33Service
 
 
 def _card_shadow(widget: QWidget, metrics: KolomnaMetrics) -> None:
@@ -778,6 +780,52 @@ class KolomnaAdminPanel(QWidget):
             )
         )
 
+        if settings is not None:
+            printer_wrap = QWidget()
+            printer_wrap.setStyleSheet("background: transparent;")
+            printer_lay = QVBoxLayout(printer_wrap)
+            printer_lay.setContentsMargins(0, 0, 0, 0)
+            printer_lay.setSpacing(scale(20, metrics.width))
+            pr = settings.hardware.printer
+            self._printer_addr_lbl = QLabel(
+                S.ADMIN_PRINTER_ADDR.format(host=pr.host, port=pr.port)
+            )
+            self._printer_addr_lbl.setWordWrap(True)
+            self._printer_addr_lbl.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Medium))
+            self._printer_addr_lbl.setStyleSheet(
+                f"color: {INK_60}; background: transparent; padding: 0 {scale(32, metrics.width)}px;"
+            )
+            printer_lay.addWidget(self._printer_addr_lbl)
+            test_h = scale(88, metrics.width)
+            test_r = test_h // 2
+            test_border = max(2, scale(3, metrics.width))
+            self._printer_test_btn = QPushButton(S.ADMIN_PRINTER_TEST)
+            self._printer_test_btn.setObjectName("KolomnaAdminPrinterTest")
+            self._printer_test_btn.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            self._printer_test_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._printer_test_btn.setFixedHeight(test_h)
+            self._printer_test_btn.setFont(kolomna_font(metrics.fs_body, QFont.Weight.ExtraBold))
+            self._printer_test_btn.setStyleSheet(
+                f"QPushButton#KolomnaAdminPrinterTest {{ background: transparent; color: {GREEN}; "
+                f"border: {test_border}px solid {GREEN}; border-radius: {test_r}px; "
+                f"font-weight: 800; font-size: {metrics.fs_body}px; "
+                f"padding: {scale(20, metrics.width)}px {scale(40, metrics.width)}px; }}"
+                f"QPushButton#KolomnaAdminPrinterTest:pressed {{ background: {GREEN}; color: {CREAM}; }}"
+            )
+            self._printer_test_btn.clicked.connect(self._on_printer_test)
+            printer_lay.addWidget(self._printer_test_btn)
+            bl.addWidget(
+                self._admin_sec(
+                    metrics,
+                    S.ADMIN_PRINTER_SECTION,
+                    S.ADMIN_PRINTER_HINT,
+                    _wrap_rounded_card(printer_wrap, metrics),
+                )
+            )
+        else:
+            self._printer_addr_lbl = None
+            self._printer_test_btn = None
+
         hours_h = scale(88, metrics.width)
         pad_h = scale(32, metrics.width)
         pad_v = scale(28, metrics.width)
@@ -944,6 +992,16 @@ class KolomnaAdminPanel(QWidget):
         for m, ch in self._layout_choices.items():
             ch.set_active(m == mode)
 
+    def _on_printer_test(self) -> None:
+        if self._settings is None:
+            return
+        ok = PrinterHsK33Service(self._settings.hardware.printer).print_test_receipt()
+        QMessageBox.information(
+            self,
+            S.ADMIN_PRINTER_SECTION,
+            S.ADMIN_PRINTER_OK if ok else S.ADMIN_PRINTER_FAIL,
+        )
+
     def retranslate(self) -> None:
         self._quit_btn.setText(S.ADMIN_QUIT_APP)
         self._images_toggle.set_title(S.ADMIN_IMAGES_TOGGLE)
@@ -957,6 +1015,13 @@ class KolomnaAdminPanel(QWidget):
             self._integration_lbl.setText(
                 f"{S.ADMIN_RUNTIME_INTEGRATION}: "
                 f"{integration_label(self._settings.hardware.integration_mode)}"
+            )
+        if self._printer_test_btn is not None:
+            self._printer_test_btn.setText(S.ADMIN_PRINTER_TEST)
+        if self._printer_addr_lbl is not None and self._settings is not None:
+            pr = self._settings.hardware.printer
+            self._printer_addr_lbl.setText(
+                S.ADMIN_PRINTER_ADDR.format(host=pr.host, port=pr.port)
             )
 
     def _save(self) -> None:
