@@ -142,51 +142,6 @@ class KolomnaInfoModal(QWidget):
             qr_lay.addWidget(tile, i // 2, i % 2, Qt.AlignmentFlag.AlignCenter)
         box_lay.addWidget(qr_grid, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-        dev = QFrame()
-        dev.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        dev.setStyleSheet(
-            f"QFrame {{ border: none; border-top: 1px solid {CREAM_DEEP}; "
-            f"background: transparent; margin-top: {scale(18, metrics.width)}px; "
-            f"padding-top: {scale(28, metrics.width)}px; "
-            f"margin-bottom: {scale(12, metrics.width)}px; }}"
-        )
-        dev_lay = QHBoxLayout(dev)
-        dev_lay.setContentsMargins(0, 0, 0, 0)
-        dev_lay.setSpacing(scale(7, metrics.width))
-        dev_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        dev_muted = "rgba(31,77,42,0.5)"
-        self._dev_lead = QLabel(S.DEV_TITLE)
-        self._dev_lead.setFont(kolomna_font(scale(18, metrics.width), QFont.Weight.Normal))
-        self._dev_lead.setStyleSheet(f"color: {dev_muted}; background: transparent;")
-
-        b = QLabel("B")
-        b.setFont(kolomna_font(scale(15, metrics.width), QFont.Weight.Normal))
-        b.setStyleSheet(
-            f"color: {dev_muted}; background: transparent; letter-spacing: -0.26px;"
-        )
-        word = QLabel("üro")
-        word.setFont(kolomna_font(scale(18, metrics.width), QFont.Weight.Normal))
-        word.setStyleSheet(
-            f"color: {dev_muted}; background: transparent; letter-spacing: -0.26px;"
-        )
-        num = QLabel("901")
-        num.setFont(kolomna_font(scale(18, metrics.width), QFont.Weight.Normal))
-        num.setStyleSheet(
-            f"color: {dev_muted}; background: transparent; letter-spacing: -0.18px; "
-            f"margin-left: {scale(3, metrics.width)}px;"
-        )
-
-        self._dev_meta = QLabel(f"· {S.DEV_PHONE} · {S.DEV_SITE}")
-        self._dev_meta.setFont(kolomna_font(scale(18, metrics.width), QFont.Weight.Normal))
-        self._dev_meta.setStyleSheet(f"color: {dev_muted}; background: transparent;")
-        dev_lay.addWidget(self._dev_lead)
-        dev_lay.addWidget(b)
-        dev_lay.addWidget(word)
-        dev_lay.addWidget(num)
-        dev_lay.addWidget(self._dev_meta)
-        box_lay.addWidget(dev)
-
         outer.addWidget(self._box, alignment=Qt.AlignmentFlag.AlignCenter)
         self._qr_caps = (S.QR_SITE, S.QR_TG, S.QR_VK, S.QR_MAX)
 
@@ -205,8 +160,6 @@ class KolomnaInfoModal(QWidget):
         self._qr_caps = (S.QR_SITE, S.QR_TG, S.QR_VK, S.QR_MAX)
         for tile, cap in zip(self._qr_tiles, self._qr_caps, strict=True):
             tile.set_label(cap)
-        self._dev_lead.setText(S.DEV_TITLE)
-        self._dev_meta.setText(f"· {S.DEV_PHONE} · {S.DEV_SITE}")
 
     def set_qr_pixmaps(self, pixmaps) -> None:
         for tile, pix in zip(self._qr_tiles, pixmaps):
