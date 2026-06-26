@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from src.core.config import Settings
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_chrome import chrome_top_pad
+from src.ui.kolomna_chrome import chrome_api_status_gap, chrome_top_pad
 from src.ui.kolomna_tokens import CREAM, INK_60, KolomnaMetrics, scale
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.widgets.attract_cta import AttractCtaBlock
@@ -92,7 +92,7 @@ class StartScreen(BaseScreen):
     def _place_top_chrome(self) -> None:
         m = KolomnaMetrics.from_viewport(self.width(), self.height())
         top = chrome_top_pad(m)
-        gap = scale(8, self.width())
+        gap = chrome_api_status_gap(m)
         dot_x = self.width() - top - self._api_dot.width()
         self._api_dot.move(dot_x, top)
         lang_x = self.width() - top - self._lang.width()

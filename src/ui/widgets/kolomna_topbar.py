@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_chrome import chrome_pill_height, chrome_row_height, chrome_top_pad
+from src.ui.kolomna_chrome import chrome_api_status_gap, chrome_pill_height, chrome_row_height, chrome_status_stack_height, chrome_top_pad
 from src.ui.kolomna_shadow import draw_shadow_soft_pill, shadow_soft_bleed
 from src.ui.kolomna_tokens import CREAM, GREEN, KolomnaMetrics, YELLOW, scale
 from src.ui.widgets.kolomna_api_status_dot import KolomnaApiStatusDot
@@ -250,7 +250,9 @@ class KolomnaTopBar(QWidget):
         root.setSpacing(scale(30, metrics.width))
 
         chrome_row = QWidget()
-        chrome_row.setFixedHeight(chrome_row_height(metrics.width))
+        chrome_row.setFixedHeight(
+            max(chrome_row_height(metrics.width), chrome_status_stack_height(metrics))
+        )
         row = QHBoxLayout(chrome_row)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(scale(24, metrics.width))
@@ -265,7 +267,8 @@ class KolomnaTopBar(QWidget):
         right = QWidget()
         right_lay = QVBoxLayout(right)
         right_lay.setContentsMargins(0, 0, 0, 0)
-        right_lay.setSpacing(scale(8, metrics.width))
+        gap = chrome_api_status_gap(metrics)
+        right_lay.setSpacing(gap)
         self._api_dot = KolomnaApiStatusDot(metrics.width)
         right_lay.addWidget(
             self._api_dot,

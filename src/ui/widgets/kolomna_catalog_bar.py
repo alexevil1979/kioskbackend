@@ -3,7 +3,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 
-from src.ui.kolomna_chrome import chrome_top_pad
+from src.ui.kolomna_chrome import chrome_api_status_gap, chrome_top_pad
 from src.ui.kolomna_tokens import CREAM, KolomnaMetrics, scale
 from src.ui.widgets.kolomna_api_status_dot import KolomnaApiStatusDot
 from src.ui.widgets.kolomna_info_btn import KolomnaInfoButton
@@ -47,7 +47,8 @@ class KolomnaCatalogBar(QWidget):
         right = QWidget()
         right_lay = QVBoxLayout(right)
         right_lay.setContentsMargins(0, 0, 0, 0)
-        right_lay.setSpacing(scale(8, m.width))
+        gap = chrome_api_status_gap(m)
+        right_lay.setSpacing(gap)
         self._api_dot = KolomnaApiStatusDot(m.width)
         right_lay.addWidget(
             self._api_dot,

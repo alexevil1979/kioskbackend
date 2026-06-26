@@ -21,3 +21,14 @@ def chrome_row_height(viewport_width: int) -> int:
 
 def chrome_top_pad(metrics: KolomnaMetrics) -> int:
     return metrics.pad
+
+
+def chrome_api_status_gap(metrics: KolomnaMetrics) -> int:
+    """Отступ индикатора API от краёв формы и от lang-toggle (одинаковый)."""
+    return metrics.pad
+
+
+def chrome_status_stack_height(metrics: KolomnaMetrics) -> int:
+    """Высота колонки: индикатор + отступ + lang-toggle."""
+    dot_h = max(10, scale(14, metrics.width))
+    return dot_h + chrome_api_status_gap(metrics) + chrome_row_height(metrics.width)
