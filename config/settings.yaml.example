@@ -74,6 +74,7 @@ hardware:
     lan_subnet: "192.168.1.0/24"
     gateway: "192.168.1.1"
   nuc:
+    # IP Ethernet NUC в подсети принтера (switch NUC↔HS-K33). Обязателен, если Wi‑Fi и принтер в разных сегментах.
     lan_ip: "192.168.1.10"
   umka:
     host: "192.168.1.100"

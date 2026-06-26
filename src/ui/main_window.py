@@ -107,7 +107,7 @@ class MainWindow(QMainWindow):
         self._aqsi = AqsiOrderService(hw.aqsi)
         self._fiscal_umka = FiscalUmkaService(settings)
         self._fiscal_cloud = CloudFiscalService(settings.fiscal)
-        self._printer = PrinterHsK33Service(hw.printer)
+        self._printer = PrinterHsK33Service(hw.printer, bind_ip=hw.nuc.lan_ip)
 
         self.setWindowTitle(settings.app.title)
         self._dev_mode = settings.app.dev_mode

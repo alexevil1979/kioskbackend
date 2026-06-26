@@ -3,13 +3,13 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QRectF
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
+    QApplication,
     QFrame,
     QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -22,7 +22,7 @@ from src.ui import kolomna_strings as S
 from src.ui.kolomna_fonts import kolomna_font
 from src.ui.kolomna_cta import cta_swatch_check_color, normalize_cta_color
 from src.ui.kolomna_prefs import KolomnaPrefs, save_kolomna_prefs
-from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, KolomnaMetrics, scale
+from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, KolomnaMetrics, scale, STRAWBERRY
 from src.ui.kolomna_runtime_mode import integration_label
 from src.ui.scroll_utils import enable_kinetic_scroll
 from src.services.printer_hs_k33 import PrinterHsK33Service
@@ -814,6 +814,13 @@ class KolomnaAdminPanel(QWidget):
             )
             self._printer_test_btn.clicked.connect(self._on_printer_test)
             printer_lay.addWidget(self._printer_test_btn)
+            self._printer_status_lbl = QLabel("")
+            self._printer_status_lbl.setWordWrap(True)
+            self._printer_status_lbl.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Medium))
+            self._printer_status_lbl.setStyleSheet(
+                f"color: {INK_60}; background: transparent; padding: 0 {scale(32, metrics.width)}px;"
+            )
+            printer_lay.addWidget(self._printer_status_lbl)
             bl.addWidget(
                 self._admin_sec(
                     metrics,
@@ -825,6 +832,7 @@ class KolomnaAdminPanel(QWidget):
         else:
             self._printer_addr_lbl = None
             self._printer_test_btn = None
+            self._printer_status_lbl = None
 
         hours_h = scale(88, metrics.width)
         pad_h = scale(32, metrics.width)
@@ -993,14 +1001,29 @@ class KolomnaAdminPanel(QWidget):
             ch.set_active(m == mode)
 
     def _on_printer_test(self) -> None:
-        if self._settings is None:
+        if self._settings is None or self._printer_test_btn is None:
             return
-        ok = PrinterHsK33Service(self._settings.hardware.printer).print_test_receipt()
-        QMessageBox.information(
-            self,
-            S.ADMIN_PRINTER_SECTION,
-            S.ADMIN_PRINTER_OK if ok else S.ADMIN_PRINTER_FAIL,
-        )
+        self._printer_test_btn.setEnabled(False)
+        if self._printer_status_lbl is not None:
+            self._printer_status_lbl.setText(S.ADMIN_PRINTER_TESTING)
+            self._printer_status_lbl.setStyleSheet(
+                f"color: {INK_60}; background: transparent; "
+                f"padding: 0 {scale(32, self._m.width)}px;"
+            )
+        QApplication.processEvents()
+        hw = self._settings.hardware
+        result = PrinterHsK33Service(
+            hw.printer,
+            bind_ip=hw.nuc.lan_ip,
+        ).print_test_receipt()
+        self._printer_test_btn.setEnabled(True)
+        if self._printer_status_lbl is not None:
+            color = GREEN if result.ok else STRAWBERRY
+            self._printer_status_lbl.setText(result.message)
+            self._printer_status_lbl.setStyleSheet(
+                f"color: {color}; background: transparent; font-weight: 600; "
+                f"padding: 0 {scale(32, self._m.width)}px;"
+            )
 
     def retranslate(self) -> None:
         self._quit_btn.setText(S.ADMIN_QUIT_APP)
