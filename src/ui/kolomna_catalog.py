@@ -24,9 +24,10 @@ class KolomnaApiProductSection:
     is_tickets: bool
 
 
-# product_id с API — линейка товара (клубника / малина / экскурсии), не variant_id для заказа.
+# product_id с API — линейка товара (клубника / голубика / малина / экскурсии), не variant_id.
 KOLOMNA_API_SECTIONS: dict[int, KolomnaApiProductSection] = {
     6: KolomnaApiProductSection("6", "Клубника", 0, False),
+    33: KolomnaApiProductSection("33", "Голубика", 1, False),
     7: KolomnaApiProductSection("7", "Малина", 2, False),
     84: KolomnaApiProductSection("84", "Агротуризм", 3, True),
 }
