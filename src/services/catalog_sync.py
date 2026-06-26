@@ -29,6 +29,7 @@ class CatalogStore(QObject):
         self._categories: list[Category] = []
         self._products: list[Product] = []
         self._offline = False
+        self._api_online = False
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.refresh)

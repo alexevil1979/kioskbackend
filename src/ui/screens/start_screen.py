@@ -92,10 +92,12 @@ class StartScreen(BaseScreen):
     def _place_top_chrome(self) -> None:
         m = KolomnaMetrics.from_viewport(self.width(), self.height())
         top = chrome_top_pad(m)
-        gap = scale(12, self.width())
+        gap = scale(8, self.width())
+        dot_x = self.width() - top - self._api_dot.width()
+        self._api_dot.move(dot_x, top)
         lang_x = self.width() - top - self._lang.width()
-        self._lang.move(lang_x, top)
-        self._api_dot.move(lang_x - gap - self._api_dot.width(), top + (self._lang.height() - self._api_dot.height()) // 2)
+        lang_y = top + self._api_dot.height() + gap
+        self._lang.move(lang_x, lang_y)
         self._lang.raise_()
         self._api_dot.raise_()
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QVBoxLayout, QWidget
 
 from src.ui.kolomna_chrome import chrome_top_pad
 from src.ui.kolomna_tokens import CREAM, KolomnaMetrics, scale
@@ -45,12 +45,18 @@ class KolomnaCatalogBar(QWidget):
         self._lang.lang_changed.connect(self.lang_changed.emit)
 
         right = QWidget()
-        right_lay = QHBoxLayout(right)
+        right_lay = QVBoxLayout(right)
         right_lay.setContentsMargins(0, 0, 0, 0)
-        right_lay.setSpacing(scale(12, m.width))
+        right_lay.setSpacing(scale(8, m.width))
         self._api_dot = KolomnaApiStatusDot(m.width)
-        right_lay.addWidget(self._api_dot, alignment=Qt.AlignmentFlag.AlignVCenter)
-        right_lay.addWidget(self._lang, alignment=Qt.AlignmentFlag.AlignVCenter)
+        right_lay.addWidget(
+            self._api_dot,
+            alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
+        )
+        right_lay.addWidget(
+            self._lang,
+            alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
+        )
         grid.addWidget(right, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
     def set_lang(self, lang: str) -> None:

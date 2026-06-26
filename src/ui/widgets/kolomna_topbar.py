@@ -262,14 +262,26 @@ class KolomnaTopBar(QWidget):
 
         row.addStretch(1)
 
+        right = QWidget()
+        right_lay = QVBoxLayout(right)
+        right_lay.setContentsMargins(0, 0, 0, 0)
+        right_lay.setSpacing(scale(8, metrics.width))
         self._api_dot = KolomnaApiStatusDot(metrics.width)
-        row.addWidget(self._api_dot, alignment=Qt.AlignmentFlag.AlignVCenter)
+        right_lay.addWidget(
+            self._api_dot,
+            alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
+        )
 
         self._lang: KolomnaLangToggle | None = None
         if show_lang:
             self._lang = KolomnaLangToggle(metrics.width)
             self._lang.lang_changed.connect(self.lang_changed.emit)
-            row.addWidget(self._lang, alignment=Qt.AlignmentFlag.AlignVCenter)
+            right_lay.addWidget(
+                self._lang,
+                alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop,
+            )
+
+        row.addWidget(right, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
         root.addWidget(chrome_row)
 
