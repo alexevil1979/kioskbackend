@@ -76,8 +76,7 @@
 
 - `hardware.aqsi` — API aQsi (`use_mock`, `api_key`)
 - `hardware.tbank_terminal` — IP/POS Smart Sale
-| Принтер USB (Windows) | `connection: usb`, `windows_name` — очередь Generic / Text Only |
-| Принтер Ethernet | `connection: ethernet`, `host`, `port` 9100 |
+- `hardware.printer` — HS-K33: USB (`connection: usb`, `windows_name`) или Ethernet (`host`, `port` 9100)
 - `hardware.network` / `nuc` — IP в LAN
 
 Готовые профили: скопировать из `config/presets/mode_aqsi.yaml` или `mode_pos_printer.yaml`.
