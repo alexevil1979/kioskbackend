@@ -86,6 +86,7 @@ hardware:
     windows_name: "Generic / Text Only"
     windows_datatype: RAW
     windows_encoding: cp866
+    windows_codepage_id: -1
     windows_use_direct_port: true
     windows_port: ""
     windows_escpos_codepage: false

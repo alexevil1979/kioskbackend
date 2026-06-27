@@ -153,6 +153,8 @@ class HardwarePrinterConfig:
     # RAW — ESC/POS байты напрямую (CP866, как на самотесте HS-K33); TEXT — только латиница
     windows_datatype: str = "RAW"
     windows_encoding: str = "cp866"
+    # HSPOS code page id для ESC t n: 7=CP866, 6=WCP1251 (-1 = авто из windows_encoding)
+    windows_codepage_id: int = -1
     # Писать ESC/POS напрямую на USB/COM-порт (USB001), минуя Generic / Text Only
     windows_use_direct_port: bool = True
     # Вручную: USB001, COM3 — если пусто, берётся из свойств принтера в Windows

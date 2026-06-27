@@ -14,13 +14,10 @@ logger = logging.getLogger(__name__)
 
 # Документация: docs/hardware/04-hs-k33-printer.md
 
-# ESC @ сбрасывает на PC437 (0xEA → Ω). Самотест CP866 — только после выбора таблицы.
-# Перед текстом: ESC t 17 (CP866), без ESC @. Отрезка — ESC/POS в конце.
-_ESC_R_RUSSIA = b"\x1b\x52\x07"
-_CP866_TABLE = b"\x1b\x74\x11"
-_CP866_PREFIX = _ESC_R_RUSSIA + _CP866_TABLE
-_CP1251_TABLE = b"\x1b\x74\x2e"  # ESC t 46 — WPC1251
-_CP1251_PREFIX = _ESC_R_RUSSIA + _CP1251_TABLE
+# HSPOS ESC/POS (hsprinter.com): n=7 CP866, n=6 WCP1251. НЕ Epson n=17/n=46!
+# n=17 у HSPOS = WCP1253 Greek → на чеке были Ω, β. ESC R 7 у HSPOS = Spain, не Россия.
+_CP866_TABLE = b"\x1b\x74\x07"
+_CP1251_TABLE = b"\x1b\x74\x06"
 _FEED_LINES = b"\x1b\x64\x05"
 # GS V 0 — полная отрезка; GS V 66 n — подача n строк и отрезка (часто надёжнее)
 _CUT_FULL = b"\x1dV\x00"
@@ -158,6 +155,20 @@ class PrinterHsK33Service:
     def _encoding_name(self) -> str:
         return (self._cfg.windows_encoding or "cp866").strip().lower().replace("-", "")
 
+    def _codepage_id(self) -> int:
+        if self._cfg.windows_codepage_id >= 0:
+            return self._cfg.windows_codepage_id
+        enc = self._encoding_name()
+        if enc in ("cp1251", "1251", "windows1251"):
+            return 6
+        return 7
+
+    def _codepage_table(self) -> bytes:
+        page_id = self._codepage_id()
+        if not 0 <= page_id <= 255:
+            raise ValueError(f"windows_codepage_id вне диапазона: {page_id}")
+        return bytes((0x1B, 0x74, page_id))
+
     def _encode_body(self, text: str) -> bytes:
         enc = self._encoding_name()
         normalized = self._normalize_lines(text)
@@ -168,14 +179,8 @@ class PrinterHsK33Service:
         return normalized.encode(enc, errors="replace")
 
     def _payload_prefix(self) -> bytes:
-        """Выбор code page без ESC @ (сброс переводит HS-K33 на PC437)."""
-        enc = self._encoding_name()
-        if enc in ("cp866", "866", "dos"):
-            table = _CP866_PREFIX
-        elif enc in ("cp1251", "1251", "windows1251"):
-            table = _CP1251_PREFIX
-        else:
-            return b""
+        """ESC t n по мануалу HSPOS; без ESC @ и без ESC R."""
+        table = self._codepage_table()
         if self._cfg.windows_escpos_codepage:
             return _INIT + table
         return table
@@ -257,7 +262,7 @@ class PrinterHsK33Service:
             "",
             "Принтер: HS-K33",
             conn_line,
-            f"Кодировка: {self._encoding_name()}",
+            f"Кодировка: {self._encoding_name()} ESC t {self._codepage_id()}",
             "",
             "Связь: OK",
             f"Дата: {now}",
