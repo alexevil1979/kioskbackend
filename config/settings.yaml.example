@@ -92,6 +92,8 @@ hardware:
     windows_port: ""
     windows_escpos_table: true
     windows_escpos_codepage: false
+    sample_paid_order_id: 2680
+    qr_raster_width: 384
     host: "192.168.1.81"
     port: 9100
   tbank_terminal:

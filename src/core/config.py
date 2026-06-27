@@ -165,6 +165,10 @@ class HardwarePrinterConfig:
     windows_escpos_table: bool = True
     # True: добавить ESC @ перед ESC t (обычно не нужен на HS-K33)
     windows_escpos_codepage: bool = False
+    # Оплаченный заказ для тестовой печати чека из API (админка)
+    sample_paid_order_id: int = 2680
+    # Ширина QR-растра для 80 мм (точек); 0 — не масштабировать
+    qr_raster_width: int = 384
 
 
 @dataclass

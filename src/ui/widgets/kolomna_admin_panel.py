@@ -26,6 +26,7 @@ from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_30, INK_60, Kolo
 from src.ui.kolomna_runtime_mode import integration_label
 from src.ui.scroll_utils import enable_kinetic_scroll
 from src.services.printer_hs_k33 import PrinterHsK33Service
+from src.services.crm_client import create_crm_client
 
 
 def _card_shadow(widget: QWidget, metrics: KolomnaMetrics) -> None:
@@ -812,6 +813,25 @@ class KolomnaAdminPanel(QWidget):
             )
             self._printer_test_btn.clicked.connect(self._on_printer_test)
             printer_lay.addWidget(self._printer_test_btn)
+            self._printer_receipt_btn = QPushButton(
+                S.ADMIN_PRINTER_RECEIPT_SAMPLE.format(
+                    order_id=pr.sample_paid_order_id or 2680
+                )
+            )
+            self._printer_receipt_btn.setObjectName("KolomnaAdminPrinterReceipt")
+            self._printer_receipt_btn.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            self._printer_receipt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._printer_receipt_btn.setFixedHeight(test_h)
+            self._printer_receipt_btn.setFont(kolomna_font(metrics.fs_body, QFont.Weight.ExtraBold))
+            self._printer_receipt_btn.setStyleSheet(
+                f"QPushButton#KolomnaAdminPrinterReceipt {{ background: transparent; color: {GREEN}; "
+                f"border: {test_border}px solid {GREEN}; border-radius: {test_r}px; "
+                f"font-weight: 800; font-size: {metrics.fs_body}px; "
+                f"padding: {scale(20, metrics.width)}px {scale(40, metrics.width)}px; }}"
+                f"QPushButton#KolomnaAdminPrinterReceipt:pressed {{ background: {GREEN}; color: {CREAM}; }}"
+            )
+            self._printer_receipt_btn.clicked.connect(self._on_printer_paid_receipt)
+            printer_lay.addWidget(self._printer_receipt_btn)
             self._printer_status_lbl = QLabel("")
             self._printer_status_lbl.setWordWrap(True)
             self._printer_status_lbl.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Medium))
@@ -830,6 +850,7 @@ class KolomnaAdminPanel(QWidget):
         else:
             self._printer_addr_lbl = None
             self._printer_test_btn = None
+            self._printer_receipt_btn = None
             self._printer_status_lbl = None
 
         hours_h = scale(88, metrics.width)
@@ -1016,7 +1037,7 @@ class KolomnaAdminPanel(QWidget):
     def _on_printer_test(self) -> None:
         if self._settings is None or self._printer_test_btn is None:
             return
-        self._printer_test_btn.setEnabled(False)
+        self._set_printer_buttons_enabled(False)
         if self._printer_status_lbl is not None:
             self._printer_status_lbl.setText(S.ADMIN_PRINTER_TESTING)
             self._printer_status_lbl.setStyleSheet(
@@ -1029,14 +1050,63 @@ class KolomnaAdminPanel(QWidget):
             hw.printer,
             bind_ip=hw.nuc.lan_ip,
         ).print_test_receipt()
-        self._printer_test_btn.setEnabled(True)
+        self._set_printer_buttons_enabled(True)
+        self._show_printer_status(result)
+
+    def _on_printer_paid_receipt(self) -> None:
+        if self._settings is None or self._printer_receipt_btn is None:
+            return
+        if self._settings.crm.use_mock:
+            self._show_printer_status_message(S.ADMIN_PRINTER_RECEIPT_NO_API, ok=False)
+            return
+        order_id = int(self._settings.hardware.printer.sample_paid_order_id or 2680)
+        self._set_printer_buttons_enabled(False)
         if self._printer_status_lbl is not None:
-            color = GREEN if result.ok else STRAWBERRY
-            self._printer_status_lbl.setText(result.message)
+            self._printer_status_lbl.setText(S.ADMIN_PRINTER_RECEIPT_FETCHING)
             self._printer_status_lbl.setStyleSheet(
-                f"color: {color}; background: transparent; font-weight: 600; "
+                f"color: {INK_60}; background: transparent; "
                 f"padding: 0 {scale(32, self._m.width)}px;"
             )
+        QApplication.processEvents()
+        try:
+            receipt = create_crm_client(self._settings).get_order_receipt(order_id)
+        except Exception as exc:
+            self._set_printer_buttons_enabled(True)
+            self._show_printer_status_message(str(exc).strip() or repr(exc), ok=False)
+            return
+        hw = self._settings.hardware
+        result = PrinterHsK33Service(
+            hw.printer,
+            bind_ip=hw.nuc.lan_ip,
+        ).print_paid_order_receipt(receipt)
+        self._set_printer_buttons_enabled(True)
+        self._show_printer_status(result)
+
+    def _set_printer_buttons_enabled(self, enabled: bool) -> None:
+        if self._printer_test_btn is not None:
+            self._printer_test_btn.setEnabled(enabled)
+        if self._printer_receipt_btn is not None:
+            self._printer_receipt_btn.setEnabled(enabled)
+
+    def _show_printer_status(self, result) -> None:
+        if self._printer_status_lbl is None:
+            return
+        color = GREEN if result.ok else STRAWBERRY
+        self._printer_status_lbl.setText(result.message)
+        self._printer_status_lbl.setStyleSheet(
+            f"color: {color}; background: transparent; font-weight: 600; "
+            f"padding: 0 {scale(32, self._m.width)}px;"
+        )
+
+    def _show_printer_status_message(self, message: str, *, ok: bool) -> None:
+        if self._printer_status_lbl is None:
+            return
+        color = GREEN if ok else STRAWBERRY
+        self._printer_status_lbl.setText(message)
+        self._printer_status_lbl.setStyleSheet(
+            f"color: {color}; background: transparent; font-weight: 600; "
+            f"padding: 0 {scale(32, self._m.width)}px;"
+        )
 
     def retranslate(self) -> None:
         self._quit_btn.setText(S.ADMIN_QUIT_APP)
@@ -1054,6 +1124,11 @@ class KolomnaAdminPanel(QWidget):
             )
         if self._printer_test_btn is not None:
             self._printer_test_btn.setText(S.ADMIN_PRINTER_TEST)
+        if self._printer_receipt_btn is not None and self._settings is not None:
+            order_id = int(self._settings.hardware.printer.sample_paid_order_id or 2680)
+            self._printer_receipt_btn.setText(
+                S.ADMIN_PRINTER_RECEIPT_SAMPLE.format(order_id=order_id)
+            )
         if self._printer_addr_lbl is not None and self._settings is not None:
             pr = self._settings.hardware.printer
             self._printer_addr_lbl.setText(self._printer_addr_text(pr))

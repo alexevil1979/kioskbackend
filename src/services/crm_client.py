@@ -559,6 +559,8 @@ class HttpCRMClient(CRMClient):
             total_amount=float(data.get("total_amount") or 0),
             station_name=str(data.get("station_name") or ""),
             paid_at=str(data.get("paid_at") or ""),
+            pickup_qr_image=str(data.get("pickup_qr_image") or ""),
+            pickup_qr_available=bool(data.get("pickup_qr_available")),
         )
 
     def get_schedule(self) -> dict[str, Any]:

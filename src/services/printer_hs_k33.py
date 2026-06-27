@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import base64
+import io
 import logging
 import socket
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 
+from PIL import Image
+
 from src.core.cart import CartLine
 from src.core.config import HardwarePrinterConfig
+from src.models.order import OrderReceiptResult
 from src.services import printer_windows_spooler as win_print
 
 logger = logging.getLogger(__name__)
@@ -20,6 +25,8 @@ _CUT_FULL = b"\x1dV\x00"
 _FEED_AND_CUT = b"\x1dV\x42\x05"
 _ESC_POS_TAIL = b"\r\n\r\n" + _FEED_LINES + _FEED_AND_CUT + _CUT_FULL
 _INIT = b"\x1b\x40"
+_ALIGN_CENTER = b"\x1b\x61\x01"
+_ALIGN_LEFT = b"\x1b\x61\x00"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
@@ -48,7 +55,18 @@ class PrinterHsK33Service:
     def print_text(self, text: str) -> bool:
         if not self._cfg.enabled or not text.strip():
             return True
-        ok, _ = self._print_text_with_detail(text)
+        ok, _ = self._print_payload_with_detail(self._build_payload(text), len(text))
+        return ok
+
+    def print_receipt(self, text: str, qr_image_data_url: str = "") -> bool:
+        """Текст чека из API + QR выдачи (pickup_qr_image)."""
+        if not self._cfg.enabled or not text.strip():
+            return True
+        ok, _ = self._print_payload_with_detail(
+            self._build_payload(text, qr_image_data_url),
+            len(text),
+            qr=bool(qr_image_data_url.strip()),
+        )
         return ok
 
     def print_test_receipt(self) -> PrinterProbeResult:
@@ -56,10 +74,34 @@ class PrinterHsK33Service:
         probe = self.probe()
         if not probe.ok:
             return probe
-        ok, detail = self._print_text_with_detail(self._format_test_receipt())
+        text = self._format_test_receipt()
+        ok, detail = self._print_payload_with_detail(self._build_payload(text), len(text))
         if ok:
             via = self._last_via
             msg = f"Тестовый чек отправлен ({via})." if via else "Тестовый чек отправлен на принтер."
+            return PrinterProbeResult(ok=True, message=msg)
+        return PrinterProbeResult(ok=False, message=detail, open_ports=probe.open_ports)
+
+    def print_paid_order_receipt(self, receipt: OrderReceiptResult) -> PrinterProbeResult:
+        """Чек оплаченного заказа из API (игнорирует hardware.printer.enabled)."""
+        probe = self.probe()
+        if not probe.ok:
+            return probe
+        if not receipt.receipt_text.strip():
+            return PrinterProbeResult(ok=False, message="API не вернул receipt_text", open_ports=probe.open_ports)
+        ok, detail = self._print_payload_with_detail(
+            self._build_payload(receipt.receipt_text, receipt.pickup_qr_image),
+            len(receipt.receipt_text),
+            qr=bool(receipt.pickup_qr_image.strip()),
+        )
+        if ok:
+            qr_note = " + QR" if receipt.pickup_qr_image.strip() else ""
+            via = self._last_via
+            msg = (
+                f"Чек заказа #{receipt.order_id}{qr_note} отправлен ({via})."
+                if via
+                else f"Чек заказа #{receipt.order_id}{qr_note} отправлен на принтер."
+            )
             return PrinterProbeResult(ok=True, message=msg)
         return PrinterProbeResult(ok=False, message=detail, open_ports=probe.open_ports)
 
@@ -71,7 +113,8 @@ class PrinterHsK33Service:
     def print_order_slip(self, lines: list[CartLine], total: float, order_id: str) -> bool:
         if not self._cfg.enabled:
             return True
-        ok, _ = self._print_text_with_detail(self._format_slip(lines, total, order_id))
+        text = self._format_slip(lines, total, order_id)
+        ok, _ = self._print_payload_with_detail(self._build_payload(text), len(text))
         return ok
 
     def _uses_usb(self) -> bool:
@@ -127,9 +170,14 @@ class PrinterHsK33Service:
                 detail = f"{detail} (исходящий IP: {self._bind_ip})"
             return PrinterProbeResult(ok=False, message=detail, open_ports=open_ports)
 
-    def _print_text_with_detail(self, text: str) -> tuple[bool, str]:
+    def _print_payload_with_detail(
+        self,
+        payload: bytes,
+        text_len: int,
+        *,
+        qr: bool = False,
+    ) -> tuple[bool, str]:
         try:
-            payload = self._build_payload(text)
             if self._uses_usb():
                 via = self._send_usb(payload)
             else:
@@ -137,12 +185,13 @@ class PrinterHsK33Service:
                 via = f"{self._cfg.host}:{self._cfg.port}"
             self._last_via = via
             logger.info(
-                "HS-K33: %s, enc=%s, page=%s, prefix=%s, %d симв.",
+                "HS-K33: %s, enc=%s, page=%s, prefix=%s, %d симв.%s",
                 via,
                 self._encoding_name(),
                 self._codepage_id(),
                 payload[:12].hex(),
-                len(text),
+                text_len,
+                ", QR" if qr else "",
             )
             return True, ""
         except OSError as exc:
@@ -151,8 +200,23 @@ class PrinterHsK33Service:
             logger.error("HS-K33: ошибка печати %s: %s", target, msg)
             return False, msg
 
-    def _build_payload(self, text: str) -> bytes:
-        return self._payload_prefix() + self._encode_body(text) + _ESC_POS_TAIL
+    def _build_payload(self, text: str, qr_image_data_url: str = "") -> bytes:
+        body = self._payload_prefix() + self._encode_body(text)
+        qr_part = self._build_qr_raster_payload(qr_image_data_url)
+        if qr_part:
+            body += b"\r\n\r\n" + _ALIGN_CENTER + qr_part + _ALIGN_LEFT
+        return body + _ESC_POS_TAIL
+
+    def _build_qr_raster_payload(self, data_url: str) -> bytes:
+        data_url = (data_url or "").strip()
+        if not data_url:
+            return b""
+        try:
+            img = _decode_data_image(data_url)
+            return _image_to_escpos_raster(img, self._cfg.qr_raster_width)
+        except Exception as exc:
+            logger.warning("HS-K33: QR не напечатан: %s", exc)
+            return b""
 
     def _normalize_lines(self, text: str) -> str:
         return text.replace("\r\n", "\n").replace("\n", "\r\n")
@@ -294,3 +358,48 @@ def _format_os_error(exc: OSError, target: str) -> str:
         return f"Хост {target} недоступен в сети"
     text = str(exc).strip() or exc.__class__.__name__
     return f"{target}: {text}"
+
+
+def _decode_data_image(data_url: str) -> Image.Image:
+    payload = data_url.split(",", 1)[1] if "," in data_url else data_url
+    raw = base64.b64decode(payload, validate=False)
+    with Image.open(io.BytesIO(raw)) as img:
+        return img.convert("RGBA").copy()
+
+
+def _image_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
+    if img.mode == "RGBA":
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[3])
+        img = bg
+    else:
+        img = img.convert("RGB")
+    img = img.convert("L")
+    width, height = img.size
+    limit = max_width if max_width > 0 else width
+    if width > limit:
+        ratio = limit / width
+        height = max(1, int(height * ratio))
+        width = limit
+        img = img.resize((width, height), Image.Resampling.LANCZOS)
+    img = img.point(lambda x: 0 if x < 160 else 255, mode="1")
+    row_bytes = (img.width + 7) // 8
+    if img.width % 8:
+        padded = Image.new("1", (row_bytes * 8, img.height), 1)
+        padded.paste(img, (0, 0))
+        img = padded
+    width = img.width
+    height = img.height
+    pixels = img.load()
+    raster = bytearray()
+    for y in range(height):
+        row = bytearray(row_bytes)
+        for x in range(width):
+            if pixels[x, y] == 0:
+                row[x // 8] |= 0x80 >> (x % 8)
+        raster.extend(row)
+    xL = row_bytes % 256
+    xH = row_bytes // 256
+    yL = height % 256
+    yH = height // 256
+    return bytes((0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH)) + bytes(raster)

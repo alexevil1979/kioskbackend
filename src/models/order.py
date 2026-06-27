@@ -31,3 +31,5 @@ class OrderReceiptResult:
     total_amount: float
     station_name: str = ""
     paid_at: str = ""
+    pickup_qr_image: str = ""
+    pickup_qr_available: bool = False

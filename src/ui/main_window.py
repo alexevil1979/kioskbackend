@@ -628,17 +628,23 @@ class MainWindow(QMainWindow):
         if sbp_scr is not None and hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
         mode = self._settings.hardware.integration_mode
+        api_receipt_printed = False
 
         if self._last_payment == "sbp" and self._katusha_order_id:
             receipt = self._sbp.fetch_receipt(self._katusha_order_id)
             if receipt and receipt.receipt_text:
                 logger.info(
-                    "СБП: чек заказа %s (%s символов)",
+                    "СБП: чек заказа %s (%s символов%s)",
                     self._katusha_order_id,
                     len(receipt.receipt_text),
+                    ", QR" if receipt.pickup_qr_image else "",
                 )
                 if self._settings.hardware.printer.enabled:
-                    self._printer.print_text(receipt.receipt_text)
+                    self._printer.print_receipt(
+                        receipt.receipt_text,
+                        receipt.pickup_qr_image,
+                    )
+                    api_receipt_printed = True
 
         if mode == "tbank_aqsi":
             logger.info("aQsi: оплата и фискализация на терминале Т-Банка")
@@ -651,11 +657,11 @@ class MainWindow(QMainWindow):
             )
             if not cloud.success:
                 logger.error("Облачный фискальный чек: %s", cloud.error)
-            if self._settings.hardware.printer.enabled:
+            if self._settings.hardware.printer.enabled and not api_receipt_printed:
                 self._printer.print_order_slip(
                     self._cart.lines, self._cart.total_rub, self._order_id
                 )
-            else:
+            elif not self._settings.hardware.printer.enabled:
                 logger.warning("Принтер HS-K33 отключён — бумажной копии не будет")
         elif mode == "legacy_umka":
             fiscal = self._fiscal_umka.print_receipt(
