@@ -27,6 +27,7 @@ from src.ui.kolomna_runtime_mode import integration_label
 from src.ui.scroll_utils import enable_kinetic_scroll
 from src.services.printer_hs_k33 import PrinterHsK33Service
 from src.services.crm_client import create_crm_client
+from src.ui.widgets.kolomna_receipt_preview import KolomnaReceiptPreviewDialog, pil_to_qpixmap
 
 
 def _card_shadow(widget: QWidget, metrics: KolomnaMetrics) -> None:
@@ -813,6 +814,22 @@ class KolomnaAdminPanel(QWidget):
             )
             self._printer_test_btn.clicked.connect(self._on_printer_test)
             printer_lay.addWidget(self._printer_test_btn)
+            self._printer_preview_btn = QPushButton(S.ADMIN_PRINTER_PREVIEW)
+            self._printer_preview_btn.setObjectName("KolomnaAdminPrinterPreview")
+            self._printer_preview_btn.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            self._printer_preview_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._printer_preview_btn.setFixedHeight(test_h)
+            self._printer_preview_btn.setFont(kolomna_font(metrics.fs_body, QFont.Weight.ExtraBold))
+            self._printer_preview_btn.setStyleSheet(
+                f"QPushButton#KolomnaAdminPrinterPreview {{ background: transparent; color: {GREEN}; "
+                f"border: {test_border}px solid {GREEN}; border-radius: {test_r}px; "
+                f"font-weight: 800; font-size: {metrics.fs_body}px; "
+                f"padding: {scale(20, metrics.width)}px {scale(40, metrics.width)}px; }}"
+                f"QPushButton#KolomnaAdminPrinterPreview:pressed {{ background: {GREEN}; color: {CREAM}; }}"
+            )
+            self._printer_preview_btn.clicked.connect(self._on_printer_preview)
+            printer_lay.addWidget(self._printer_preview_btn)
+            self._receipt_preview_dialog: KolomnaReceiptPreviewDialog | None = None
             self._printer_receipt_btn = QPushButton(
                 S.ADMIN_PRINTER_RECEIPT_SAMPLE.format(
                     order_id=pr.sample_paid_order_id or 2680
@@ -850,6 +867,8 @@ class KolomnaAdminPanel(QWidget):
         else:
             self._printer_addr_lbl = None
             self._printer_test_btn = None
+            self._printer_preview_btn = None
+            self._receipt_preview_dialog = None
             self._printer_receipt_btn = None
             self._printer_status_lbl = None
 
@@ -1082,9 +1101,44 @@ class KolomnaAdminPanel(QWidget):
         finally:
             self._set_printer_buttons_enabled(True)
 
+    def _on_printer_preview(self) -> None:
+        if self._settings is None:
+            return
+        self._set_printer_buttons_enabled(False)
+        if self._printer_status_lbl is not None:
+            self._printer_status_lbl.setText(S.ADMIN_PRINTER_RECEIPT_FETCHING)
+        QApplication.processEvents()
+        try:
+            hw = self._settings.hardware
+            printer = PrinterHsK33Service(hw.printer, bind_ip=hw.nuc.lan_ip)
+            text = printer._format_test_receipt()  # noqa: SLF001
+            qr_image = ""
+            if not self._settings.crm.use_mock:
+                order_id = int(hw.printer.sample_paid_order_id or 2680)
+                receipt = create_crm_client(self._settings).get_order_receipt(order_id)
+                text = receipt.receipt_text
+                qr_image = receipt.pickup_qr_image
+            preview = printer.preview_receipt_image(text, qr_image)
+            pixmap = pil_to_qpixmap(preview)
+            if self._receipt_preview_dialog is None:
+                self._receipt_preview_dialog = KolomnaReceiptPreviewDialog(
+                    self._m, pixmap, parent=self
+                )
+            else:
+                self._receipt_preview_dialog.set_pixmap(pixmap)
+            self._receipt_preview_dialog.show_modal()
+            if self._printer_status_lbl is not None:
+                self._printer_status_lbl.setText("")
+        except Exception as exc:
+            self._show_printer_status_message(str(exc).strip() or repr(exc), ok=False)
+        finally:
+            self._set_printer_buttons_enabled(True)
+
     def _set_printer_buttons_enabled(self, enabled: bool) -> None:
         if self._printer_test_btn is not None:
             self._printer_test_btn.setEnabled(enabled)
+        if self._printer_preview_btn is not None:
+            self._printer_preview_btn.setEnabled(enabled)
         if self._printer_receipt_btn is not None:
             self._printer_receipt_btn.setEnabled(enabled)
 
@@ -1124,6 +1178,8 @@ class KolomnaAdminPanel(QWidget):
             )
         if self._printer_test_btn is not None:
             self._printer_test_btn.setText(S.ADMIN_PRINTER_TEST)
+        if self._printer_preview_btn is not None:
+            self._printer_preview_btn.setText(S.ADMIN_PRINTER_PREVIEW)
         if self._printer_receipt_btn is not None and self._settings is not None:
             order_id = int(self._settings.hardware.printer.sample_paid_order_id or 2680)
             self._printer_receipt_btn.setText(

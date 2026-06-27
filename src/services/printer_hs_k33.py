@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from src.core.cart import CartLine
 from src.core.config import ROOT, HardwarePrinterConfig
@@ -30,6 +30,8 @@ _ALIGN_LEFT = b"\x1b\x61\x00"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
+_PREVIEW_FONT_PATH = ROOT / "assets" / "fonts" / "Inter-Regular.ttf"
+_LOGO_ALPHA_THRESHOLD = 64
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +112,25 @@ class PrinterHsK33Service:
             )
             return PrinterProbeResult(ok=True, message=msg)
         return PrinterProbeResult(ok=False, message=detail, open_ports=probe.open_ports)
+
+    def preview_receipt_image(self, text: str, qr_image_data_url: str = "") -> Image.Image:
+        """Собрать картинку чека так же, как уйдёт на принтер (лого + текст + QR)."""
+        return _compose_receipt_preview_image(
+            text,
+            qr_image_data_url,
+            self._cfg,
+            logo_loader=self._load_logo_image,
+        )
+
+    def _load_logo_image(self) -> Image.Image | None:
+        if not self._cfg.receipt_logo_enabled:
+            return None
+        rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo.webp").strip()
+        path = ROOT / rel
+        if not path.is_file():
+            return None
+        with Image.open(path) as img:
+            return img.convert("RGBA").copy()
 
     def probe(self) -> PrinterProbeResult:
         if self._uses_usb():
@@ -229,16 +250,15 @@ class PrinterHsK33Service:
         return body + _ESC_POS_TAIL
 
     def _build_logo_raster_payload(self) -> bytes:
-        if not self._cfg.receipt_logo_enabled:
-            return b""
-        rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo.webp").strip()
-        path = ROOT / rel
-        if not path.is_file():
-            logger.warning("HS-K33: логотип не найден: %s", path)
+        img = self._load_logo_image()
+        if img is None:
+            if self._cfg.receipt_logo_enabled:
+                rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo.webp").strip()
+                if not (ROOT / rel).is_file():
+                    logger.warning("HS-K33: логотип не найден: %s", ROOT / rel)
             return b""
         try:
-            with Image.open(path) as img:
-                return _image_to_escpos_raster(img, self._cfg.receipt_logo_width)
+            return _logo_to_escpos_raster(img, self._cfg.receipt_logo_width)
         except Exception as exc:
             logger.warning("HS-K33: логотип не напечатан: %s", exc)
             return b""
@@ -403,30 +423,27 @@ def _decode_data_image(data_url: str) -> Image.Image:
         return img.convert("RGBA").copy()
 
 
-def _image_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
-    if img.mode == "RGBA":
-        bg = Image.new("RGB", img.size, (255, 255, 255))
-        bg.paste(img, mask=img.split()[3])
-        img = bg
-    else:
-        img = img.convert("RGB")
-    img = img.convert("L")
+def _resize_width(img: Image.Image, max_width: int) -> Image.Image:
     width, height = img.size
     limit = max_width if max_width > 0 else width
-    if width > limit:
-        ratio = limit / width
-        height = max(1, int(height * ratio))
-        width = limit
-        img = img.resize((width, height), Image.Resampling.LANCZOS)
-    img = img.point(lambda x: 0 if x < 160 else 255, mode="1")
-    row_bytes = (img.width + 7) // 8
-    if img.width % 8:
-        padded = Image.new("1", (row_bytes * 8, img.height), 1)
-        padded.paste(img, (0, 0))
-        img = padded
-    width = img.width
-    height = img.height
-    pixels = img.load()
+    if width <= limit:
+        return img
+    ratio = limit / width
+    new_h = max(1, int(height * ratio))
+    return img.resize((limit, new_h), Image.Resampling.LANCZOS)
+
+
+def _bitmap_1_to_escpos_raster(bitmap: Image.Image) -> bytes:
+    if bitmap.mode != "1":
+        bitmap = bitmap.convert("1")
+    row_bytes = (bitmap.width + 7) // 8
+    if bitmap.width % 8:
+        padded = Image.new("1", (row_bytes * 8, bitmap.height), 1)
+        padded.paste(bitmap, (0, 0))
+        bitmap = padded
+    width = bitmap.width
+    height = bitmap.height
+    pixels = bitmap.load()
     raster = bytearray()
     for y in range(height):
         row = bytearray(row_bytes)
@@ -439,3 +456,108 @@ def _image_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
     yL = height % 256
     yH = height // 256
     return bytes((0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH)) + bytes(raster)
+
+
+def _logo_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
+    """Логотип с прозрачностью: печатаем силуэт по альфа-каналу (светлый RGB иначе невидим)."""
+    img = img.convert("RGBA")
+    alpha = _resize_width(img.split()[3], max_width)
+    bitmap = alpha.point(lambda a: 0 if a > _LOGO_ALPHA_THRESHOLD else 255, mode="1")
+    if bitmap.getbbox() is None:
+        return b""
+    return _bitmap_1_to_escpos_raster(bitmap)
+
+
+def _image_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
+    if img.mode == "RGBA":
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[3])
+        img = bg
+    else:
+        img = img.convert("RGB")
+    img = img.convert("L")
+    img = _resize_width(img, max_width)
+    bitmap = img.point(lambda x: 0 if x < 160 else 255, mode="1")
+    if bitmap.getbbox() is None:
+        return b""
+    return _bitmap_1_to_escpos_raster(bitmap)
+
+
+def _logo_preview_rgb(img: Image.Image, max_width: int) -> Image.Image | None:
+    img = img.convert("RGBA")
+    img = _resize_width(img, max_width)
+    alpha = img.split()[3]
+    bitmap = alpha.point(lambda a: 0 if a > _LOGO_ALPHA_THRESHOLD else 255, mode="1")
+    if bitmap.getbbox() is None:
+        return None
+    out = Image.new("RGB", img.size, "white")
+    ink = Image.new("RGB", img.size, (31, 77, 42))
+    out.paste(ink, mask=bitmap.point(lambda x: 0 if x == 0 else 255, mode="L"))
+    return out
+
+
+def _preview_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    if _PREVIEW_FONT_PATH.is_file():
+        return ImageFont.truetype(str(_PREVIEW_FONT_PATH), size)
+    return ImageFont.load_default()
+
+
+def _text_preview_image(text: str, paper_width: int) -> Image.Image:
+    font = _preview_font(15)
+    lines = text.replace("\r\n", "\n").split("\n")
+    draw_probe = ImageDraw.Draw(Image.new("RGB", (paper_width, 10)))
+    line_h = 20
+    heights = []
+    for line in lines:
+        box = draw_probe.textbbox((0, 0), line or " ", font=font)
+        heights.append(max(line_h, box[3] - box[1] + 4))
+    total_h = sum(heights) + 16
+    img = Image.new("RGB", (paper_width, total_h), "white")
+    draw = ImageDraw.Draw(img)
+    y = 8
+    for line, lh in zip(lines, heights):
+        draw.text((8, y), line, fill="black", font=font)
+        y += lh
+    return img
+
+
+def _center_on_paper(part: Image.Image, paper_width: int, *, pad: int = 8) -> Image.Image:
+    canvas = Image.new("RGB", (paper_width, part.height + pad * 2), "white")
+    x = max(0, (paper_width - part.width) // 2)
+    canvas.paste(part, (x, pad))
+    return canvas
+
+
+def _compose_receipt_preview_image(
+    text: str,
+    qr_image_data_url: str,
+    cfg: HardwarePrinterConfig,
+    *,
+    logo_loader,
+) -> Image.Image:
+    paper_w = max(cfg.receipt_logo_width, cfg.qr_raster_width, 384)
+    parts: list[Image.Image] = []
+    logo_src = logo_loader()
+    if logo_src is not None:
+        logo = _logo_preview_rgb(logo_src, cfg.receipt_logo_width)
+        if logo is not None:
+            parts.append(_center_on_paper(logo, paper_w))
+    if text.strip():
+        parts.append(_text_preview_image(text, paper_w))
+    qr_url = (qr_image_data_url or "").strip()
+    if qr_url:
+        try:
+            qr = _decode_data_image(qr_url).convert("RGB")
+            qr = _resize_width(qr, cfg.qr_raster_width)
+            parts.append(_center_on_paper(qr, paper_w))
+        except Exception:
+            pass
+    if not parts:
+        return Image.new("RGB", (paper_w, 80), "white")
+    total_h = sum(p.height for p in parts) + 8
+    out = Image.new("RGB", (paper_w, total_h), "white")
+    y = 4
+    for part in parts:
+        out.paste(part, (0, y))
+        y += part.height
+    return out
