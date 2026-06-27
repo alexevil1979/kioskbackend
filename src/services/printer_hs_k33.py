@@ -18,6 +18,8 @@ _INIT = b"\x1b\x40"
 # ESC t 17 — таблица CP866 (как на самотесте принтера HS-K33)
 _CP866_TABLE = b"\x1b\x74\x11"
 _CUT = b"\n\n\n\x1dV\x00"
+# Подача ленты перед отрезкой (ESC d n)
+_FEED_BEFORE_CUT = b"\x1b\x64\x05"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
@@ -138,9 +140,6 @@ class PrinterHsK33Service:
     def _usb_plain_payload(self, text: str) -> bytes:
         body = text.encode("cp866", errors="replace")
         return body + b"\n\n\n\n"
-
-    def _usb_uses_text_mode(self) -> bool:
-        return (self._cfg.windows_datatype or "RAW").strip().upper() == "TEXT"
 
     def _escpos_payload(self, text: str) -> bytes:
         body = text.encode("cp866", errors="replace")
