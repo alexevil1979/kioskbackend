@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 # Документация: docs/hardware/04-hs-k33-printer.md
 
 _INIT = b"\x1b\x40"
+# ESC t 17 — таблица CP866 (как на самотесте принтера HS-K33)
+_CP866_TABLE = b"\x1b\x74\x11"
 _CUT = b"\n\n\n\x1dV\x00"
 _FEED = b"\n\n\n\f"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
@@ -128,15 +130,19 @@ class PrinterHsK33Service:
             return False, msg
 
     def _build_payload(self, text: str) -> bytes:
-        body = text.encode(self._text_encoding(), errors="replace")
-        if self._uses_usb():
-            return body + _FEED
-        return _INIT + body + _CUT
+        if self._uses_usb() and self._usb_uses_text_mode():
+            enc = (self._cfg.windows_encoding or "cp1251").strip() or "cp1251"
+            return text.encode(enc, errors="replace") + _FEED
+        return self._escpos_payload(text)
+
+    def _usb_uses_text_mode(self) -> bool:
+        return (self._cfg.windows_datatype or "RAW").strip().upper() == "TEXT"
+
+    def _escpos_payload(self, text: str) -> bytes:
+        body = text.encode("cp866", errors="replace")
+        return _INIT + _CP866_TABLE + body + _CUT
 
     def _text_encoding(self) -> str:
-        if self._uses_usb():
-            enc = (self._cfg.windows_encoding or "cp1251").strip()
-            return enc or "cp1251"
         return "cp866"
 
     def _usb_target_label(self) -> str:
@@ -147,7 +153,8 @@ class PrinterHsK33Service:
 
     def _send_usb(self, payload: bytes) -> None:
         name = win_print.resolve_printer_name(self._cfg.windows_name)
-        datatype = (self._cfg.windows_datatype or "TEXT").strip().upper() or "TEXT"
+        default = "TEXT" if self._usb_uses_text_mode() else "RAW"
+        datatype = (self._cfg.windows_datatype or default).strip().upper() or default
         win_print.print_bytes(name, payload, datatype=datatype)
 
     def _send_ethernet(self, payload: bytes) -> None:

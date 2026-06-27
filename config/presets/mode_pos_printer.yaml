@@ -7,8 +7,8 @@ hardware:
     enabled: true
     connection: usb
     windows_name: "Generic / Text Only"
-    windows_datatype: TEXT
-    windows_encoding: cp1251
+    windows_datatype: RAW
+    windows_encoding: cp866
   tbank_terminal:
     host: "192.168.1.102"
     port: 27015

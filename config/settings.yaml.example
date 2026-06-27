@@ -84,8 +84,8 @@ hardware:
     connection: usb
     # Точное имя в «Устройства и принтеры»; пусто — принтер по умолчанию
     windows_name: "Generic / Text Only"
-    windows_datatype: TEXT
-    windows_encoding: cp1251
+    windows_datatype: RAW
+    windows_encoding: cp866
     host: "192.168.1.81"
     port: 9100
   tbank_terminal:
