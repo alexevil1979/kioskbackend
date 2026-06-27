@@ -95,6 +95,8 @@ def kolomna_tickets_category_id(categories: list[Category]) -> str | None:
 
 
 def is_tour_product(product: Product) -> bool:
+    if product.is_excursion:
+        return True
     if is_kolomna_tickets_api_product_id(product.api_product_id):
         return True
     section = kolomna_section_for_category_id(product.category_id)
@@ -293,6 +295,11 @@ def build_kolomna_hub_tiles(categories: list[Category]) -> list[KolomnaHubTile]:
 
 def resolve_tour_product(categories: list[Category], products: list[Product]) -> Product:
     """Товар билета/экскурсии из раздела API с билетами."""
+    excursion = [
+        p for p in products if p.is_excursion and p.is_purchasable
+    ]
+    if excursion:
+        return excursion[0]
     tickets_cat = kolomna_tickets_category(categories)
     if tickets_cat:
         cat_products = [

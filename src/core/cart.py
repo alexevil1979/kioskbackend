@@ -12,6 +12,7 @@ class CartLine:
     product: Product
     quantity: int = 1
     tour_kids: int = 0
+    tour_pickup_schedule_id: int = 0
     tour_date_id: str = ""
     tour_date_label: str = ""
 
@@ -39,6 +40,7 @@ class Cart(QObject):
         qty: int = 1,
         *,
         tour_kids: int | None = None,
+        tour_pickup_schedule_id: int = 0,
         tour_date_id: str = "",
         tour_date_label: str = "",
     ) -> None:
@@ -50,6 +52,7 @@ class Cart(QObject):
                 product=product,
                 quantity=adults,
                 tour_kids=max(0, tour_kids),
+                tour_pickup_schedule_id=max(0, tour_pickup_schedule_id),
                 tour_date_id=tour_date_id,
                 tour_date_label=tour_date_label,
             )

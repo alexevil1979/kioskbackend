@@ -31,6 +31,9 @@ class Product:
     variant_id: int = 0
     variant_name: str = ""
     is_weight_variable: bool = False
+    is_excursion: bool = False
+    schedule_location_id: int = 0
+    schedule_location_name: str = ""
 
     @property
     def display_name(self) -> str:

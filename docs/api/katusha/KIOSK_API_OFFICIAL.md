@@ -95,6 +95,22 @@ https://admin.katushamarket.ru/api/external/kiosk
 
 **Весовой товар** (`is_weight_variable: true`): цена в **`price_per_weight_unit`** (за 100 г), не в `price`.
 
+**Экскурсии** (доп. поля товара в `/catalog`):
+
+| Поле | Описание |
+|------|----------|
+| `is_excursion` | `true` — билет экскурсии |
+| `schedule_location_id` | ID локации в `GET /schedule` |
+| `schedule_location_name` | Название локации для UI |
+
+---
+
+### `GET /schedule`
+
+Расписание слотов (`week_schedule`) по локациям. Для экскурсий фильтровать по `schedule_location_id` из каталога.
+
+Слот: `id` (это **`pickup_schedule_id`** в заказе), `date`, `date_display`, `start_time`, `end_time`, `note`, `is_today`.
+
 ---
 
 ### `POST /order/create`
@@ -102,6 +118,37 @@ https://admin.katushamarket.ru/api/external/kiosk
 Создание заказа. Для СБП возвращает QR; для карты — ожидание подтверждения на терминале.
 
 **Тело запроса (пример):**
+
+```json
+{
+  "items": [
+    {
+      "product_id": 84,
+      "variant_id": 154,
+      "quantity": 2,
+      "pickup_schedule_id": 109,
+      "schedule_location_id": 34,
+      "child_count": 1
+    }
+  ],
+  "payment_method": "qr_sbp",
+  "kiosk_order_id": "ваш_идемпотентный_id"
+}
+```
+
+| Поле в `items[]` | Описание |
+|------------------|----------|
+| `product_id`, `variant_id`, `quantity` | Обязательно; `quantity` — взрослые |
+| `pickup_schedule_id` | ID слота из `week_schedule[].id` (дата/время в слоте) |
+| `schedule_location_id` | Из каталога (`is_excursion`) |
+| `child_count` | Дети (бесплатно), опционально |
+
+| Поле заказа | Значения |
+|-------------|----------|
+| `payment_method` | `"qr_sbp"` или `"card"` |
+| `kiosk_order_id` | Опционально, идемпотентность на стороне киоска |
+
+**Обычный товар (без экскурсии):**
 
 ```json
 {

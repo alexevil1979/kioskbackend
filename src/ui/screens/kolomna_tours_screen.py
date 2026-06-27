@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QRectF
 from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QRegion
 from PyQt6.QtWidgets import (
@@ -17,6 +19,7 @@ from src.core.config import Settings
 from src.models.product import Product
 from src.models.tour_date import TourDate, format_tour_date, list_tour_dates_mock
 from src.services.catalog_sync import CatalogStore
+from src.services.katusha_schedule import excursion_slots_from_schedule
 from src.ui import kolomna_strings as S
 from src.ui.kolomna_catalog import resolve_tour_product
 from src.ui.kolomna_i18n import hub_label_for_slot
@@ -27,6 +30,8 @@ from src.ui.product_image_display import product_display_image_path
 from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.scroll_utils import enable_kinetic_scroll
+
+logger = logging.getLogger(__name__)
 from src.ui.widgets.kolomna_footbar import KolomnaFootBar
 from src.ui.widgets.kolomna_qty_control import KolomnaQtyControl
 from src.ui.widgets.kolomna_toast import KolomnaAddedToast
@@ -262,6 +267,14 @@ class _TourDateCard(QFrame):
         d.setStyleSheet(f"color: {GREEN}; background: transparent; border: none;")
         inner_lay.addWidget(mo)
         inner_lay.addWidget(d)
+        if tour_date.start_time:
+            tm = QLabel(tour_date.start_time)
+            tm.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            tm.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            tm.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            tm.setFont(kolomna_font(scale(18, w), QFont.Weight.Bold))
+            tm.setStyleSheet(f"color: {INK_60}; background: transparent; border: none;")
+            inner_lay.addWidget(tm)
         self._apply_style(card_r)
 
     def set_selected(self, on: bool) -> None:
@@ -307,6 +320,8 @@ class KolomnaToursScreen(BaseScreen):
         self._date_cards: list[_TourDateCard] = []
         self._tour_dates: list[TourDate] = []
         self._selected_date_id: str | None = None
+        self._cal_wrap: QWidget | None = None
+        self._cal_lay: QHBoxLayout | None = None
         self._adult_price_label: QLabel | None = None
 
         self.setStyleSheet(f"background: {CREAM};")
@@ -354,6 +369,7 @@ class KolomnaToursScreen(BaseScreen):
 
     def _reload_product(self) -> None:
         self._product = resolve_tour_product(self._catalog.categories, self._catalog.products)
+        self._reload_tour_slots()
         if hasattr(self, "_add_btn"):
             self._update_add_btn()
         if self._adult_price_label is not None:
@@ -422,19 +438,10 @@ class KolomnaToursScreen(BaseScreen):
         cal_lay = QHBoxLayout(cal_wrap)
         cal_lay.setContentsMargins(0, 0, 0, 0)
         cal_lay.setSpacing(scale(16, w))
-        self._date_cards = []
-        self._tour_dates = list_tour_dates_mock()
-        for td in self._tour_dates:
-            card = _TourDateCard(td, m)
-            card.clicked.connect(lambda sid=td.slot_id: self._select_tour_date(sid))
-            self._date_cards.append(card)
-            cal_lay.addWidget(card, stretch=1)
-        if self._tour_dates:
-            pick = self._selected_date_id
-            if pick not in {d.slot_id for d in self._tour_dates}:
-                pick = self._tour_dates[0].slot_id
-            self._select_tour_date(pick)
+        self._cal_wrap = cal_wrap
+        self._cal_lay = cal_lay
         head_lay.addWidget(cal_wrap)
+        self._populate_tour_dates()
         root.addWidget(head)
 
         body = QFrame()
@@ -465,6 +472,49 @@ class KolomnaToursScreen(BaseScreen):
         coupon.set_junction(head, _CouponTear(w))
         return coupon
 
+    def _fetch_tour_dates(self) -> list[TourDate]:
+        product = self._product
+        if product and product.schedule_location_id and self._catalog.crm.supports_kiosk_orders:
+            try:
+                data = self._catalog.crm.get_schedule()
+                slots = excursion_slots_from_schedule(data, product.schedule_location_id)
+                if slots:
+                    logger.info(
+                        "Экскурсии: %d слотов для location_id=%s",
+                        len(slots),
+                        product.schedule_location_id,
+                    )
+                    return slots
+            except Exception as exc:
+                logger.warning("GET /schedule для экскурсий: %s", exc)
+        return list_tour_dates_mock()
+
+    def _populate_tour_dates(self) -> None:
+        if self._cal_lay is None:
+            return
+        while self._cal_lay.count():
+            item = self._cal_lay.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._date_cards = []
+        self._tour_dates = self._fetch_tour_dates()
+        for td in self._tour_dates:
+            card = _TourDateCard(td, self._m)
+            card.clicked.connect(lambda sid=td.slot_id: self._select_tour_date(sid))
+            self._date_cards.append(card)
+            self._cal_lay.addWidget(card, stretch=1)
+        if self._tour_dates:
+            pick = self._selected_date_id
+            if pick not in {d.slot_id for d in self._tour_dates}:
+                pick = self._tour_dates[0].slot_id
+            self._select_tour_date(pick)
+        else:
+            self._selected_date_id = None
+
+    def _reload_tour_slots(self) -> None:
+        if self._cal_lay is not None:
+            self._populate_tour_dates()
+
     def _select_tour_date(self, slot_id: str) -> None:
         self._selected_date_id = slot_id
         for card in self._date_cards:
@@ -473,7 +523,7 @@ class KolomnaToursScreen(BaseScreen):
     def _selected_tour_date(self) -> TourDate | None:
         if not self._selected_date_id:
             return None
-        return TourDate.from_slot_id(self._selected_date_id)
+        return TourDate.from_slot_id(self._selected_date_id, self._tour_dates)
 
     def _guest_box(self, title: str, priced: bool, qty: KolomnaQtyControl) -> QWidget:
         w = self._m.width
@@ -579,10 +629,14 @@ class KolomnaToursScreen(BaseScreen):
         if tour_date is None:
             self._flash_toast(S.TOUR_PICK_DATE)
             return
+        if self._product.is_excursion and tour_date.pickup_schedule_id <= 0:
+            self._flash_toast(S.TOUR_PICK_DATE)
+            return
         self._cart.add(
             self._product,
             self._adults.value(),
             tour_kids=self._kids.value(),
+            tour_pickup_schedule_id=tour_date.pickup_schedule_id,
             tour_date_id=tour_date.slot_id,
             tour_date_label=format_tour_date(tour_date),
         )
@@ -605,6 +659,7 @@ class KolomnaToursScreen(BaseScreen):
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
+        self._reload_tour_slots()
         self._scroll_to_top()
         QTimer.singleShot(80, self._scroll_to_top)
 

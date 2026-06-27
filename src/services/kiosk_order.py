@@ -19,22 +19,29 @@ def parse_api_product_ids(product: Product) -> tuple[int, int]:
     raise ValueError(f"Не удалось определить product_id/variant_id для «{product.name}»")
 
 
-def cart_lines_to_order_items(lines: list[CartLine]) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = []
-    for line in lines:
-        product_id, variant_id = parse_api_product_ids(line.product)
-        qty = line.quantity
-        if line.product.is_weight_variable:
-            logger.warning(
-                "Весовой товар %s: quantity=%s (ожидаются граммы по API)",
-                line.product.name,
-                qty,
-            )
-        items.append(
-            {
-                "product_id": product_id,
-                "variant_id": variant_id,
-                "quantity": qty,
-            }
+def cart_line_to_order_item(line: CartLine) -> dict[str, Any]:
+    product_id, variant_id = parse_api_product_ids(line.product)
+    qty = line.quantity
+    if line.product.is_weight_variable:
+        logger.warning(
+            "Весовой товар %s: quantity=%s (ожидаются граммы по API)",
+            line.product.name,
+            qty,
         )
-    return items
+    item: dict[str, Any] = {
+        "product_id": product_id,
+        "variant_id": variant_id,
+        "quantity": qty,
+    }
+    if line.is_tour or line.product.is_excursion:
+        if line.tour_pickup_schedule_id > 0:
+            item["pickup_schedule_id"] = line.tour_pickup_schedule_id
+        if line.product.schedule_location_id > 0:
+            item["schedule_location_id"] = line.product.schedule_location_id
+        if line.tour_kids > 0:
+            item["child_count"] = line.tour_kids
+    return item
+
+
+def cart_lines_to_order_items(lines: list[CartLine]) -> list[dict[str, Any]]:
+    return [cart_line_to_order_item(line) for line in lines]

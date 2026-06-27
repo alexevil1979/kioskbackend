@@ -132,6 +132,9 @@ class CRMClient(ABC):
     def get_order_receipt(self, order_id: int) -> OrderReceiptResult:
         raise NotImplementedError
 
+    def get_schedule(self) -> dict[str, Any]:
+        return {"schedule_enabled": False, "locations": []}
+
 
 class MockCRMClient(CRMClient):
     def __init__(self, *, kolomna: bool = False) -> None:
@@ -305,6 +308,9 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
         variant_id=variant_id,
         variant_name=variant_name,
         is_weight_variable=bool(row.get("is_weight_variable")),
+        is_excursion=bool(row.get("is_excursion")),
+        schedule_location_id=int(row.get("schedule_location_id") or 0),
+        schedule_location_name=str(row.get("schedule_location_name") or "").strip(),
     )
 
 
@@ -554,6 +560,11 @@ class HttpCRMClient(CRMClient):
             station_name=str(data.get("station_name") or ""),
             paid_at=str(data.get("paid_at") or ""),
         )
+
+    def get_schedule(self) -> dict[str, Any]:
+        if not self._katusha:
+            return super().get_schedule()
+        return self._get_json("/schedule")
 
     def _get_json(self, path: str) -> dict[str, Any]:
         url = self._url(path)
