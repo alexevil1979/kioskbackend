@@ -23,6 +23,7 @@ class Product:
     description: str = ""
     category_name: str = ""
     is_available: bool = True
+    sale_available: bool = True
     unavailable_reason: str = ""
     sale_unavailable_label: str = ""
     hide_price_when_unavailable: bool = False
@@ -50,23 +51,34 @@ class Product:
 
     @property
     def unavailable_label(self) -> str:
-        return (self.unavailable_reason or self.sale_unavailable_label).strip()
+        reason = self.unavailable_reason.strip()
+        if reason:
+            return reason
+        if not self.sale_available:
+            return self.sale_unavailable_label.strip() or "Созревает"
+        return ""
 
     @property
     def is_purchasable(self) -> bool:
-        if self.unavailable_label:
+        if not self.sale_available:
+            return False
+        if self.unavailable_reason.strip():
             return False
         return self.is_available and self.stock > 0
 
     @property
     def show_in_catalog(self) -> bool:
-        if self.unavailable_label:
+        if not self.sale_available:
+            return True
+        if self.unavailable_reason.strip():
             return True
         return self.is_available and self.stock > 0
 
     @property
     def show_price(self) -> bool:
-        if self.unavailable_label and self.hide_price_when_unavailable:
+        if not self.sale_available and self.hide_price_when_unavailable:
+            return False
+        if self.unavailable_reason.strip() and self.hide_price_when_unavailable:
             return False
         return True
 

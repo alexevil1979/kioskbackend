@@ -272,6 +272,9 @@ https://admin.katushamarket.ru/api/external/kiosk
 | `unit` | string\|null | кг, шт, … |
 | `available_quantity` | int | Остаток |
 | `max_quantity_per_order` | int\|null | Лимит в заказе |
+| `sale_available` | bool | `true` — в продаже; `false` — режим «Созревает», покупка запрещена |
+| `sale_unavailable_label` | string\|null | Подпись при `sale_available=false` (например «Созревает») |
+| `is_available` | bool | Можно в корзину (`sale_available` и остаток > 0) |
 | `is_weight_variable` | bool | Весовой товар |
 | `min_weight`, `max_weight` | float\|null | Для весовых |
 

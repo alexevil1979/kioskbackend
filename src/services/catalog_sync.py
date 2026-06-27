@@ -207,9 +207,10 @@ class CatalogStore(QObject):
         qty = max(1, int(cfg.test_stock_qty))
         for p in products:
             p.is_available = True
+            p.sale_available = True
             p.stock = qty
         logger.info(
-            "Каталог: TEST PURCHASE MODE включён — всем товарам stock=%d, is_available=true",
+            "Каталог: TEST PURCHASE MODE включён — всем товарам stock=%d, is_available=true, sale_available=true",
             qty,
         )
 

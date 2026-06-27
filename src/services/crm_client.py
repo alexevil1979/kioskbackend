@@ -300,6 +300,7 @@ def _parse_katusha_product(row: dict[str, Any]) -> Product | None:
         description=str(row.get("description") or ""),
         category_name=cat_name,
         is_available=bool(row.get("is_available", True)),
+        sale_available=bool(row.get("sale_available", True)),
         unavailable_reason=str(row.get("unavailable_reason") or "").strip(),
         sale_unavailable_label=str(row.get("sale_unavailable_label") or "").strip(),
         hide_price_when_unavailable=bool(row.get("hide_price_when_unavailable")),
