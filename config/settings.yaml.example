@@ -88,6 +88,7 @@ hardware:
     windows_encoding: cp866
     windows_use_direct_port: true
     windows_port: ""
+    windows_escpos_codepage: false
     host: "192.168.1.81"
     port: 9100
   tbank_terminal:

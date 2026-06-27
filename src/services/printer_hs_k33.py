@@ -14,15 +14,16 @@ logger = logging.getLogger(__name__)
 
 # Документация: docs/hardware/04-hs-k33-printer.md
 
-_INIT = b"\x1b\x40"
-# ESC t 17 — CP866 (как на самотесте HS-K33)
-_CP866_TABLE = b"\x1b\x74\x11"
-# ESC d n — подача n строк
+# ESC @ сбрасывает HS-K33 на PC437 → кириллица «ломается». Самотест: CP866 по умолчанию.
+# Печатаем текст в cp866 без смены code page; отрезка — ESC/POS в конце.
 _FEED_LINES = b"\x1b\x64\x05"
 # GS V 0 — полная отрезка; GS V 66 n — подача n строк и отрезка (часто надёжнее)
 _CUT_FULL = b"\x1dV\x00"
 _FEED_AND_CUT = b"\x1dV\x42\x05"
-_ESC_POS_TAIL = b"\n\n" + _FEED_LINES + _FEED_AND_CUT + _CUT_FULL
+_ESC_POS_TAIL = b"\r\n\r\n" + _FEED_LINES + _FEED_AND_CUT + _CUT_FULL
+# Опционально для принтеров, где нужен явный выбор таблицы (не HS-K33)
+_INIT = b"\x1b\x40"
+_CP866_TABLE = b"\x1b\x74\x11"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
@@ -139,11 +140,37 @@ class PrinterHsK33Service:
             return False, msg
 
     def _build_payload(self, text: str) -> bytes:
-        return self._escpos_payload(text)
+        return self._payload_prefix() + self._encode_body(text) + _ESC_POS_TAIL
+
+    def _normalize_lines(self, text: str) -> str:
+        return text.replace("\r\n", "\n").replace("\n", "\r\n")
+
+    def _encoding_name(self) -> str:
+        return (self._cfg.windows_encoding or "cp866").strip().lower().replace("-", "")
+
+    def _encode_body(self, text: str) -> bytes:
+        enc = self._encoding_name()
+        normalized = self._normalize_lines(text)
+        if enc in ("cp866", "866", "dos"):
+            return normalized.encode("cp866", errors="replace")
+        if enc in ("cp1251", "1251", "windows1251"):
+            return normalized.encode("cp1251", errors="replace")
+        return normalized.encode(enc, errors="replace")
+
+    def _payload_prefix(self) -> bytes:
+        """Префикс ESC/POS. HS-K33: пусто (прошивка уже CP866, ESC @ ломает кириллицу)."""
+        if not self._cfg.windows_escpos_codepage:
+            return b""
+        enc = self._encoding_name()
+        if enc in ("cp866", "866", "dos"):
+            return _INIT + _CP866_TABLE
+        if enc in ("cp1251", "1251", "windows1251"):
+            return _INIT + b"\x1b\x74\x2e"  # ESC t 46 — WPC1251
+        return _INIT
 
     def _escpos_payload(self, text: str) -> bytes:
-        body = text.encode("cp866", errors="replace")
-        return _INIT + _CP866_TABLE + body + _ESC_POS_TAIL
+        """Совместимость со старым именем."""
+        return self._build_payload(text)
 
     def _usb_target_label(self) -> str:
         try:

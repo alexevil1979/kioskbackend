@@ -157,6 +157,8 @@ class HardwarePrinterConfig:
     windows_use_direct_port: bool = True
     # Вручную: USB001, COM3 — если пусто, берётся из свойств принтера в Windows
     windows_port: str = ""
+    # True: ESC @ + ESC t перед текстом (для других моделей). HS-K33: false — иначе PC437.
+    windows_escpos_codepage: bool = False
 
 
 @dataclass
