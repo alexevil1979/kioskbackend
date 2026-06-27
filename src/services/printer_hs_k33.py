@@ -65,6 +65,7 @@ class PrinterHsK33Service:
         ok, _ = self._print_payload_with_detail(
             self._build_payload(text, qr_image_data_url),
             len(text),
+            logo=self._logo_enabled(),
             qr=bool(qr_image_data_url.strip()),
         )
         return ok
@@ -187,6 +188,7 @@ class PrinterHsK33Service:
         payload: bytes,
         text_len: int,
         *,
+        logo: bool = False,
         qr: bool = False,
     ) -> tuple[bool, str]:
         try:

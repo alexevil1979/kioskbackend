@@ -1070,17 +1070,17 @@ class KolomnaAdminPanel(QWidget):
         QApplication.processEvents()
         try:
             receipt = create_crm_client(self._settings).get_order_receipt(order_id)
+            hw = self._settings.hardware
+            result = PrinterHsK33Service(
+                hw.printer,
+                bind_ip=hw.nuc.lan_ip,
+            ).print_paid_order_receipt(receipt)
         except Exception as exc:
-            self._set_printer_buttons_enabled(True)
             self._show_printer_status_message(str(exc).strip() or repr(exc), ok=False)
-            return
-        hw = self._settings.hardware
-        result = PrinterHsK33Service(
-            hw.printer,
-            bind_ip=hw.nuc.lan_ip,
-        ).print_paid_order_receipt(receipt)
-        self._set_printer_buttons_enabled(True)
-        self._show_printer_status(result)
+        else:
+            self._show_printer_status(result)
+        finally:
+            self._set_printer_buttons_enabled(True)
 
     def _set_printer_buttons_enabled(self, enabled: bool) -> None:
         if self._printer_test_btn is not None:
