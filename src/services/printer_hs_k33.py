@@ -15,11 +15,14 @@ logger = logging.getLogger(__name__)
 # Документация: docs/hardware/04-hs-k33-printer.md
 
 _INIT = b"\x1b\x40"
-# ESC t 17 — таблица CP866 (как на самотесте принтера HS-K33)
+# ESC t 17 — CP866 (как на самотесте HS-K33)
 _CP866_TABLE = b"\x1b\x74\x11"
-_CUT = b"\n\n\n\x1dV\x00"
-# Подача ленты перед отрезкой (ESC d n)
-_FEED_BEFORE_CUT = b"\x1b\x64\x05"
+# ESC d n — подача n строк
+_FEED_LINES = b"\x1b\x64\x05"
+# GS V 0 — полная отрезка; GS V 66 n — подача n строк и отрезка (часто надёжнее)
+_CUT_FULL = b"\x1dV\x00"
+_FEED_AND_CUT = b"\x1dV\x42\x05"
+_ESC_POS_TAIL = b"\n\n" + _FEED_LINES + _FEED_AND_CUT + _CUT_FULL
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
@@ -33,7 +36,7 @@ class PrinterProbeResult:
 
 
 class PrinterHsK33Service:
-    """Печать нефискальной квитанции: Ethernet RAW TCP или USB (очередь Windows)."""
+    """Печать нефискальной квитанции: Ethernet RAW TCP или USB (порт / spooler)."""
 
     def __init__(
         self,
@@ -84,8 +87,13 @@ class PrinterHsK33Service:
             return PrinterProbeResult(ok=False, message="Служба печати Windows недоступна")
         try:
             name = win_print.resolve_printer_name(self._cfg.windows_name)
-            win_print.probe_printer(name)
-            return PrinterProbeResult(ok=True, message=f"Принтер Windows: {name}")
+            port = (self._cfg.windows_port or "").strip() or win_print.probe_printer(name)
+            mode = "прямой порт" if self._cfg.windows_use_direct_port and port else "spooler"
+            port_txt = f", порт {port}" if port else ""
+            return PrinterProbeResult(
+                ok=True,
+                message=f"Принтер Windows: {name} ({mode}{port_txt})",
+            )
         except OSError as exc:
             return PrinterProbeResult(ok=False, message=str(exc))
 
@@ -117,12 +125,12 @@ class PrinterHsK33Service:
         try:
             payload = self._build_payload(text)
             if self._uses_usb():
-                self._send_usb(payload)
-                target = self._usb_target_label()
+                via = self._send_usb(payload)
+                target = via
             else:
                 self._send_ethernet(payload)
                 target = f"{self._cfg.host}:{self._cfg.port}"
-            logger.info("HS-K33: напечатано на %s (%d символов)", target, len(text))
+            logger.info("HS-K33: напечатано через %s (%d символов)", target, len(text))
             return True, ""
         except OSError as exc:
             target = self._usb_target_label() if self._uses_usb() else f"{self._cfg.host}:{self._cfg.port}"
@@ -131,19 +139,11 @@ class PrinterHsK33Service:
             return False, msg
 
     def _build_payload(self, text: str) -> bytes:
-        if self._uses_usb():
-            # USB + Generic/Text Only: только байты CP866, без ESC/POS —
-            # иначе драйвер печатает управляющие коды как «кракозябры».
-            return self._usb_plain_payload(text)
         return self._escpos_payload(text)
-
-    def _usb_plain_payload(self, text: str) -> bytes:
-        body = text.encode("cp866", errors="replace")
-        return body + b"\n\n\n\n"
 
     def _escpos_payload(self, text: str) -> bytes:
         body = text.encode("cp866", errors="replace")
-        return _INIT + _CP866_TABLE + body + _CUT
+        return _INIT + _CP866_TABLE + body + _ESC_POS_TAIL
 
     def _usb_target_label(self) -> str:
         try:
@@ -151,10 +151,16 @@ class PrinterHsK33Service:
         except OSError:
             return self._cfg.windows_name or "Windows default"
 
-    def _send_usb(self, payload: bytes) -> None:
+    def _send_usb(self, payload: bytes) -> str:
         name = win_print.resolve_printer_name(self._cfg.windows_name)
         datatype = (self._cfg.windows_datatype or "RAW").strip().upper() or "RAW"
-        win_print.print_bytes(name, payload, datatype=datatype)
+        return win_print.print_bytes(
+            name,
+            payload,
+            datatype=datatype,
+            port_override=self._cfg.windows_port,
+            use_direct_port=self._cfg.windows_use_direct_port,
+        )
 
     def _send_ethernet(self, payload: bytes) -> None:
         with self._connect() as sock:
@@ -197,10 +203,11 @@ class PrinterHsK33Service:
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
         if self._uses_usb():
             try:
-                target = win_print.resolve_printer_name(self._cfg.windows_name)
+                name = win_print.resolve_printer_name(self._cfg.windows_name)
+                port = (self._cfg.windows_port or "").strip() or win_print.get_printer_port(name)
+                conn_line = f"Принтер: {name}" + (f", порт {port}" if port else "")
             except OSError:
-                target = self._cfg.windows_name or "по умолчанию"
-            conn_line = f"Принтер Windows: {target}"
+                conn_line = f"Принтер Windows: {self._cfg.windows_name or 'по умолчанию'}"
         else:
             conn_line = f"Адрес: {self._cfg.host}:{self._cfg.port}"
         rows = [
