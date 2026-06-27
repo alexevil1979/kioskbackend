@@ -241,6 +241,8 @@ class KolomnaTopBar(QWidget):
     ) -> None:
         super().__init__(parent)
         self._m = metrics
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background: transparent;")
 
         root = QVBoxLayout(self)
         root.setContentsMargins(
@@ -249,6 +251,7 @@ class KolomnaTopBar(QWidget):
         root.setSpacing(scale(30, metrics.width))
 
         chrome_row = QWidget()
+        chrome_row.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         chrome_row.setFixedHeight(chrome_row_height(metrics.width))
         row = QHBoxLayout(chrome_row)
         row.setContentsMargins(0, 0, 0, 0)

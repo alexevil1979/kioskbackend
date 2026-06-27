@@ -24,10 +24,8 @@ from src.ui import kolomna_strings as S
 from src.ui.kolomna_catalog import resolve_tour_product
 from src.ui.kolomna_i18n import hub_label_for_slot
 from src.ui.kolomna_fonts import kolomna_font
-from src.ui.kolomna_product_meta import fmt_price, product_title
+from src.ui.kolomna_product_meta import fmt_price
 from src.ui.kolomna_tokens import CREAM, CREAM_DEEP, GREEN, INK_60, KolomnaMetrics, RASPBERRY, STRAWBERRY, YELLOW, scale
-from src.ui.product_image_display import product_display_image_path
-from src.ui.widgets.kolomna_berry_art import KolomnaBerryArt
 from src.ui.screens.base_screen import BaseScreen
 from src.ui.scroll_utils import enable_kinetic_scroll
 
@@ -313,7 +311,6 @@ class KolomnaToursScreen(BaseScreen):
         h = settings.app.content_height
         self._m = KolomnaMetrics.from_viewport(w, h)
         self._product: Product | None = None
-        self._ticket_art: KolomnaBerryArt | None = None
         self._adults = KolomnaQtyControl(self._m)
         self._kids = KolomnaQtyControl(self._m, min_value=0)
         self._toast = KolomnaAddedToast(self._m, parent=self)
@@ -374,8 +371,6 @@ class KolomnaToursScreen(BaseScreen):
             self._update_add_btn()
         if self._adult_price_label is not None:
             self._adult_price_label.setText(self._tour_unit_price_text())
-        if self._ticket_art is not None:
-            self._ticket_art.refresh_image()
 
     def _tour_unit_price_text(self) -> str:
         if not self._product:
@@ -387,34 +382,6 @@ class KolomnaToursScreen(BaseScreen):
         w = m.width
         coupon = _CouponCard(m.radius_lg)
         root = coupon.layout()
-        self._ticket_art = None
-
-        if self._product and product_display_image_path(self._product) is not None:
-            img_wrap = QFrame()
-            img_wrap.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-            img_wrap.setStyleSheet(f"QFrame {{ background: {YELLOW}; border: none; }}")
-            img_lay = QVBoxLayout(img_wrap)
-            img_lay.setContentsMargins(0, 0, 0, 0)
-            img_h = scale(300, w)
-            self._ticket_art = KolomnaBerryArt(
-                self._product,
-                w,
-                img_h,
-                fluid_width=True,
-                bg=YELLOW,
-                ground_shadow=False,
-                fit="cover",
-            )
-            img_lay.addWidget(self._ticket_art)
-            title = QLabel(product_title(self._product))
-            title.setWordWrap(True)
-            title.setFont(kolomna_font(scale(36, w), QFont.Weight.Black))
-            title.setStyleSheet(
-                f"color: {GREEN}; background: {CREAM}; "
-                f"padding: {scale(20, w)}px {scale(40, w)}px;"
-            )
-            img_lay.addWidget(title)
-            root.addWidget(img_wrap)
 
         head = QFrame()
         head.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
