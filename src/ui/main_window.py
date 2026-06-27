@@ -51,14 +51,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Экраны без таймера «Вы ещё здесь?» (заставка, хаб разделов, ожидание карты на терминале).
-_IDLE_PAUSED_SCREENS = frozenset(
-    {
-        AppScreen.START,
-        AppScreen.CATEGORIES,
-        AppScreen.PAYMENT_CARD,
-    }
-)
+# Экраны без таймера бездействия (ожидание карты на терминале).
+_IDLE_PAUSED_SCREENS = frozenset({AppScreen.PAYMENT_CARD})
 
 # Kolomna: экран «Спасибо» (mock СБП — через 15 с после показа QR).
 KOLOMNA_PAY_SUCCESS_DELAY_MS = 15_000
@@ -355,9 +349,15 @@ class MainWindow(QMainWindow):
             self.resize(self._settings.app.screen_width, self._settings.app.screen_height)
             self.show()
 
+    def _idle_warning_eligible(self) -> bool:
+        """Диалог «Вы ещё здесь?» — только если в корзине есть товары."""
+        return self._cart.positions_count > 0
+
     def _show_idle_warning(self) -> None:
         if self._nav.current in _IDLE_PAUSED_SCREENS:
             self._idle.pause()
+            return
+        if not self._idle_warning_eligible():
             return
         remaining = max(
             1,
