@@ -11,7 +11,7 @@ from datetime import datetime
 from PIL import Image
 
 from src.core.cart import CartLine
-from src.core.config import HardwarePrinterConfig
+from src.core.config import ROOT, HardwarePrinterConfig
 from src.models.order import OrderReceiptResult
 from src.services import printer_windows_spooler as win_print
 
@@ -75,7 +75,11 @@ class PrinterHsK33Service:
         if not probe.ok:
             return probe
         text = self._format_test_receipt()
-        ok, detail = self._print_payload_with_detail(self._build_payload(text), len(text))
+        ok, detail = self._print_payload_with_detail(
+            self._build_payload(text),
+            len(text),
+            logo=self._logo_enabled(),
+        )
         if ok:
             via = self._last_via
             msg = f"Тестовый чек отправлен ({via})." if via else "Тестовый чек отправлен на принтер."
@@ -92,6 +96,7 @@ class PrinterHsK33Service:
         ok, detail = self._print_payload_with_detail(
             self._build_payload(receipt.receipt_text, receipt.pickup_qr_image),
             len(receipt.receipt_text),
+            logo=self._logo_enabled(),
             qr=bool(receipt.pickup_qr_image.strip()),
         )
         if ok:
@@ -114,8 +119,15 @@ class PrinterHsK33Service:
         if not self._cfg.enabled:
             return True
         text = self._format_slip(lines, total, order_id)
-        ok, _ = self._print_payload_with_detail(self._build_payload(text), len(text))
+        ok, _ = self._print_payload_with_detail(
+            self._build_payload(text),
+            len(text),
+            logo=self._logo_enabled(),
+        )
         return ok
+
+    def _logo_enabled(self) -> bool:
+        return bool(self._cfg.receipt_logo_enabled)
 
     def _uses_usb(self) -> bool:
         return (self._cfg.connection or "").strip().lower() == "usb"
@@ -184,6 +196,9 @@ class PrinterHsK33Service:
                 self._send_ethernet(payload)
                 via = f"{self._cfg.host}:{self._cfg.port}"
             self._last_via = via
+            extras = "".join(
+                part for flag, part in ((logo, ", logo"), (qr, ", QR")) if flag
+            )
             logger.info(
                 "HS-K33: %s, enc=%s, page=%s, prefix=%s, %d симв.%s",
                 via,
@@ -191,7 +206,7 @@ class PrinterHsK33Service:
                 self._codepage_id(),
                 payload[:12].hex(),
                 text_len,
-                ", QR" if qr else "",
+                extras,
             )
             return True, ""
         except OSError as exc:
@@ -201,11 +216,30 @@ class PrinterHsK33Service:
             return False, msg
 
     def _build_payload(self, text: str, qr_image_data_url: str = "") -> bytes:
-        body = self._payload_prefix() + self._encode_body(text)
+        body = self._payload_prefix()
+        logo_part = self._build_logo_raster_payload()
+        if logo_part:
+            body += _ALIGN_CENTER + logo_part + _ALIGN_LEFT + b"\r\n\r\n"
+        body += self._encode_body(text)
         qr_part = self._build_qr_raster_payload(qr_image_data_url)
         if qr_part:
             body += b"\r\n\r\n" + _ALIGN_CENTER + qr_part + _ALIGN_LEFT
         return body + _ESC_POS_TAIL
+
+    def _build_logo_raster_payload(self) -> bytes:
+        if not self._cfg.receipt_logo_enabled:
+            return b""
+        rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo.webp").strip()
+        path = ROOT / rel
+        if not path.is_file():
+            logger.warning("HS-K33: логотип не найден: %s", path)
+            return b""
+        try:
+            with Image.open(path) as img:
+                return _image_to_escpos_raster(img, self._cfg.receipt_logo_width)
+        except Exception as exc:
+            logger.warning("HS-K33: логотип не напечатан: %s", exc)
+            return b""
 
     def _build_qr_raster_payload(self, data_url: str) -> bytes:
         data_url = (data_url or "").strip()

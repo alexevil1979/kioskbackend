@@ -169,6 +169,10 @@ class HardwarePrinterConfig:
     sample_paid_order_id: int = 2680
     # Ширина QR-растра для 80 мм (точек); 0 — не масштабировать
     qr_raster_width: int = 384
+    # Логотип в начале чека (растр ESC/POS, по центру)
+    receipt_logo_enabled: bool = True
+    receipt_logo_path: str = "assets/kolomna/logo.webp"
+    receipt_logo_width: int = 300
 
 
 @dataclass
