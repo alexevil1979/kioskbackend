@@ -171,10 +171,6 @@ _RU = {
     "TOUR_DATES": ((6, (20, 27)), (7, (4,)), (8, (15, 22))),
     "TOUR_STEPS": (
         (
-            "Встреча у шатра",
-            "Каждая семья получает холщовую сумку «Сады Коломны», а дети — наклейку «Юный агроном».",
-        ),
-        (
             "Обход фермы и плантаций",
             "Знакомство с тремя культурами — клубникой, голубикой и малиной. Узнаете, чем отличаются "
             "сорта клубники Азия, Ания, Мара де Буа, Флорида Бьюти, Мурано и другие, и почему магазинная "
@@ -358,10 +354,6 @@ _EN = {
     "MONTHS_NOM": {6: "June", 7: "July", 8: "August"},
     "TOUR_DATES": ((6, (20, 27)), (7, (4,)), (8, (15, 22))),
     "TOUR_STEPS": (
-        (
-            "Welcome at the tent",
-            "Each family receives a Sady Kolomny canvas bag; children get a «Young Agronomist» sticker.",
-        ),
         (
             "Farm and plantation walk",
             "Meet three crops — strawberry, blueberry and raspberry. Learn how varieties like Asia, Ania, "
