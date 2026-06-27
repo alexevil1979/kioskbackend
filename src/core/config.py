@@ -171,7 +171,7 @@ class HardwarePrinterConfig:
     qr_raster_width: int = 384
     # Логотип в начале чека (растр ESC/POS, по центру)
     receipt_logo_enabled: bool = True
-    receipt_logo_path: str = "assets/kolomna/logo.webp"
+    receipt_logo_path: str = "assets/kolomna/logo_receipt.png"
     receipt_logo_width: int = 300
 
 

@@ -95,7 +95,7 @@ hardware:
     sample_paid_order_id: 2680
     qr_raster_width: 384
     receipt_logo_enabled: true
-    receipt_logo_path: assets/kolomna/logo.webp
+    receipt_logo_path: assets/kolomna/logo_receipt.png
     receipt_logo_width: 300
     host: "192.168.1.81"
     port: 9100

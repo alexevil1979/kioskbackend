@@ -32,6 +32,7 @@ _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
 _PREVIEW_FONT_PATH = ROOT / "assets" / "fonts" / "Inter-Regular.ttf"
 _LOGO_ALPHA_THRESHOLD = 64
+_LOGO_LUM_THRESHOLD = 218
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +126,7 @@ class PrinterHsK33Service:
     def _load_logo_image(self) -> Image.Image | None:
         if not self._cfg.receipt_logo_enabled:
             return None
-        rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo.webp").strip()
+        rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo_receipt.png").strip()
         path = ROOT / rel
         if not path.is_file():
             return None
@@ -253,7 +254,7 @@ class PrinterHsK33Service:
         img = self._load_logo_image()
         if img is None:
             if self._cfg.receipt_logo_enabled:
-                rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo.webp").strip()
+                rel = (self._cfg.receipt_logo_path or "assets/kolomna/logo_receipt.png").strip()
                 if not (ROOT / rel).is_file():
                     logger.warning("HS-K33: логотип не найден: %s", ROOT / rel)
             return b""
@@ -458,12 +459,26 @@ def _bitmap_1_to_escpos_raster(bitmap: Image.Image) -> bytes:
     return bytes((0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH)) + bytes(raster)
 
 
-def _logo_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
-    """Логотип с прозрачностью: печатаем силуэт по альфа-каналу (светлый RGB иначе невидим)."""
+def _logo_to_bitmap(img: Image.Image, max_width: int) -> Image.Image | None:
+    """Чёрный силуэт на белом: цветной логотип по яркости, светлый — по альфе."""
     img = img.convert("RGBA")
-    alpha = _resize_width(img.split()[3], max_width)
+    img = _resize_width(img, max_width)
+    white = Image.new("RGB", img.size, (255, 255, 255))
+    white.paste(img, mask=img.split()[3])
+    gray = white.convert("L")
+    bitmap = gray.point(lambda x: 0 if x < _LOGO_LUM_THRESHOLD else 255, mode="1")
+    if bitmap.getbbox() is not None:
+        return bitmap
+    alpha = img.split()[3]
     bitmap = alpha.point(lambda a: 0 if a > _LOGO_ALPHA_THRESHOLD else 255, mode="1")
     if bitmap.getbbox() is None:
+        return None
+    return bitmap
+
+
+def _logo_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
+    bitmap = _logo_to_bitmap(img, max_width)
+    if bitmap is None:
         return b""
     return _bitmap_1_to_escpos_raster(bitmap)
 
@@ -484,14 +499,11 @@ def _image_to_escpos_raster(img: Image.Image, max_width: int) -> bytes:
 
 
 def _logo_preview_rgb(img: Image.Image, max_width: int) -> Image.Image | None:
-    img = img.convert("RGBA")
-    img = _resize_width(img, max_width)
-    alpha = img.split()[3]
-    bitmap = alpha.point(lambda a: 0 if a > _LOGO_ALPHA_THRESHOLD else 255, mode="1")
-    if bitmap.getbbox() is None:
+    bitmap = _logo_to_bitmap(img, max_width)
+    if bitmap is None:
         return None
-    out = Image.new("RGB", img.size, "white")
-    ink = Image.new("RGB", img.size, (31, 77, 42))
+    out = Image.new("RGB", bitmap.size, "white")
+    ink = Image.new("RGB", bitmap.size, (0, 0, 0))
     out.paste(ink, mask=bitmap.point(lambda x: 0 if x == 0 else 255, mode="L"))
     return out
 
