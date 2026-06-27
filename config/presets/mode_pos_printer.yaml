@@ -6,7 +6,7 @@ hardware:
   printer:
     enabled: true
     connection: usb
-    windows_name: "Generic / Text Only"
+    windows_name: "XP-80C"
     windows_datatype: RAW
     windows_encoding: cp866
   tbank_terminal:

@@ -82,8 +82,8 @@ hardware:
   printer:
     enabled: true
     connection: usb
-    # Точное имя в «Устройства и принтеры»; пусто — принтер по умолчанию
-    windows_name: "Generic / Text Only"
+    # Драйвер XP-80C (Xprinter, совместим с HS-K33) — spooler RAW, cp866
+    windows_name: "XP-80C"
     windows_datatype: RAW
     windows_encoding: cp866
     windows_codepage_id: -1

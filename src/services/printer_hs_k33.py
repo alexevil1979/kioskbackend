@@ -4,6 +4,7 @@ import logging
 import socket
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 
 from src.core.cart import CartLine
 from src.core.config import HardwarePrinterConfig
@@ -51,29 +52,16 @@ class PrinterHsK33Service:
         return ok
 
     def print_test_receipt(self) -> PrinterProbeResult:
-        """Диагностический чек T1–T3 (игнорирует hardware.printer.enabled)."""
+        """Тестовый чек (игнорирует hardware.printer.enabled)."""
         probe = self.probe()
         if not probe.ok:
             return probe
-        try:
-            payload = self._build_encoding_test_payload()
-            if self._uses_usb():
-                via = self._send_usb(payload)
-            else:
-                self._send_ethernet(payload)
-                via = f"{self._cfg.host}:{self._cfg.port}"
-            self._last_via = via
-            logger.info("HS-K33 тест: %s, %d байт, prefix=%s", via, len(payload), payload[:12].hex())
-            return PrinterProbeResult(
-                ok=True,
-                message=(
-                    f"Диагностика отправлена ({via}). "
-                    "На чеке T1/T2/T3 — какая строка с АБВГ читается?"
-                ),
-            )
-        except OSError as exc:
-            msg = str(exc).strip() or repr(exc)
-            return PrinterProbeResult(ok=False, message=msg, open_ports=probe.open_ports)
+        ok, detail = self._print_text_with_detail(self._format_test_receipt())
+        if ok:
+            via = self._last_via
+            msg = f"Тестовый чек отправлен ({via})." if via else "Тестовый чек отправлен на принтер."
+            return PrinterProbeResult(ok=True, message=msg)
+        return PrinterProbeResult(ok=False, message=detail, open_ports=probe.open_ports)
 
     def probe(self) -> PrinterProbeResult:
         if self._uses_usb():
@@ -166,47 +154,6 @@ class PrinterHsK33Service:
     def _build_payload(self, text: str) -> bytes:
         return self._payload_prefix() + self._encode_body(text) + _ESC_POS_TAIL
 
-    def _build_encoding_test_payload(self) -> bytes:
-        """Три варианта на одном чеке — по мануалу HSPOS."""
-        sample = "АБВГДЕЖ"
-        c866 = sample.encode("cp866")
-        c1251 = sample.encode("cp1251")
-        try:
-            pname = win_print.resolve_printer_name(self._cfg.windows_name)
-            port = (self._cfg.windows_port or "").strip() or win_print.get_printer_port(pname)
-        except OSError:
-            pname, port = self._cfg.windows_name or "?", ""
-
-        meta = (
-            f"printer={pname}\r\n"
-            f"port={port or '?'}\r\n"
-            f"transport={self._usb_transport()}\r\n"
-            f"cfg enc={self._encoding_name()} page={self._codepage_id()}\r\n"
-        ).encode("ascii", errors="replace")
-
-        parts: list[bytes] = [
-            b"*** ENCODING TEST ***\r\n\r\n",
-            meta,
-            b"\r\n",
-            b"T1 plain cp866:\r\n",
-            c866,
-            b"\r\n\r\n",
-            b"\x1b\x74\x07",
-            b"T2 ESC t 7 cp866:\r\n",
-            c866,
-            b"\r\n\r\n",
-            b"\x1b\x74\x06",
-            b"T3 ESC t 6 cp1251:\r\n",
-            c1251,
-            b"\r\n\r\n",
-            b"T4 cfg prefix:\r\n",
-            self._payload_prefix(),
-            c866,
-            b"\r\n",
-            _ESC_POS_TAIL,
-        ]
-        return b"".join(parts)
-
     def _normalize_lines(self, text: str) -> str:
         return text.replace("\r\n", "\n").replace("\n", "\r\n")
 
@@ -297,6 +244,35 @@ class PrinterHsK33Service:
             finally:
                 sock.close()
         return tuple(found)
+
+    def _format_test_receipt(self) -> str:
+        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        if self._uses_usb():
+            try:
+                name = win_print.resolve_printer_name(self._cfg.windows_name)
+                port = (self._cfg.windows_port or "").strip() or win_print.get_printer_port(name)
+                conn_line = f"Принтер: {name}" + (f", порт {port}" if port else "")
+            except OSError:
+                conn_line = f"Принтер Windows: {self._cfg.windows_name or 'по умолчанию'}"
+        else:
+            conn_line = f"Адрес: {self._cfg.host}:{self._cfg.port}"
+        rows = [
+            "=== ТЕСТОВЫЙ ЧЕК ===",
+            "",
+            "Сады Коломны",
+            "Киоск самообслуживания",
+            "",
+            "Принтер: HS-K33",
+            conn_line,
+            "",
+            "Связь: OK",
+            f"Дата: {now}",
+            "",
+            "Спасибо за покупку!",
+            "",
+            "------------------------",
+        ]
+        return "\n".join(rows)
 
     def _format_slip(self, lines: list[CartLine], total: float, order_id: str) -> str:
         rows = ["=== ФЕРМА ===", f"Заказ {order_id}", ""]

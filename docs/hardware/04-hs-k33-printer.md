@@ -43,14 +43,16 @@
 
 ## Если USB к NUC
 
-- Драйвер **HSPOS** (предпочтительно) или **Generic / Text Only** (только как имя очереди).
-- **Не печатать ESC/POS через spooler Generic** — драйвер печатает байты как символы, кириллица и отрезка ломаются.
-- В конфиге `connection: usb`, `windows_usb_transport: spooler` — RAW через драйвер **POS80L/HSPOS** (рекомендуется).
-- Альтернатива: `windows_usb_transport: direct` — байты на `USB001`.
-- Кодировка: **CP866** + `ESC t 7` (мануал HSPOS). CP1251 → `ESC t 6`.
-- Кнопка «Тестовая печать» выводит **T1/T2/T3** — какая строка с «АБВГ» читается, ту связку и оставить в конфиге.
-- Отрезка: `GS V` в конце чека (после подачи ленты).
-- При необходимости вручную: `windows_port: "USB001"` (свойства принтера → Порты).
+Проверено на объекте: драйвер **XP-80C** (Xprinter, 80 mm ESC/POS) + spooler **RAW**.
+
+- **Не использовать** «Generic / Text Only» — кириллица и ESC/POS ломаются.
+- В конфиге:
+  - `windows_name: "XP-80C"` (имя в «Устройства и принтеры»)
+  - `windows_usb_transport: spooler`
+  - `windows_datatype: RAW`
+  - `windows_encoding: cp866`, `windows_escpos_table: true` (ESC t 7 по мануалу HSPOS)
+- Альтернатива: драйвер HSPOS с hsprinter.com.
+- Отрезка: `GS V` в конце чека.
 
 ## Роль в процессе
 
