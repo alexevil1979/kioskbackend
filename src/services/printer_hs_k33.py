@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 import socket
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 
 from src.core.cart import CartLine
 from src.core.config import HardwarePrinterConfig
+from src.services import printer_windows_spooler as win_print
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 _INIT = b"\x1b\x40"
 _CUT = b"\n\n\n\x1dV\x00"
+_FEED = b"\n\n\n\f"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
@@ -27,7 +30,7 @@ class PrinterProbeResult:
 
 
 class PrinterHsK33Service:
-    """Печать нефискальной квитанции (ESC/POS по RAW TCP)."""
+    """Печать нефискальной квитанции: Ethernet RAW TCP или USB (очередь Windows)."""
 
     def __init__(
         self,
@@ -45,27 +48,45 @@ class PrinterHsK33Service:
         return ok
 
     def print_test_receipt(self) -> PrinterProbeResult:
-        """Тестовый чек для проверки связи (игнорирует hardware.printer.enabled)."""
-        if self._cfg.connection != "ethernet":
-            return PrinterProbeResult(
-                ok=False,
-                message="Тестовая печать доступна только при connection=ethernet",
-            )
+        """Тестовый чек (игнорирует hardware.printer.enabled)."""
         probe = self.probe()
         if not probe.ok:
             return probe
         ok, detail = self._print_text_with_detail(self._format_test_receipt())
         if ok:
-            return PrinterProbeResult(
-                ok=True,
-                message="Тестовый чек отправлен на принтер.",
-            )
+            return PrinterProbeResult(ok=True, message="Тестовый чек отправлен на принтер.")
         return PrinterProbeResult(ok=False, message=detail, open_ports=probe.open_ports)
 
     def probe(self) -> PrinterProbeResult:
-        """Проверка TCP до принтера; при ошибке сканирует типовые порты."""
-        if self._cfg.connection != "ethernet":
-            return PrinterProbeResult(ok=False, message="Принтер не в режиме ethernet")
+        if self._uses_usb():
+            return self._probe_usb()
+        return self._probe_ethernet()
+
+    def print_order_slip(self, lines: list[CartLine], total: float, order_id: str) -> bool:
+        if not self._cfg.enabled:
+            return True
+        ok, _ = self._print_text_with_detail(self._format_slip(lines, total, order_id))
+        return ok
+
+    def _uses_usb(self) -> bool:
+        return (self._cfg.connection or "").strip().lower() == "usb"
+
+    def _probe_usb(self) -> PrinterProbeResult:
+        if sys.platform != "win32":
+            return PrinterProbeResult(
+                ok=False,
+                message="USB-печать поддерживается только на Windows",
+            )
+        if not win_print.is_windows_spooler_available():
+            return PrinterProbeResult(ok=False, message="Служба печати Windows недоступна")
+        try:
+            name = win_print.resolve_printer_name(self._cfg.windows_name)
+            win_print.probe_printer(name)
+            return PrinterProbeResult(ok=True, message=f"Принтер Windows: {name}")
+        except OSError as exc:
+            return PrinterProbeResult(ok=False, message=str(exc))
+
+    def _probe_ethernet(self) -> PrinterProbeResult:
         target = f"{self._cfg.host}:{self._cfg.port}"
         try:
             with self._connect():
@@ -89,29 +110,43 @@ class PrinterHsK33Service:
                 detail = f"{detail} (исходящий IP: {self._bind_ip})"
             return PrinterProbeResult(ok=False, message=detail, open_ports=open_ports)
 
-    def print_order_slip(self, lines: list[CartLine], total: float, order_id: str) -> bool:
-        if not self._cfg.enabled:
-            return True
-        if self._cfg.connection != "ethernet":
-            logger.warning("HS-K33: USB-режим не реализован, нужен драйвер HSPOS SDK")
-            return False
-        ok, _ = self._print_text_with_detail(self._format_slip(lines, total, order_id))
-        return ok
-
     def _print_text_with_detail(self, text: str) -> tuple[bool, str]:
-        if self._cfg.connection != "ethernet":
-            return False, "Печать доступна только при connection=ethernet"
-        target = f"{self._cfg.host}:{self._cfg.port}"
         try:
-            payload = _INIT + text.encode("cp866", errors="replace") + _CUT
-            with self._connect() as sock:
-                sock.sendall(payload)
+            payload = self._build_payload(text)
+            if self._uses_usb():
+                self._send_usb(payload)
+                target = self._usb_target_label()
+            else:
+                self._send_ethernet(payload)
+                target = f"{self._cfg.host}:{self._cfg.port}"
             logger.info("HS-K33: напечатано на %s (%d символов)", target, len(text))
             return True, ""
         except OSError as exc:
-            msg = _format_os_error(exc, target)
+            target = self._usb_target_label() if self._uses_usb() else f"{self._cfg.host}:{self._cfg.port}"
+            msg = str(exc).strip() or _format_os_error(exc, target)
             logger.error("HS-K33: ошибка печати %s: %s", target, msg)
             return False, msg
+
+    def _build_payload(self, text: str) -> bytes:
+        body = text.encode("cp866", errors="replace")
+        if self._uses_usb():
+            return body + _FEED
+        return _INIT + body + _CUT
+
+    def _usb_target_label(self) -> str:
+        try:
+            return win_print.resolve_printer_name(self._cfg.windows_name)
+        except OSError:
+            return self._cfg.windows_name or "Windows default"
+
+    def _send_usb(self, payload: bytes) -> None:
+        name = win_print.resolve_printer_name(self._cfg.windows_name)
+        datatype = (self._cfg.windows_datatype or "TEXT").strip().upper() or "TEXT"
+        win_print.print_bytes(name, payload, datatype=datatype)
+
+    def _send_ethernet(self, payload: bytes) -> None:
+        with self._connect() as sock:
+            sock.sendall(payload)
 
     def _connect(self) -> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -148,6 +183,14 @@ class PrinterHsK33Service:
 
     def _format_test_receipt(self) -> str:
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        if self._uses_usb():
+            try:
+                target = win_print.resolve_printer_name(self._cfg.windows_name)
+            except OSError:
+                target = self._cfg.windows_name or "по умолчанию"
+            conn_line = f"Принтер Windows: {target}"
+        else:
+            conn_line = f"Адрес: {self._cfg.host}:{self._cfg.port}"
         rows = [
             "=== ТЕСТОВЫЙ ЧЕК ===",
             "",
@@ -155,7 +198,7 @@ class PrinterHsK33Service:
             "Киоск самообслуживания",
             "",
             "Принтер: HS-K33",
-            f"Адрес: {self._cfg.host}:{self._cfg.port}",
+            conn_line,
             "",
             "Связь: OK",
             f"Дата: {now}",

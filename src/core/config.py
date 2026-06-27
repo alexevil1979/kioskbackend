@@ -147,7 +147,11 @@ class HardwarePrinterConfig:
     enabled: bool = False
     host: str = "192.168.1.101"
     port: int = 9100
-    connection: str = "ethernet"
+    connection: str = "usb"  # usb | ethernet
+    # Имя очереди в Windows («Устройства и принтеры»). Пусто — принтер по умолчанию.
+    windows_name: str = ""
+    # TEXT для Generic / Text Only; RAW для ESC/POS по сети
+    windows_datatype: str = "TEXT"
 
 
 @dataclass

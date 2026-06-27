@@ -787,9 +787,7 @@ class KolomnaAdminPanel(QWidget):
             printer_lay.setContentsMargins(0, 0, 0, 0)
             printer_lay.setSpacing(scale(20, metrics.width))
             pr = settings.hardware.printer
-            self._printer_addr_lbl = QLabel(
-                S.ADMIN_PRINTER_ADDR.format(host=pr.host, port=pr.port)
-            )
+            self._printer_addr_lbl = QLabel(self._printer_addr_text(pr))
             self._printer_addr_lbl.setWordWrap(True)
             self._printer_addr_lbl.setFont(kolomna_font(metrics.fs_label, QFont.Weight.Medium))
             self._printer_addr_lbl.setStyleSheet(
@@ -825,7 +823,7 @@ class KolomnaAdminPanel(QWidget):
                 self._admin_sec(
                     metrics,
                     S.ADMIN_PRINTER_SECTION,
-                    S.ADMIN_PRINTER_HINT,
+                    self._printer_hint_text(pr),
                     _wrap_rounded_card(printer_wrap, metrics),
                 )
             )
@@ -1000,6 +998,21 @@ class KolomnaAdminPanel(QWidget):
         for m, ch in self._layout_choices.items():
             ch.set_active(m == mode)
 
+    @staticmethod
+    def _printer_hint_text(pr) -> str:
+        if (pr.connection or "").strip().lower() == "usb":
+            return S.ADMIN_PRINTER_HINT_USB
+        return S.ADMIN_PRINTER_HINT_ETHERNET
+
+    @staticmethod
+    def _printer_addr_text(pr) -> str:
+        if (pr.connection or "").strip().lower() == "usb":
+            from src.services.printer_windows_spooler import default_printer_name
+
+            name = (pr.windows_name or "").strip() or default_printer_name() or "—"
+            return S.ADMIN_PRINTER_USB.format(name=name)
+        return S.ADMIN_PRINTER_ADDR.format(host=pr.host, port=pr.port)
+
     def _on_printer_test(self) -> None:
         if self._settings is None or self._printer_test_btn is None:
             return
@@ -1043,9 +1056,7 @@ class KolomnaAdminPanel(QWidget):
             self._printer_test_btn.setText(S.ADMIN_PRINTER_TEST)
         if self._printer_addr_lbl is not None and self._settings is not None:
             pr = self._settings.hardware.printer
-            self._printer_addr_lbl.setText(
-                S.ADMIN_PRINTER_ADDR.format(host=pr.host, port=pr.port)
-            )
+            self._printer_addr_lbl.setText(self._printer_addr_text(pr))
 
     def _save(self) -> None:
         self._prefs.show_attract = self._start_toggle.is_on()

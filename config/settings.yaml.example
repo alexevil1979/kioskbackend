@@ -81,9 +81,12 @@ hardware:
     port: 58088
   printer:
     enabled: true
+    connection: usb
+    # Точное имя в «Устройства и принтеры»; пусто — принтер по умолчанию
+    windows_name: "Generic / Text Only"
+    windows_datatype: TEXT
     host: "192.168.1.81"
     port: 9100
-    connection: ethernet  # ethernet | usb
   tbank_terminal:
     host: "192.168.1.102"
     port: 27015
