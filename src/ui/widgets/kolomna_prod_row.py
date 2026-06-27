@@ -270,11 +270,15 @@ PROD_ADD_BTN_PAD_H_PX = 44
 TILE_ADD_BTN_MIN_HEIGHT_PX = 72
 TILE_ADD_BTN_PAD_V_PX = 18
 TILE_ADD_BTN_PAD_H_PX = 32
-TILE_MEDIA_HEIGHT_PX = 340
+
+
+def _tile_col_width(metrics: KolomnaMetrics) -> int:
+    """Ширина колонки в сетке 2×N (menu-grid)."""
+    return max(scale(200, metrics.width), (metrics.width - metrics.gap * 3) // 2)
 
 
 class _TileMediaHost(QFrame):
-    """prod-tile__media: фикс. высота, фото через geometry (без layout-петли 116%)."""
+    """prod-tile__media: квадрат по ширине колонки, фото через geometry."""
 
     def __init__(self, berry: KolomnaBerryArt, media_h: int, border_css: str, parent=None) -> None:
         super().__init__(parent)
@@ -591,8 +595,10 @@ class KolomnaProdTile(QWidget):
         self._product = product
         self._m = metrics
         self._radius = metrics.radius
-        self._media_h = scale(TILE_MEDIA_HEIGHT_PX, metrics.width)
-        self._body_w = max(40, (metrics.width - metrics.gap * 3) // 2 - scale(64, metrics.width))
+        col_w = _tile_col_width(metrics)
+        # Квадратная медиа-зона по ширине колонки — как prod-row 400×400, cover без полей
+        self._media_h = col_w
+        self._body_w = max(40, col_w - scale(64, metrics.width))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumWidth(0)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -613,15 +619,13 @@ class KolomnaProdTile(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        border_css = "QFrame { background: #FFFFFF; border: none; }"
-        col_w = max(scale(200, metrics.width), (metrics.width - metrics.gap * 3) // 2)
+        border_css = f"QFrame {{ background: {CREAM_DEEP}; border: none; }}"
         media = KolomnaBerryArt(
             product,
             col_w,
             self._media_h,
             radius=0,
-            bg="#FFFFFF",
-            img_scale=1.16,
+            bg=CREAM_DEEP,
             fluid_width=True,
             ground_shadow=False,
             fit="cover",
