@@ -14,16 +14,20 @@ logger = logging.getLogger(__name__)
 
 # Документация: docs/hardware/04-hs-k33-printer.md
 
-# ESC @ сбрасывает HS-K33 на PC437 → кириллица «ломается». Самотест: CP866 по умолчанию.
-# Печатаем текст в cp866 без смены code page; отрезка — ESC/POS в конце.
+# ESC @ сбрасывает на PC437 (0xEA → Ω). Самотест CP866 — только после выбора таблицы.
+# Перед текстом: ESC t 17 (CP866), без ESC @. Отрезка — ESC/POS в конце.
+_ESC_R_RUSSIA = b"\x1b\x52\x07"
+_CP866_TABLE = b"\x1b\x74\x11"
+_CP866_PREFIX = _ESC_R_RUSSIA + _CP866_TABLE
+_CP1251_TABLE = b"\x1b\x74\x2e"  # ESC t 46 — WPC1251
+_CP1251_PREFIX = _ESC_R_RUSSIA + _CP1251_TABLE
 _FEED_LINES = b"\x1b\x64\x05"
 # GS V 0 — полная отрезка; GS V 66 n — подача n строк и отрезка (часто надёжнее)
 _CUT_FULL = b"\x1dV\x00"
 _FEED_AND_CUT = b"\x1dV\x42\x05"
 _ESC_POS_TAIL = b"\r\n\r\n" + _FEED_LINES + _FEED_AND_CUT + _CUT_FULL
-# Опционально для принтеров, где нужен явный выбор таблицы (не HS-K33)
+# Опционально: полный сброс перед выбором таблицы (редко нужен)
 _INIT = b"\x1b\x40"
-_CP866_TABLE = b"\x1b\x74\x11"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
 _PROBE_TIMEOUT = 1.5
@@ -131,7 +135,13 @@ class PrinterHsK33Service:
             else:
                 self._send_ethernet(payload)
                 target = f"{self._cfg.host}:{self._cfg.port}"
-            logger.info("HS-K33: напечатано через %s (%d символов)", target, len(text))
+            logger.info(
+                "HS-K33: напечатано через %s (%d символов, enc=%s, prefix=%s)",
+                target,
+                len(text),
+                self._encoding_name(),
+                payload[:8].hex(),
+            )
             return True, ""
         except OSError as exc:
             target = self._usb_target_label() if self._uses_usb() else f"{self._cfg.host}:{self._cfg.port}"
@@ -158,15 +168,17 @@ class PrinterHsK33Service:
         return normalized.encode(enc, errors="replace")
 
     def _payload_prefix(self) -> bytes:
-        """Префикс ESC/POS. HS-K33: пусто (прошивка уже CP866, ESC @ ломает кириллицу)."""
-        if not self._cfg.windows_escpos_codepage:
-            return b""
+        """Выбор code page без ESC @ (сброс переводит HS-K33 на PC437)."""
         enc = self._encoding_name()
         if enc in ("cp866", "866", "dos"):
-            return _INIT + _CP866_TABLE
-        if enc in ("cp1251", "1251", "windows1251"):
-            return _INIT + b"\x1b\x74\x2e"  # ESC t 46 — WPC1251
-        return _INIT
+            table = _CP866_PREFIX
+        elif enc in ("cp1251", "1251", "windows1251"):
+            table = _CP1251_PREFIX
+        else:
+            return b""
+        if self._cfg.windows_escpos_codepage:
+            return _INIT + table
+        return table
 
     def _escpos_payload(self, text: str) -> bytes:
         """Совместимость со старым именем."""
@@ -245,11 +257,14 @@ class PrinterHsK33Service:
             "",
             "Принтер: HS-K33",
             conn_line,
+            f"Кодировка: {self._encoding_name()}",
             "",
             "Связь: OK",
             f"Дата: {now}",
             "",
-            "Если вы видите этот текст —",
+            "АБВГДЕ — проверка кириллицы",
+            "",
+            "Если вы видите этот текст -",
             "печать настроена верно.",
             "",
             "------------------------",
