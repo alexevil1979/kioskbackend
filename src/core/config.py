@@ -152,6 +152,8 @@ class HardwarePrinterConfig:
     windows_name: str = ""
     # TEXT для Generic / Text Only; RAW для ESC/POS по сети
     windows_datatype: str = "TEXT"
+    # Кодировка для USB (Generic / Text Only на русской Windows — cp1251, не cp866)
+    windows_encoding: str = "cp1251"
 
 
 @dataclass

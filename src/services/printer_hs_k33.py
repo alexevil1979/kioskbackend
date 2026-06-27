@@ -128,10 +128,16 @@ class PrinterHsK33Service:
             return False, msg
 
     def _build_payload(self, text: str) -> bytes:
-        body = text.encode("cp866", errors="replace")
+        body = text.encode(self._text_encoding(), errors="replace")
         if self._uses_usb():
             return body + _FEED
         return _INIT + body + _CUT
+
+    def _text_encoding(self) -> str:
+        if self._uses_usb():
+            enc = (self._cfg.windows_encoding or "cp1251").strip()
+            return enc or "cp1251"
+        return "cp866"
 
     def _usb_target_label(self) -> str:
         try:
