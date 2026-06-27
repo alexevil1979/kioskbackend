@@ -87,8 +87,10 @@ hardware:
     windows_datatype: RAW
     windows_encoding: cp866
     windows_codepage_id: -1
-    windows_use_direct_port: true
+    windows_usb_transport: spooler
+    windows_use_direct_port: false
     windows_port: ""
+    windows_escpos_table: true
     windows_escpos_codepage: false
     host: "192.168.1.81"
     port: 9100

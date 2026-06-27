@@ -1,4 +1,4 @@
-"""Печать на принтер Windows: напрямую на USB/COM-порт или через spooler."""
+"""Печать на принтер Windows: spooler RAW или напрямую на USB/COM-порт."""
 from __future__ import annotations
 
 import ctypes
@@ -10,8 +10,12 @@ logger = logging.getLogger(__name__)
 
 if sys.platform == "win32":
     _winspool = ctypes.WinDLL("winspool.drv")
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 else:
     _winspool = None
+    _kernel32 = None
+
+_INVALID_HANDLE = wintypes.HANDLE(-1).value
 
 
 class _DOCINFO1(ctypes.Structure):
@@ -91,11 +95,42 @@ def port_device_path(port_name: str) -> str:
     return f"\\\\.\\{port}"
 
 
-def write_port_raw(port_name: str, data: bytes) -> None:
+def write_port_win32(port_name: str, data: bytes) -> None:
+    """CreateFile + WriteFile — надёжнее open() для USB001 на Windows."""
+    if _kernel32 is None:
+        raise OSError("Win32 API недоступен")
     path = port_device_path(port_name)
-    with open(path, "wb") as stream:
-        stream.write(data)
-        stream.flush()
+    handle = _kernel32.CreateFileW(
+        path,
+        0x40000000,  # GENERIC_WRITE
+        0,
+        None,
+        3,  # OPEN_EXISTING
+        0x80,  # FILE_ATTRIBUTE_NORMAL
+        None,
+    )
+    if handle == _INVALID_HANDLE:
+        raise ctypes.WinError()
+    try:
+        written = wintypes.DWORD(0)
+        buf = (ctypes.c_char * len(data)).from_buffer_copy(data)
+        if not _kernel32.WriteFile(handle, buf, len(data), ctypes.byref(written), None):
+            raise ctypes.WinError()
+        if written.value != len(data):
+            raise OSError(f"Записано {written.value} из {len(data)} байт на {port_name}")
+    finally:
+        _kernel32.CloseHandle(handle)
+
+
+def write_port_raw(port_name: str, data: bytes) -> None:
+    try:
+        write_port_win32(port_name, data)
+    except OSError as exc:
+        logger.warning("Win32 WriteFile на %s: %s — пробуем open()", port_name, exc)
+        path = port_device_path(port_name)
+        with open(path, "wb") as stream:
+            stream.write(data)
+            stream.flush()
 
 
 def probe_printer(printer_name: str) -> str:
@@ -129,6 +164,10 @@ def print_bytes_spooler(printer_name: str, data: bytes, *, datatype: str = "RAW"
                     hprinter, buf, len(data), ctypes.byref(written)
                 ):
                     raise ctypes.WinError()
+                if written.value != len(data):
+                    raise OSError(
+                        f"Spooler записал {written.value} из {len(data)} байт"
+                    )
             finally:
                 _winspool.EndPagePrinter(hprinter)
         finally:
@@ -143,21 +182,36 @@ def print_bytes(
     *,
     datatype: str = "RAW",
     port_override: str = "",
-    use_direct_port: bool = True,
+    transport: str = "spooler",
 ) -> str:
-    """Печать; возвращает способ: direct:USB001 или spooler:RAW."""
+    """Печать; transport: spooler | direct | direct_first."""
+    mode = (transport or "spooler").strip().lower()
     port = (port_override or "").strip() or get_printer_port(printer_name)
-    if use_direct_port and port:
-        try:
-            write_port_raw(port, data)
-            logger.info("Печать напрямую на порт %s (%d байт)", port, len(data))
-            return f"direct:{port}"
-        except OSError as exc:
-            logger.warning("Прямая печать на %s не удалась: %s — spooler", port, exc)
+
+    if mode == "direct":
+        if not port:
+            raise OSError("Не удалось определить порт принтера для прямой печати")
+        write_port_raw(port, data)
+        logger.info("Печать напрямую на порт %s (%d байт)", port, len(data))
+        return f"direct:{port}"
+
+    if mode == "direct_first":
+        if port:
+            try:
+                write_port_raw(port, data)
+                logger.info("Печать напрямую на порт %s (%d байт)", port, len(data))
+                return f"direct:{port}"
+            except OSError as exc:
+                logger.warning("Прямая печать на %s не удалась: %s — spooler", port, exc)
+        print_bytes_spooler(printer_name, data, datatype=datatype)
+        return f"spooler:{datatype}"
+
+    # spooler (по умолчанию — драйвер POS80L/HSPOS)
     print_bytes_spooler(printer_name, data, datatype=datatype)
+    logger.info("Печать через spooler %s RAW (%d байт)", printer_name, len(data))
     return f"spooler:{datatype}"
 
 
-# Совместимость со старым вызовом
+# Совместимость
 def print_bytes_legacy(printer_name: str, data: bytes, *, datatype: str = "TEXT") -> None:
     print_bytes_spooler(printer_name, data, datatype=datatype)

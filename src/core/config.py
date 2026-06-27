@@ -155,10 +155,14 @@ class HardwarePrinterConfig:
     windows_encoding: str = "cp866"
     # HSPOS code page id для ESC t n: 7=CP866, 6=WCP1251 (-1 = авто из windows_encoding)
     windows_codepage_id: int = -1
-    # Писать ESC/POS напрямую на USB/COM-порт (USB001), минуя Generic / Text Only
-    windows_use_direct_port: bool = True
+    # USB: spooler (драйвер POS80L/HSPOS RAW) | direct (USB001) | direct_first
+    windows_usb_transport: str = "spooler"
+    # Устарело: true → direct_first. Лучше windows_usb_transport.
+    windows_use_direct_port: bool = False
     # Вручную: USB001, COM3 — если пусто, берётся из свойств принтера в Windows
     windows_port: str = ""
+    # Отправлять ESC t n перед текстом
+    windows_escpos_table: bool = True
     # True: добавить ESC @ перед ESC t (обычно не нужен на HS-K33)
     windows_escpos_codepage: bool = False
 

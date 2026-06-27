@@ -4,7 +4,6 @@ import logging
 import socket
 import sys
 from dataclasses import dataclass
-from datetime import datetime
 
 from src.core.cart import CartLine
 from src.core.config import HardwarePrinterConfig
@@ -13,17 +12,12 @@ from src.services import printer_windows_spooler as win_print
 logger = logging.getLogger(__name__)
 
 # Документация: docs/hardware/04-hs-k33-printer.md
+# HSPOS ESC/POS: n=7 CP866, n=6 WCP1251 (НЕ Epson n=17 = Greek!)
 
-# HSPOS ESC/POS (hsprinter.com): n=7 CP866, n=6 WCP1251. НЕ Epson n=17/n=46!
-# n=17 у HSPOS = WCP1253 Greek → на чеке были Ω, β. ESC R 7 у HSPOS = Spain, не Россия.
-_CP866_TABLE = b"\x1b\x74\x07"
-_CP1251_TABLE = b"\x1b\x74\x06"
 _FEED_LINES = b"\x1b\x64\x05"
-# GS V 0 — полная отрезка; GS V 66 n — подача n строк и отрезка (часто надёжнее)
 _CUT_FULL = b"\x1dV\x00"
 _FEED_AND_CUT = b"\x1dV\x42\x05"
 _ESC_POS_TAIL = b"\r\n\r\n" + _FEED_LINES + _FEED_AND_CUT + _CUT_FULL
-# Опционально: полный сброс перед выбором таблицы (редко нужен)
 _INIT = b"\x1b\x40"
 _PROBE_PORTS = (9100, 9101, 9200, 6001, 515)
 _CONNECT_TIMEOUT = 8.0
@@ -38,7 +32,7 @@ class PrinterProbeResult:
 
 
 class PrinterHsK33Service:
-    """Печать нефискальной квитанции: Ethernet RAW TCP или USB (порт / spooler)."""
+    """Печать нефискальной квитанции: Ethernet RAW TCP или USB (spooler / порт)."""
 
     def __init__(
         self,
@@ -48,6 +42,7 @@ class PrinterHsK33Service:
     ) -> None:
         self._cfg = config
         self._bind_ip = (bind_ip or "").strip()
+        self._last_via = ""
 
     def print_text(self, text: str) -> bool:
         if not self._cfg.enabled or not text.strip():
@@ -56,14 +51,29 @@ class PrinterHsK33Service:
         return ok
 
     def print_test_receipt(self) -> PrinterProbeResult:
-        """Тестовый чек (игнорирует hardware.printer.enabled)."""
+        """Диагностический чек T1–T3 (игнорирует hardware.printer.enabled)."""
         probe = self.probe()
         if not probe.ok:
             return probe
-        ok, detail = self._print_text_with_detail(self._format_test_receipt())
-        if ok:
-            return PrinterProbeResult(ok=True, message="Тестовый чек отправлен на принтер.")
-        return PrinterProbeResult(ok=False, message=detail, open_ports=probe.open_ports)
+        try:
+            payload = self._build_encoding_test_payload()
+            if self._uses_usb():
+                via = self._send_usb(payload)
+            else:
+                self._send_ethernet(payload)
+                via = f"{self._cfg.host}:{self._cfg.port}"
+            self._last_via = via
+            logger.info("HS-K33 тест: %s, %d байт, prefix=%s", via, len(payload), payload[:12].hex())
+            return PrinterProbeResult(
+                ok=True,
+                message=(
+                    f"Диагностика отправлена ({via}). "
+                    "На чеке T1/T2/T3 — какая строка с АБВГ читается?"
+                ),
+            )
+        except OSError as exc:
+            msg = str(exc).strip() or repr(exc)
+            return PrinterProbeResult(ok=False, message=msg, open_ports=probe.open_ports)
 
     def probe(self) -> PrinterProbeResult:
         if self._uses_usb():
@@ -79,6 +89,12 @@ class PrinterHsK33Service:
     def _uses_usb(self) -> bool:
         return (self._cfg.connection or "").strip().lower() == "usb"
 
+    def _usb_transport(self) -> str:
+        explicit = (self._cfg.windows_usb_transport or "").strip().lower()
+        if explicit in ("spooler", "direct", "direct_first"):
+            return explicit
+        return "direct" if self._cfg.windows_use_direct_port else "spooler"
+
     def _probe_usb(self) -> PrinterProbeResult:
         if sys.platform != "win32":
             return PrinterProbeResult(
@@ -90,11 +106,11 @@ class PrinterHsK33Service:
         try:
             name = win_print.resolve_printer_name(self._cfg.windows_name)
             port = (self._cfg.windows_port or "").strip() or win_print.probe_printer(name)
-            mode = "прямой порт" if self._cfg.windows_use_direct_port and port else "spooler"
+            transport = self._usb_transport()
             port_txt = f", порт {port}" if port else ""
             return PrinterProbeResult(
                 ok=True,
-                message=f"Принтер Windows: {name} ({mode}{port_txt})",
+                message=f"Принтер: {name} ({transport}{port_txt})",
             )
         except OSError as exc:
             return PrinterProbeResult(ok=False, message=str(exc))
@@ -128,16 +144,17 @@ class PrinterHsK33Service:
             payload = self._build_payload(text)
             if self._uses_usb():
                 via = self._send_usb(payload)
-                target = via
             else:
                 self._send_ethernet(payload)
-                target = f"{self._cfg.host}:{self._cfg.port}"
+                via = f"{self._cfg.host}:{self._cfg.port}"
+            self._last_via = via
             logger.info(
-                "HS-K33: напечатано через %s (%d символов, enc=%s, prefix=%s)",
-                target,
-                len(text),
+                "HS-K33: %s, enc=%s, page=%s, prefix=%s, %d симв.",
+                via,
                 self._encoding_name(),
-                payload[:8].hex(),
+                self._codepage_id(),
+                payload[:12].hex(),
+                len(text),
             )
             return True, ""
         except OSError as exc:
@@ -148,6 +165,47 @@ class PrinterHsK33Service:
 
     def _build_payload(self, text: str) -> bytes:
         return self._payload_prefix() + self._encode_body(text) + _ESC_POS_TAIL
+
+    def _build_encoding_test_payload(self) -> bytes:
+        """Три варианта на одном чеке — по мануалу HSPOS."""
+        sample = "АБВГДЕЖ"
+        c866 = sample.encode("cp866")
+        c1251 = sample.encode("cp1251")
+        try:
+            pname = win_print.resolve_printer_name(self._cfg.windows_name)
+            port = (self._cfg.windows_port or "").strip() or win_print.get_printer_port(pname)
+        except OSError:
+            pname, port = self._cfg.windows_name or "?", ""
+
+        meta = (
+            f"printer={pname}\r\n"
+            f"port={port or '?'}\r\n"
+            f"transport={self._usb_transport()}\r\n"
+            f"cfg enc={self._encoding_name()} page={self._codepage_id()}\r\n"
+        ).encode("ascii", errors="replace")
+
+        parts: list[bytes] = [
+            b"*** ENCODING TEST ***\r\n\r\n",
+            meta,
+            b"\r\n",
+            b"T1 plain cp866:\r\n",
+            c866,
+            b"\r\n\r\n",
+            b"\x1b\x74\x07",
+            b"T2 ESC t 7 cp866:\r\n",
+            c866,
+            b"\r\n\r\n",
+            b"\x1b\x74\x06",
+            b"T3 ESC t 6 cp1251:\r\n",
+            c1251,
+            b"\r\n\r\n",
+            b"T4 cfg prefix:\r\n",
+            self._payload_prefix(),
+            c866,
+            b"\r\n",
+            _ESC_POS_TAIL,
+        ]
+        return b"".join(parts)
 
     def _normalize_lines(self, text: str) -> str:
         return text.replace("\r\n", "\n").replace("\n", "\r\n")
@@ -179,15 +237,12 @@ class PrinterHsK33Service:
         return normalized.encode(enc, errors="replace")
 
     def _payload_prefix(self) -> bytes:
-        """ESC t n по мануалу HSPOS; без ESC @ и без ESC R."""
+        if not self._cfg.windows_escpos_table:
+            return b""
         table = self._codepage_table()
         if self._cfg.windows_escpos_codepage:
             return _INIT + table
         return table
-
-    def _escpos_payload(self, text: str) -> bytes:
-        """Совместимость со старым именем."""
-        return self._build_payload(text)
 
     def _usb_target_label(self) -> str:
         try:
@@ -203,7 +258,7 @@ class PrinterHsK33Service:
             payload,
             datatype=datatype,
             port_override=self._cfg.windows_port,
-            use_direct_port=self._cfg.windows_use_direct_port,
+            transport=self._usb_transport(),
         )
 
     def _send_ethernet(self, payload: bytes) -> None:
@@ -242,39 +297,6 @@ class PrinterHsK33Service:
             finally:
                 sock.close()
         return tuple(found)
-
-    def _format_test_receipt(self) -> str:
-        now = datetime.now().strftime("%d.%m.%Y %H:%M")
-        if self._uses_usb():
-            try:
-                name = win_print.resolve_printer_name(self._cfg.windows_name)
-                port = (self._cfg.windows_port or "").strip() or win_print.get_printer_port(name)
-                conn_line = f"Принтер: {name}" + (f", порт {port}" if port else "")
-            except OSError:
-                conn_line = f"Принтер Windows: {self._cfg.windows_name or 'по умолчанию'}"
-        else:
-            conn_line = f"Адрес: {self._cfg.host}:{self._cfg.port}"
-        rows = [
-            "=== ТЕСТОВЫЙ ЧЕК ===",
-            "",
-            "Сады Коломны",
-            "Киоск самообслуживания",
-            "",
-            "Принтер: HS-K33",
-            conn_line,
-            f"Кодировка: {self._encoding_name()} ESC t {self._codepage_id()}",
-            "",
-            "Связь: OK",
-            f"Дата: {now}",
-            "",
-            "АБВГДЕ — проверка кириллицы",
-            "",
-            "Если вы видите этот текст -",
-            "печать настроена верно.",
-            "",
-            "------------------------",
-        ]
-        return "\n".join(rows)
 
     def _format_slip(self, lines: list[CartLine], total: float, order_id: str) -> str:
         rows = ["=== ФЕРМА ===", f"Заказ {order_id}", ""]
