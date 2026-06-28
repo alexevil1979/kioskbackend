@@ -13,8 +13,6 @@ from src.services.product_image_cache import ProductImageCache
 
 logger = logging.getLogger(__name__)
 
-_API_STATUS_POLL_SEC = 30
-
 
 class CatalogStore(QObject):
     """Хранилище каталога с периодическим обновлением."""
@@ -37,10 +35,6 @@ class CatalogStore(QObject):
         self._timer.timeout.connect(self.refresh)
         interval = max(30, settings.catalog.poll_interval_sec) * 1000
         self._timer.start(interval)
-
-        self._api_timer = QTimer(self)
-        self._api_timer.timeout.connect(self._poll_api_status)
-        self._api_timer.start(_API_STATUS_POLL_SEC * 1000)
 
     @property
     def categories(self) -> list[Category]:
@@ -163,7 +157,7 @@ class CatalogStore(QObject):
         self.updated.emit()
 
     def _poll_api_status(self) -> bool:
-        """Лёгкий опрос GET /health для индикатора API (каждые 30 с)."""
+        """GET /health — один раз на каждый refresh каталога."""
         try:
             online = self._crm.is_online()
         except Exception as exc:
