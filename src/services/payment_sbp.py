@@ -119,5 +119,11 @@ class SbpPaymentService:
             logger.error("СБП: не удалось получить чек заказа %s: %s", order_id, exc)
             return None
 
-    def cancel(self, payment_id: str) -> None:
-        logger.info("СБП: отмена %s (ожидание истечения на сервере)", payment_id)
+    def cancel_order(self, order_id: int, reason: str = "customer_cancelled") -> None:
+        if not self._use_api or not order_id:
+            return
+        try:
+            self._crm.cancel_order(order_id, reason)
+            logger.info("СБП: заказ %s отменён на сервере (%s)", order_id, reason)
+        except Exception as exc:
+            logger.warning("СБП: не удалось отменить заказ %s: %s", order_id, exc)

@@ -511,18 +511,26 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, lambda: self._on_sbp_create_done(future, seq))
 
     def _on_sbp_create_done(self, future: Future, seq: int) -> None:
-        if seq != self._sbp_create_seq:
-            return
         if not future.done():
             QTimer.singleShot(50, lambda: self._on_sbp_create_done(future, seq))
             return
-        if self._nav.current != AppScreen.PAYMENT_SBP:
-            return
+
+        abandoned = seq != self._sbp_create_seq
+
         try:
             session = future.result()
         except Exception as exc:
-            logger.exception("СБП: не удалось создать заказ: %s", exc)
-            self._payment_failed(str(exc))
+            if not abandoned and self._nav.current == AppScreen.PAYMENT_SBP:
+                logger.exception("СБП: не удалось создать заказ: %s", exc)
+                self._payment_failed(str(exc))
+            return
+
+        if abandoned or self._nav.current != AppScreen.PAYMENT_SBP:
+            if session.use_api_polling and session.order_id:
+                self._abandon_katusha_order(
+                    "customer_cancelled",
+                    order_id=session.order_id,
+                )
             return
 
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
@@ -581,6 +589,7 @@ class MainWindow(QMainWindow):
     def _cancel_sbp(self) -> None:
         self._mock_sbp_pending = False
         self._sbp_create_seq += 1
+        self._abandon_katusha_order("customer_cancelled")
         sbp_scr = self._screens[AppScreen.PAYMENT_SBP]
         if hasattr(sbp_scr, "stop"):
             sbp_scr.stop()
@@ -685,6 +694,7 @@ class MainWindow(QMainWindow):
         success_scr = self._screens[AppScreen.SUCCESS]
         if hasattr(success_scr, "set_order_no"):
             success_scr.set_order_no(self._success_order_display_id())
+        self._katusha_order_id = 0
 
         def tick(left: int = sec) -> None:
             if left <= 0:
@@ -708,10 +718,25 @@ class MainWindow(QMainWindow):
             return str(self._katusha_order_id)
         return self._order_id
 
+    def _abandon_katusha_order(
+        self,
+        reason: str = "customer_cancelled",
+        *,
+        order_id: int | None = None,
+    ) -> None:
+        oid = order_id if order_id is not None else self._katusha_order_id
+        if not oid or not self._sbp.uses_katusha_api:
+            return
+        if order_id is None or self._katusha_order_id == order_id:
+            self._katusha_order_id = 0
+        self._io_executor.submit(self._sbp.cancel_order, oid, reason)
+
     def _success_order_display_id(self) -> str:
         return self._payment_error_order_id()
 
     def _payment_failed(self, message: str | None = None) -> None:
+        failed_order_id = self._payment_error_order_id()
+        self._abandon_katusha_order("customer_cancelled")
         self._stop_kolomna_success_timer()
         sbp_scr = self._screens.get(AppScreen.PAYMENT_SBP)
         if sbp_scr is not None and hasattr(sbp_scr, "stop"):
@@ -725,7 +750,7 @@ class MainWindow(QMainWindow):
             err_scr.set_content(
                 detail=message,
                 phone=phone,
-                order_id=self._payment_error_order_id(),
+                order_id=failed_order_id,
             )
         elif isinstance(err_scr, PaymentErrorScreen):
             full_message = build_payment_error_message(
@@ -760,6 +785,7 @@ class MainWindow(QMainWindow):
             self._full_reset()
 
     def _full_reset(self) -> None:
+        self._abandon_katusha_order("customer_cancelled")
         self._mock_sbp_pending = False
         self._stop_kolomna_success_timer()
         self._cart.clear()

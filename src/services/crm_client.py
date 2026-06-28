@@ -132,6 +132,9 @@ class CRMClient(ABC):
     def get_order_receipt(self, order_id: int) -> OrderReceiptResult:
         raise NotImplementedError
 
+    def cancel_order(self, order_id: int, reason: str = "customer_cancelled") -> bool:
+        raise NotImplementedError
+
     def get_schedule(self) -> dict[str, Any]:
         return {"schedule_enabled": False, "locations": []}
 
@@ -183,6 +186,10 @@ class MockCRMClient(CRMClient):
             )
             for pid, cat, name, price, stock, unit in items
         ]
+
+    def cancel_order(self, order_id: int, reason: str = "customer_cancelled") -> bool:
+        logger.info("CRM mock: отмена заказа %s (%s)", order_id, reason)
+        return True
 
 
 def _parse_category(row: dict[str, Any]) -> Category | None:
@@ -727,6 +734,20 @@ class HttpCRMClient(CRMClient):
         rows = data.get("products") or []
         prods = [_parse_product(r) for r in rows if isinstance(r, dict)]
         return [p for p in prods if p]
+
+    def cancel_order(self, order_id: int, reason: str = "customer_cancelled") -> bool:
+        if not self._katusha:
+            return super().cancel_order(order_id, reason)
+
+        data = self._post_json(f"/order/{order_id}/cancel", {"reason": reason})
+        ok = bool(data.get("ok", True))
+        logger.info(
+            "CRM /order/%s/cancel: ok=%s reason=%s",
+            order_id,
+            ok,
+            reason,
+        )
+        return ok
 
 
 def create_crm_client(settings: Settings) -> CRMClient:

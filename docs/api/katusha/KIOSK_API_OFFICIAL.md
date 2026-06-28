@@ -143,6 +143,10 @@ https://admin.katushamarket.ru/api/external/kiosk
 | `schedule_location_id` | Из каталога (`is_excursion`) |
 | `child_count` | Дети (бесплатно), опционально |
 
+Поля экскурсии (`pickup_schedule_id`, `schedule_location_id`, `child_count`) передаются **внутри каждого элемента `items[]`** — так шлёт киоск. API также принимает те же поля на верхнем уровне тела (legacy).
+
+Если в заказе **несколько позиций** с полями экскурсии, `pickup_schedule_id`, `schedule_location_id` и `child_count` должны быть **одинаковыми** во всех `items[]`.
+
 | Поле заказа | Значения |
 |-------------|----------|
 | `payment_method` | `"qr_sbp"` или `"card"` |
@@ -223,6 +227,32 @@ https://admin.katushamarket.ru/api/external/kiosk
 
 ---
 
+### `POST /order/{order_id}/cancel`
+
+Отмена неоплаченного заказа (покупатель ушёл с экрана оплаты, таймаут СБП, сброс сессии киоска).
+
+**Тело:**
+
+```json
+{
+  "reason": "customer_cancelled"
+}
+```
+
+**Ответ при успехе (пример):**
+
+```json
+{ "ok": true, "order_id": 1234, "status": "CANCELLED", "cancelled": true }
+```
+
+Киоск вызывает этот метод при:
+- нажатии «Назад» на экране QR СБП;
+- ошибке/таймауте оплаты СБП;
+- полном сбросе сессии (idle, «В меню» с экрана ошибки);
+- уходе с экрана СБП до показа QR, если `order/create` уже успел выполниться.
+
+---
+
 ### `GET /order/{order_id}/receipt`
 
 Текст чека после оплаты.
@@ -298,6 +328,8 @@ https://admin.katushamarket.ru/api/external/kiosk
 4. Показать `qr_code_payload` / `qr_code_image`
 5. `GET /order/{id}/status` каждые 2 с → `paid: true`
 6. `GET /order/{id}/receipt` → печать/успех
+
+При отмене покупателем или таймауте — `POST /order/{id}/cancel` (`reason: "customer_cancelled"`).
 
 ### Карта (терминал)
 

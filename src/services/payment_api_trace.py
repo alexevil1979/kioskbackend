@@ -77,6 +77,9 @@ class PaymentQrApiTrace:
     def should_trace_post(self, path: str, body: dict[str, Any] | None) -> bool:
         if not self._enabled:
             return False
+        norm = path.strip("/")
+        if norm.startswith("order/") and norm.endswith("/cancel"):
+            return True
         return _is_qr_sbp_create(path, body)
 
     def should_trace_get(self, path: str) -> bool:
